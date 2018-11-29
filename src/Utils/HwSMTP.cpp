@@ -7,7 +7,6 @@
 #include "stdafx.h"
 #include "afxstr.h"
 #include "HwSMTP.h"
-#include "SpeedPostEmail.h"
 #include "Windns.h"
 #include <Afxmt.h>
 #include "FormatMessageWrapper.h"
@@ -22,6 +21,11 @@
 #pragma comment(lib, "Rpcrt4.lib")
 #pragma comment(lib, "Secur32.lib")
 
+#ifndef GET_SAFE_STRING
+#define GET_SAFE_STRING(str) ((str) ? (str) : L"")
+#endif
+#define HANDLE_IS_VALID(h) ((HANDLE)(h) != NULL && (HANDLE)(h) != INVALID_HANDLE_VALUE)
+
 DWORD dwProtocol = SP_PROT_TLS1; // SP_PROT_TLS1; // SP_PROT_PCT1; SP_PROT_SSL2; SP_PROT_SSL3; 0=default
 ALG_ID aiKeyExch = 0; // = default; CALG_DH_EPHEM; CALG_RSA_KEYX;
 
@@ -31,6 +35,74 @@ PSecurityFunctionTable g_pSSPI;
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
+
+static CString FormatDateTime(COleDateTime& DateTime)
+{
+	// If null, return empty string
+	if (DateTime.GetStatus() == COleDateTime::null || DateTime.GetStatus() == COleDateTime::invalid)
+		return L"";
+
+	UDATE ud;
+	if (S_OK != VarUdateFromDate(DateTime.m_dt, 0, &ud))
+		return L"";
+
+	static TCHAR* weeks[] = { L"Sun", L"Mon", L"Tue", L"Wen", L"Thu", L"Fri", L"Sat" };
+	static TCHAR* month[] = { L"Jan", L"Feb", L"Mar", L"Apr", L"May", L"Jun", L"Jul", L"Aug", L"Sep", L"Oct", L"Nov", L"Dec" };
+
+	TIME_ZONE_INFORMATION stTimeZone;
+	GetTimeZoneInformation(&stTimeZone);
+
+	CString strDate;
+	strDate.Format(L"%s, %d %s %d %02d:%02d:%02d %c%04d", weeks[ud.st.wDayOfWeek],
+				   ud.st.wDay, month[ud.st.wMonth - 1], ud.st.wYear, ud.st.wHour,
+				   ud.st.wMinute, ud.st.wSecond,
+				   stTimeZone.Bias > 0 ? L'-' : L'+',
+				   abs(stTimeZone.Bias * 10 / 6));
+	return strDate;
+}
+
+static int GetFileSize(LPCTSTR lpFileName)
+{
+	if (!lpFileName || lstrlen(lpFileName) < 1)
+		return -1;
+
+	CFileStatus fileStatus = { 0 };
+	memset(fileStatus.m_szFullName, 0, sizeof(fileStatus.m_szFullName));
+	try
+	{
+		CFile::GetStatus(lpFileName, fileStatus);
+	}
+	catch (CException&)
+	{
+		ASSERT(FALSE);
+	}
+
+	return (int)fileStatus.m_size;
+}
+
+static CString FormatBytes(double fBytesNum, BOOL bShowUnit = TRUE , int nFlag = 0)
+{
+	CString csRes;
+	if (nFlag == 0)
+	{
+		if (fBytesNum >= 1024.0 && fBytesNum < 1024.0 * 1024.0)
+			csRes.Format(L"%.2f%s", fBytesNum / 1024.0, bShowUnit ? L" K" : L"");
+		else if (fBytesNum >= 1024.0 * 1024.0 && fBytesNum < 1024.0 * 1024.0 * 1024.0)
+			csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0), bShowUnit ? L" M" : L"");
+		else if (fBytesNum >= 1024.0 * 1024.0 * 1024.0)
+			csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0 * 1024.0), bShowUnit ? L" G" : L"");
+		else
+			csRes.Format(L"%.2f%s", fBytesNum, bShowUnit ? L" B" : L"");
+	}
+	else if (nFlag == 1)
+		csRes.Format(L"%.2f%s", fBytesNum / 1024.0, bShowUnit ? L" K" : L"");
+	else if (nFlag == 2)
+		csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0), bShowUnit ? L" M" : L"");
+	else if (nFlag == 3)
+		csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0 * 1024.0), bShowUnit ? L" G" : L"");
+
+	return csRes;
+}
 
 static CString GetGUID()
 {
@@ -56,7 +128,6 @@ CHwSMTP::CHwSMTP () :
 	m_csPartBoundary = L"NextPart_" + GetGUID();
 	m_csMIMEContentType.Format(L"multipart/mixed; boundary=%s", (LPCTSTR)m_csPartBoundary);
 	m_csNoMIMEText = L"This is a multi-part message in MIME format.";
-	//m_csCharSet = L"\r\n\tcharset=\"iso-8859-1\"\r\n";
 
 	hContext = nullptr;
 	hCreds = nullptr;
@@ -89,7 +160,6 @@ BOOL CHwSMTP::SendSpeedEmail
 			LPCTSTR	lpszAddrTo,
 			LPCTSTR	lpszSubject,
 			LPCTSTR	lpszBody,
-			LPCTSTR	lpszCharSet,
 			CStringArray *pStrAryAttach,
 			LPCTSTR	pStrAryCC,
 			LPCTSTR	pSend
@@ -110,23 +180,18 @@ BOOL CHwSMTP::SendSpeedEmail
 		if(one.IsEmpty())
 			continue;
 
-		CString addr;
-		addr = GetServerAddress(one);
+		CString addr = GetServerAddress(one);
 		if(addr.IsEmpty())
 			continue;
 
 		Address[addr].push_back(one);
-
 	}
 
-	std::map<CString,std::vector<CString>>::iterator itr1  =  Address.begin();
-	for(  ;  itr1  !=  Address.end();  ++itr1 )
+	for (const auto& maildomain : Address)
 	{
 		PDNS_RECORD pDnsRecord;
-		PDNS_RECORD pNext;
-
 		DNS_STATUS status =
-		DnsQuery(itr1->first ,
+		DnsQuery(maildomain.first,
 						DNS_TYPE_MX,DNS_QUERY_STANDARD,
 						nullptr,		//Contains DNS server IP address.
 						&pDnsRecord,	//Resource record that contains the response.
@@ -138,32 +203,28 @@ BOOL CHwSMTP::SendSpeedEmail
 			ret = false;
 			continue;
 		}
+		SCOPE_EXIT { DnsRecordListFree(pDnsRecord, DnsFreeRecordList); };
 
 		CString to;
-		to.Empty();
-		for (size_t i = 0; i < itr1->second.size(); ++i)
-		{
-			to+=itr1->second[i];
+		std::for_each(maildomain.second.cbegin(), maildomain.second.cend(), [&to](auto recipient) {
+			to += recipient;
 			to += L';';
-		}
+		});
 		if(to.IsEmpty())
 			continue;
 
-		pNext=pDnsRecord;
+		PDNS_RECORD pNext = pDnsRecord;
 		while(pNext)
 		{
 			if(pNext->wType == DNS_TYPE_MX)
 				if (SendEmail(pNext->Data.MX.pNameExchange, nullptr, nullptr, false,
-					lpszAddrFrom,to,lpszSubject,lpszBody,lpszCharSet,pStrAryAttach,pStrAryCC,
+					lpszAddrFrom, to, lpszSubject, lpszBody, pStrAryAttach, pStrAryCC,
 					25,pSend,lpszAddrTo))
 					break;
 			pNext=pNext->pNext;
 		}
 		if (!pNext)
 			ret = false;
-
-		if (pDnsRecord)
-			DnsRecordListFree(pDnsRecord,DnsFreeRecordList);
 	}
 
 	return ret;
@@ -699,7 +760,6 @@ BOOL CHwSMTP::SendEmail (
 		LPCTSTR lpszAddrTo,
 		LPCTSTR lpszSubject,
 		LPCTSTR lpszBody,
-		LPCTSTR lpszCharSet,						// ×Ö·û¼¯ÀàÐÍ£¬ÀýÈç£º·±ÌåÖÐÎÄÕâÀïÓ¦ÊäÈë"big5"£¬¼òÌåÖÐÎÄÊ±ÊäÈë"gb2312"
 		CStringArray* pStrAryAttach/*=nullptr*/,
 		LPCTSTR pStrAryCC/*=nullptr*/,
 		UINT nSmtpSrvPort,/*=25*/
@@ -710,7 +770,7 @@ BOOL CHwSMTP::SendEmail (
 {
 	m_StrAryAttach.RemoveAll();
 
-	m_StrCC += GET_SAFE_STRING(pStrAryCC);
+	m_StrCC = GET_SAFE_STRING(pStrAryCC);
 
 	m_csSmtpSrvHost = GET_SAFE_STRING ( lpszSmtpSrvHost );
 	if ( m_csSmtpSrvHost.GetLength() <= 0 )
@@ -729,8 +789,6 @@ BOOL CHwSMTP::SendEmail (
 
 	m_csAddrFrom = GET_SAFE_STRING ( lpszAddrFrom );
 	m_csAddrTo = GET_SAFE_STRING ( lpszAddrTo );
-//	m_csFromName = GET_SAFE_STRING ( lpszFromName );
-//	m_csReceiverName = GET_SAFE_STRING ( lpszReceiverName );
 	m_csSubject = GET_SAFE_STRING ( lpszSubject );
 	m_csBody = GET_SAFE_STRING ( lpszBody );
 
@@ -738,9 +796,6 @@ BOOL CHwSMTP::SendEmail (
 	this->m_csToList = GET_SAFE_STRING(pToList);
 
 	m_nSmtpSrvPort = nSmtpSrvPort;
-
-	if (lpszCharSet && lpszCharSet[0])
-		m_csCharSet.Format(L"\r\n\tcharset=\"%s\"\r\n", lpszCharSet);
 
 	if	(
 			m_csAddrFrom.GetLength() <= 0 || m_csAddrTo.GetLength() <= 0
@@ -755,7 +810,7 @@ BOOL CHwSMTP::SendEmail (
 		m_StrAryAttach.Append ( *pStrAryAttach );
 	}
 	if ( m_StrAryAttach.GetSize() < 1 )
-		m_csMIMEContentType.Format(L"text/plain; %s", (LPCTSTR)m_csCharSet);
+		m_csMIMEContentType.Format(L"text/plain");
 
 	// ´´½¨Socket
 	m_SendSock.Close();
@@ -793,8 +848,6 @@ BOOL CHwSMTP::SendEmail (
 			return FALSE;
 		m_iSecurityLevel = tls_established;
 	}
-
-	BOOL ret = FALSE;
 
 	SecBuffer ExtraData;
 	SECURITY_STATUS Status;
@@ -874,7 +927,7 @@ BOOL CHwSMTP::SendEmail (
 		m_bConnected = TRUE;
 	}
 
-	ret = SendEmail();
+	auto ret = SendEmail();
 
 cleanup:
 	if (m_iSecurityLevel >= ssl)
@@ -1122,9 +1175,7 @@ BOOL CHwSMTP::SendSubject(const CString &hostname)
 	csSubject += L"Date: ";
 	COleDateTime tNow = COleDateTime::GetCurrentTime();
 	if ( tNow > 1 )
-	{
-		csSubject += FormatDateTime(tNow, L"%a, %d %b %y %H:%M:%S %Z");
-	}
+		csSubject += FormatDateTime(tNow);
 	csSubject += L"\r\n";
 	csSubject.AppendFormat(L"From: %s\r\n", (LPCTSTR)m_csAddrFrom);
 
@@ -1163,7 +1214,7 @@ BOOL CHwSMTP::SendBody()
 	{
 		csBody.AppendFormat(L"%s\r\n\r\n", (LPCTSTR)m_csNoMIMEText);
 		csBody.AppendFormat(L"--%s\r\n", (LPCTSTR)m_csPartBoundary);
-		csBody.AppendFormat(L"Content-Type: text/plain\r\n%sContent-Transfer-Encoding: UTF-8\r\n\r\n", (LPCTSTR)m_csCharSet);
+		csBody.AppendFormat(L"Content-Type: text/plain\r\nContent-Transfer-Encoding: UTF-8\r\n\r\n");
 	}
 
 	m_csBody.Replace(L"\n.\n", L"\n..\n");
@@ -1203,7 +1254,7 @@ BOOL CHwSMTP::SendOnAttach(LPCTSTR lpszFileName)
 	csAttach.AppendFormat(L"Content-Transfer-Encoding: base64\r\n");
 	csAttach.AppendFormat(L"Content-Disposition: attachment; filename=%s\r\n\r\n", (LPCTSTR)csShortFileName);
 
-	DWORD dwFileSize =  hwGetFileAttr(lpszFileName);
+	auto dwFileSize = GetFileSize(lpszFileName);
 	if ( dwFileSize > 5*1024*1024 )
 	{
 		m_csLastError.Format(L"File [%s] too big. File size is : %s", lpszFileName, (LPCTSTR)FormatBytes(dwFileSize));
@@ -1245,100 +1296,4 @@ BOOL CHwSMTP::SendOnAttach(LPCTSTR lpszFileName)
 CString CHwSMTP::GetLastErrorText()
 {
 	return m_csLastError;
-}
-
-
-CString FormatDateTime (COleDateTime &DateTime, LPCTSTR /*pFormat*/)
-{
-	// If null, return empty string
-	if ( DateTime.GetStatus() == COleDateTime::null || DateTime.GetStatus() == COleDateTime::invalid )
-		return L"";
-
-	UDATE ud;
-	if (S_OK != VarUdateFromDate(DateTime.m_dt, 0, &ud))
-	{
-		return L"";
-	}
-
-	static TCHAR* weeks[] = { L"Sun", L"Mon", L"Tue", L"Wen", L"Thu", L"Fri", L"Sat" };
-	static TCHAR* month[] = { L"Jan", L"Feb", L"Mar", L"Apr", L"May", L"Jun", L"Jul", L"Aug", L"Sep", L"Oct", L"Nov", L"Dec" };
-
-	TIME_ZONE_INFORMATION stTimeZone;
-	GetTimeZoneInformation(&stTimeZone);
-
-	CString strDate;
-	strDate.Format(L"%s, %d %s %d %02d:%02d:%02d %c%04d"
-		,weeks[ud.st.wDayOfWeek],
-		ud.st.wDay,month[ud.st.wMonth-1],ud.st.wYear,ud.st.wHour,
-		ud.st.wMinute,ud.st.wSecond,
-		stTimeZone.Bias > 0 ? L'-' : L'+',
-		abs(stTimeZone.Bias*10/6)
-		);
-	return strDate;
-}
-
-int hwGetFileAttr(LPCTSTR lpFileName, OUT CFileStatus* pFileStatus/*=nullptr*/)
-{
-	if ( !lpFileName || lstrlen(lpFileName) < 1 ) return -1;
-
-	CFileStatus fileStatus;
-	fileStatus.m_attribute = 0;
-	fileStatus.m_size = 0;
-	memset ( fileStatus.m_szFullName, 0, sizeof(fileStatus.m_szFullName) );
-	BOOL bRet = FALSE;
-	TRY
-	{
-		if ( CFile::GetStatus(lpFileName,fileStatus) )
-		{
-			bRet = TRUE;
-		}
-	}
-	CATCH (CFileException, e)
-	{
-		ASSERT ( FALSE );
-		bRet = FALSE;
-	}
-	CATCH_ALL(e)
-	{
-		ASSERT ( FALSE );
-		bRet = FALSE;
-	}
-	END_CATCH_ALL;
-
-	if ( pFileStatus )
-	{
-		pFileStatus->m_ctime = fileStatus.m_ctime;
-		pFileStatus->m_mtime = fileStatus.m_mtime;
-		pFileStatus->m_atime = fileStatus.m_atime;
-		pFileStatus->m_size = fileStatus.m_size;
-		pFileStatus->m_attribute = fileStatus.m_attribute;
-		lstrcpy ( pFileStatus->m_szFullName, fileStatus.m_szFullName );
-
-	}
-
-	return (int)fileStatus.m_size;
-}
-
-CString FormatBytes ( double fBytesNum, BOOL bShowUnit/*=TRUE*/, int nFlag/*=0*/ )
-{
-	CString csRes;
-	if ( nFlag == 0 )
-	{
-		if ( fBytesNum >= 1024.0 && fBytesNum < 1024.0*1024.0 )
-			csRes.Format(L"%.2f%s", fBytesNum / 1024.0, bShowUnit ? L" K" : L"");
-		else if ( fBytesNum >= 1024.0*1024.0 && fBytesNum < 1024.0*1024.0*1024.0 )
-			csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0), bShowUnit ? L" M" : L"");
-		else if ( fBytesNum >= 1024.0*1024.0*1024.0 )
-			csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0 * 1024.0), bShowUnit?L" G":L"");
-		else
-			csRes.Format(L"%.2f%s", fBytesNum, bShowUnit ? L" B" : L"");
-	}
-	else if ( nFlag == 1 )
-		csRes.Format(L"%.2f%s", fBytesNum / 1024.0, bShowUnit ? L" K" : L"");
-	else if ( nFlag == 2 )
-		csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0), bShowUnit ? L" M" : L"");
-	else if ( nFlag == 3 )
-		csRes.Format(L"%.2f%s", fBytesNum / (1024.0 * 1024.0 * 1024.0), bShowUnit ? L" G" : L"");
-
-	return csRes;
 }
