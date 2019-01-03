@@ -327,6 +327,7 @@
 
 					<RegistryValue Root="HKLM" Key="Software\RegisteredApplications" Name="TortoiseGit" Value="Software\TortoiseGit\Capabilities" Type="string" />
 					<RegistryKey Root="HKLM" Key="Software\TortoiseGit\Capabilities" />
+					<RegistryKey Root="HKLM" Key="Software\TortoiseGit\Capabilities\FileAssociations" />
 					<RegistryKey Root="HKLM" Key="Software\TortoiseGit\Capabilities\UrlAssociations" />
 					<RegistryValue Root="HKLM" Key="Software\TortoiseGit\Capabilities\UrlAssociations" Name="tgit" Value="TortoiseGitURL" Type="string" />
 					<RegistryValue Root="HKLM" Key="Software\TortoiseGit\Capabilities\UrlAssociations" Name="github-windows" Value="TortoiseGitURL" Type="string" />
@@ -743,47 +744,35 @@
 					</Component>
 					<?endif ?>
 
-					<Component Id="PermanentProtocols" Permanent="yes" Guid="$(var.GuidPermanentProtocols)" Win64="$(var.Win64YesNo)">
-						<RegistryValue Root="HKLM" Key="Software\Classes\github-windows" Value="URL: GitHub-Windows Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\github-windows" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\x-github-client" Value="URL: X-GitHub-Client Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\x-github-client" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\smartgit" Value="URL: SmartGit Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\smartgit" Name="URL Protocol" Value="" Type="string"/>
+					<Component Id="ProtocolTGit" Guid="$(var.GuidProtocolTGit)" Win64="$(var.Win64YesNo)">
 						<RegistryValue Root="HKLM" Key="Software\Classes\tgit" Value="URL: TGit Protocol" Type="string" />
 						<RegistryValue Root="HKLM" Key="Software\Classes\tgit" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\git" Value="URL: Git Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\git" Name="URL Protocol" Value="" Type="string"/>
-					</Component>
-					<Component Id="ProtocolTGit" Guid="$(var.GuidProtocolTGit)" Win64="$(var.Win64YesNo)">
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.tgit.protocol" Value="URL: TGit Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.tgit.protocol" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.tgit.protocol\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.tgit.protocol\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\tgit\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\tgit\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
 					</Component>
 					<Component Id="ProtocolGit" Guid="$(var.GuidProtocolGit)" Win64="$(var.Win64YesNo)">
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.git.protocol" Value="URL: Git Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.git.protocol" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.git.protocol\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.git.protocol\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /command:clone /url:&quot;%1&quot;" Type="string" KeyPath="yes"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\git" Value="URL: Git Protocol" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\git" Name="URL Protocol" Value="" Type="string"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\git\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\git\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /command:clone /url:&quot;%1&quot;" Type="string" KeyPath="yes"/>
 					</Component>
 					<Component Id="ProtocolGithub" Guid="$(var.GuidProtocolGithub)" Win64="$(var.Win64YesNo)">
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.github-windows.protocol" Value="URL: GitHub-Windows Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.github-windows.protocol" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.github-windows.protocol\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.github-windows.protocol\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\github-windows" Value="URL: Github-Windows Protocol" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\github-windows" Name="URL Protocol" Value="" Type="string"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\github-windows\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\github-windows\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
 					</Component>
 					<Component Id="ProtocolXGithubClient" Guid="$(var.GuidProtocolXGithubClient)" Win64="$(var.Win64YesNo)">
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.x-github-client.protocol" Value="URL: X-GitHub-Client Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.x-github-client.protocol" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.x-github-client.protocol\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.x-github-client.protocol\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\x-github-client" Value="URL: X-Github-Client Protocol" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\x-github-client" Name="URL Protocol" Value="" Type="string"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\x-github-client\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\x-github-client\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
 					</Component>
 					<Component Id="ProtocolSmartgit" Guid="$(var.GuidProtocolSmartgit)" Win64="$(var.Win64YesNo)">
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.smartgit.protocol" Value="URL: SmartGit Protocol" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.smartgit.protocol" Name="URL Protocol" Value="" Type="string"/>
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.smartgit.protocol\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
-						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.smartgit.protocol\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\smartgit" Value="URL: Smartgit Protocol" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\smartgit" Name="URL Protocol" Value="" Type="string"/>
+						<RegistryValue Root="HKLM" Key="Software\Classes\smartgit\DefaultIcon" Value="[INSTALLDIR]bin\TortoiseGitProc.exe,0" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\smartgit\shell\open\command" Value="&quot;[INSTALLDIR]bin\TortoiseGitProc.exe&quot; /urlhandler:&quot;%1&quot;" Type="string" KeyPath="yes"/>
 					</Component>
 
 					<Component Id="C__TortoiseGitTools" Guid="$(var.GuidTortoiseGitTools)" Win64="$(var.Win64YesNo)">
@@ -804,7 +793,7 @@
 						<File Id="F__GitWCRev" Name="GitWCRev.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\GitWCRev.exe" />
 						<File Id="F__GitWCRevCOM" Name="GitWCRevCOM.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\GitWCRevCOM.exe" />
 
-						<!-- set paths we use to find the executables -->
+						<!-- App Paths to support Start, Run -->
 						<RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\GitWCRev.exe" />
 						<RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\GitWCRev.exe" Name="Path" Value="[INSTALLDIR]bin" Type="string" />
 						<RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\GitWCRev.exe" Value="[INSTALLDIR]bin\GitWCRev.exe" Type="string" />
@@ -843,7 +832,7 @@
 
 					<?if $(var.Platform) = "x64" ?>
 					<Component Id="C__TortoiseGitGitWCRev32" Guid="$(var.GuidTortoiseGitGitWCRev32)" Win64="no">
-						<!-- set paths we use to find the executables -->
+						<!-- App Paths to support Start, Run -->
 						<RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\GitWCRev.exe" />
 						<RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\GitWCRev.exe" Name="Path" Value="[INSTALLDIR]bin" Type="string" />
 						<RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\GitWCRev.exe" Value="[INSTALLDIR]bin\GitWCRev.exe" Type="string" />
@@ -917,15 +906,32 @@
 
 					<Component Id="C__TortoiseUDiff" Guid="$(var.GuidTortoiseUDiff)" Win64="$(var.Win64YesNo)">
 						<File Id="F__TortoiseUDiff" Name="TortoiseGitUDiff.exe" DiskId="1" Source="..\..\bin\$(var.ReleasePath)\bin\TortoiseGitUDiff.exe" KeyPath="yes" />
+
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.diff.document" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.diff.document" Value="Diff File" Type="string" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.diff.document\shell" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.diff.document\shell\open" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.diff.document\shell\open\command" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.diff.document\shell\open\command" Value="[INSTALLDIR]bin\TortoiseGitUDiff.exe /patchfile:&quot;%1&quot;" Type="string" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.patch.document" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.patch.document" Value="Patch File" Type="string" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.patch.document\shell" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.patch.document\shell\open" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\tortoisegit.patch.document\shell\open\command" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\tortoisegit.patch.document\shell\open\command" Value="[INSTALLDIR]bin\TortoiseGitUDiff.exe /patchfile:&quot;%1&quot;" Type="string" />
+
+						<RegistryValue Root="HKLM" Key="Software\TortoiseGit\Capabilities\FileAssociations" Name=".diff" Value="tortoisegit.diff.document" Type="string" />
+						<RegistryValue Root="HKLM" Key="Software\TortoiseGit\Capabilities\FileAssociations" Name=".patch" Value="tortoisegit.patch.document" Type="string" />
+
+						<RegistryKey Root="HKLM" Key="Software\Classes\.diff\OpenWithProgids" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\.diff\OpenWithProgids" Name="tortoisegit.diff.document" Value="" Type="string" />
+						<RegistryKey Root="HKLM" Key="Software\Classes\.patch\OpenWithProgids" />
+						<RegistryValue Root="HKLM" Key="Software\Classes\.patch\OpenWithProgids" Name="tortoisegit.patch.document" Value="" Type="string" />
 					</Component>
 
 					<Component Id="C__TortoiseUDiffAssoc" Guid="$(var.GuidTortoiseUDiffAssoc)" Win64="$(var.Win64YesNo)">
-						<RegistryKey Root="HKMU" Key="Software\Classes\.diff" />
-						<RegistryValue Root="HKMU" Key="Software\Classes\.diff" KeyPath="yes" Value="unified_diff_file" Type="string" />
-						<RegistryKey Root="HKMU" Key="Software\Classes\.patch" />
-						<RegistryValue Root="HKMU" Key="Software\Classes\.patch" Value="unified_diff_file" Type="string" />
-						<RegistryKey Root="HKMU" Key="Software\Classes\unified_diff_file\shell\open\command" />
-						<RegistryValue Root="HKMU" Key="Software\Classes\unified_diff_file\shell\open\command" Value="[INSTALLDIR]bin\TortoiseGitUDiff.exe /patchfile:&quot;%1&quot;" Type="string" />
+						<RegistryValue Root="HKMU" Key="Software\Classes\.patch" Value="tortoisegit.patch.document" Type="string" />
+						<RegistryValue Root="HKMU" Key="Software\Classes\.diff" KeyPath="yes" Value="tortoisegit.diff.document" Type="string" />
 					</Component>
 
 					<Component Id="C_LanguagePacks" Guid="$(var.GuidRemoveLanguagePacks)" Win64="$(var.Win64YesNo)" >

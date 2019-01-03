@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016 - TortoiseGit
+// Copyright (C) 2008-2016, 2018 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
-#define MAX_LOADSTRING 100
+#define MAX_LOADSTRING 256
 
 // Global Variables:
 HINSTANCE hInst;								// current instance
@@ -80,7 +80,15 @@ int APIENTRY _tWinMain(HINSTANCE	/*hInstance*/,
 
 	if (DialogBox(hInst, MAKEINTRESOURCE(IDD_ASK_PASSWORD), nullptr, PasswdDlg) == IDOK)
 	{
-		printf("%s\n", CUnicodeUtils::StdGetUTF8(g_PassWord).c_str());
+		auto len = (int)_tcslen(g_PassWord);
+		auto size = len * 4 + 1;
+		auto buf = new char[size];
+		auto ret = WideCharToMultiByte(CP_UTF8, 0, g_PassWord, len, buf, size - 1, nullptr, nullptr);
+		buf[ret] = '\0';
+		printf("%s\n", buf);
+		SecureZeroMemory(buf, size);
+		delete[] buf;
+		SecureZeroMemory(&g_PassWord, sizeof(g_PassWord));
 		return 0;
 	}
 	wprintf(L"\n");
@@ -130,6 +138,7 @@ INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lPar
 			::MoveWindow(hDlg,x,y,rect.right-rect.left,rect.bottom-rect.top,TRUE);
 			HWND title = ::GetDlgItem(hDlg, IDC_STATIC_TITLE);
 			::SetWindowText(title, g_Prompt);
+			SendMessage(::GetDlgItem(hDlg, IDC_PASSWORD), EM_SETLIMITTEXT, MAX_LOADSTRING - 1, 0);
 			if (!StrStrI(g_Prompt, L"pass"))
 				SendMessage(::GetDlgItem(hDlg, IDC_PASSWORD), EM_SETPASSWORDCHAR, 0, 0);
 			::FlashWindow(hDlg, TRUE);
@@ -140,11 +149,18 @@ INT_PTR CALLBACK PasswdDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM /*lPar
 
 		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 		{
-			if( LOWORD(wParam) == IDOK )
-			{
-				HWND password = ::GetDlgItem(hDlg,IDC_PASSWORD);
-				::GetWindowText(password,g_PassWord,MAX_LOADSTRING);
-			}
+			HWND password = ::GetDlgItem(hDlg, IDC_PASSWORD);
+			if (LOWORD(wParam) == IDOK)
+				::GetWindowText(password, g_PassWord, MAX_LOADSTRING);
+
+			// overwrite textfield contents with garbage in order to wipe the cache
+			TCHAR gargabe[MAX_LOADSTRING];
+			wmemset(gargabe, L'*', _countof(gargabe));
+			gargabe[_countof(gargabe) - 1] = L'\0';
+			::SetWindowText(password, gargabe);
+			gargabe[0] = L'\0';
+			::SetWindowText(password, gargabe);
+
 			EndDialog(hDlg, LOWORD(wParam));
 			return (INT_PTR)TRUE;
 		}

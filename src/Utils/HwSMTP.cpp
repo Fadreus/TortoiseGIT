@@ -124,6 +124,7 @@ CHwSMTP::CHwSMTP () :
 	m_bConnected ( FALSE ),
 	m_nSmtpSrvPort ( 25 ),
 	m_bMustAuth ( TRUE )
+	, m_credentials(nullptr)
 {
 	m_csPartBoundary = L"NextPart_" + GetGUID();
 	m_csMIMEContentType.Format(L"multipart/mixed; boundary=%s", (LPCTSTR)m_csPartBoundary);
@@ -217,7 +218,7 @@ BOOL CHwSMTP::SendSpeedEmail
 		while(pNext)
 		{
 			if(pNext->wType == DNS_TYPE_MX)
-				if (SendEmail(pNext->Data.MX.pNameExchange, nullptr, nullptr, false,
+				if (SendEmail(pNext->Data.MX.pNameExchange, nullptr, false,
 					lpszAddrFrom, to, lpszSubject, lpszBody, pStrAryAttach, pStrAryCC,
 					25,pSend,lpszAddrTo))
 					break;
@@ -753,8 +754,7 @@ static SECURITY_STATUS ReadDecrypt(CSocket * Socket, PCredHandle phCreds, CtxtHa
 
 BOOL CHwSMTP::SendEmail (
 		LPCTSTR lpszSmtpSrvHost,
-		LPCTSTR lpszUserName,
-		LPCTSTR lpszPasswd,
+		CCredentials* credentials,
 		BOOL bMustAuth,
 		LPCTSTR lpszAddrFrom,
 		LPCTSTR lpszAddrTo,
@@ -778,10 +778,9 @@ BOOL CHwSMTP::SendEmail (
 		m_csLastError = L"Parameter Error!";
 		return FALSE;
 	}
-	m_csUserName = GET_SAFE_STRING ( lpszUserName );
-	m_csPasswd = GET_SAFE_STRING ( lpszPasswd );
+	m_credentials = credentials;
 	m_bMustAuth = bMustAuth;
-	if ( m_bMustAuth && m_csUserName.GetLength() <= 0 )
+	if (m_bMustAuth && (!m_credentials || m_credentials->m_username.IsEmpty()))
 	{
 		m_csLastError = L"Parameter Error!";
 		return FALSE;
@@ -809,8 +808,8 @@ BOOL CHwSMTP::SendEmail (
 	{
 		m_StrAryAttach.Append ( *pStrAryAttach );
 	}
-	if ( m_StrAryAttach.GetSize() < 1 )
-		m_csMIMEContentType.Format(L"text/plain");
+	if (m_StrAryAttach.IsEmpty())
+		m_csMIMEContentType = L"text/plain\r\nContent-Transfer-Encoding: 8bit";
 
 	// ´´½¨Socket
 	m_SendSock.Close();
@@ -839,15 +838,19 @@ BOOL CHwSMTP::SendEmail (
 		return FALSE;
 	}
 
-	if (m_iSecurityLevel == want_tls) {
+	if (m_iSecurityLevel <= want_tls)
+	{
 		if (!GetResponse("220"))
 			return FALSE;
 		m_bConnected = TRUE;
 		Send(L"STARTTLS\r\n");
-		if (!GetResponse("220"))
+		if (GetResponse("220"))
+			m_iSecurityLevel = tls_established;
+		else if (m_iSecurityLevel == want_tls)
 			return FALSE;
-		m_iSecurityLevel = tls_established;
 	}
+
+	BOOL ret = FALSE;
 
 	SecBuffer ExtraData;
 	SECURITY_STATUS Status;
@@ -927,7 +930,7 @@ BOOL CHwSMTP::SendEmail (
 		m_bConnected = TRUE;
 	}
 
-	auto ret = SendEmail();
+	ret = SendEmail();
 
 cleanup:
 	if (m_iSecurityLevel >= ssl)
@@ -936,6 +939,7 @@ cleanup:
 			DisconnectFromServer(&m_SendSock, hCreds, hContext);
 		if (pbIoBuffer)
 		{
+			SecureZeroMemory(pbIoBuffer, cbIoBufferLength);
 			LocalFree(pbIoBuffer);
 			pbIoBuffer = nullptr;
 			cbIoBufferLength = 0;
@@ -1081,11 +1085,11 @@ BOOL CHwSMTP::SendEmail()
 	return TRUE;
 }
 
-static CStringA EncodeBase64(const char* source, int len)
+static CStringA EncodeBase64(const char* source, int len, bool noWrap)
 {
 	int neededLength = Base64EncodeGetRequiredLength(len);
 	CStringA output;
-	if (Base64Encode((BYTE*)source, len, CStrBufA(output, neededLength), &neededLength, ATL_BASE64_FLAG_NOCRLF))
+	if (Base64Encode((BYTE*)source, len, CStrBufA(output, neededLength), &neededLength, noWrap ? ATL_BASE64_FLAG_NOCRLF : 0))
 		output.Truncate(neededLength);
 	return output;
 }
@@ -1093,7 +1097,7 @@ static CStringA EncodeBase64(const char* source, int len)
 static CStringA EncodeBase64(const CString& source)
 {
 	CStringA buf = CUnicodeUtils::GetUTF8(source);
-	return EncodeBase64(buf, buf.GetLength());
+	return EncodeBase64(buf, buf.GetLength(), true);
 }
 
 CString CHwSMTP::GetEncodedHeader(const CString& text)
@@ -1101,7 +1105,7 @@ CString CHwSMTP::GetEncodedHeader(const CString& text)
 	if (CStringUtils::IsPlainReadableASCII(text))
 		return text;
 
-	return L"=?UTF-8?B?" + CUnicodeUtils::GetUnicode(EncodeBase64(text)) + L"?=";
+	return L"=?UTF-8?B?" + CUnicodeUtils::GetUnicode(EncodeBase64(text), true) + L"?=";
 }
 
 BOOL CHwSMTP::auth()
@@ -1111,7 +1115,7 @@ BOOL CHwSMTP::auth()
 	if (!GetResponse("334"))
 		return FALSE;
 
-	if (!Send(EncodeBase64(m_csUserName) + "\r\n"))
+	if (!Send(EncodeBase64(m_credentials->m_username) + "\r\n"))
 		return FALSE;
 
 	if (!GetResponse("334"))
@@ -1120,7 +1124,30 @@ BOOL CHwSMTP::auth()
 		return FALSE;
 	}
 
-	if (!Send(EncodeBase64(m_csPasswd) + "\r\n"))
+	if (m_credentials->m_password[0] != L'\0')
+	{
+		auto len = (int)_tcslen(m_credentials->m_password);
+		auto size = len * 4 + 1;
+		auto buf = new char[size];
+		auto ret = WideCharToMultiByte(CP_UTF8, 0, m_credentials->m_password, len, buf, size - 1, nullptr, nullptr);
+		buf[ret] = '\0';
+
+		int neededLength = Base64EncodeGetRequiredLength(len);
+		auto bufBase64 = new char[neededLength + 1];
+		bufBase64[0] = '\0';
+		if (Base64Encode((BYTE*)buf, ret, bufBase64, &neededLength, ATL_BASE64_FLAG_NOCRLF))
+			bufBase64[neededLength] = '\0';
+
+		auto successful = SendBuffer(bufBase64, neededLength);
+
+		SecureZeroMemory(bufBase64, neededLength + 1);
+		delete[] bufBase64;
+		SecureZeroMemory(buf, size);
+		delete[] buf;
+		if (!successful)
+			return FALSE;
+	}
+	if (!Send("\r\n"))
 		return FALSE;
 
 	if (!GetResponse("235"))
@@ -1210,11 +1237,11 @@ BOOL CHwSMTP::SendBody()
 {
 	CString csBody;
 
-	if ( m_StrAryAttach.GetSize() > 0 )
+	if (!m_StrAryAttach.IsEmpty())
 	{
 		csBody.AppendFormat(L"%s\r\n\r\n", (LPCTSTR)m_csNoMIMEText);
 		csBody.AppendFormat(L"--%s\r\n", (LPCTSTR)m_csPartBoundary);
-		csBody.AppendFormat(L"Content-Type: text/plain\r\nContent-Transfer-Encoding: UTF-8\r\n\r\n");
+		csBody += L"Content-Type: text/plain\r\nContent-Transfer-Encoding: 8bit\r\n\r\n";
 	}
 
 	m_csBody.Replace(L"\n.\n", L"\n..\n");
@@ -1228,10 +1255,11 @@ BOOL CHwSMTP::SendBody()
 
 BOOL CHwSMTP::SendAttach()
 {
-	int nCountAttach = (int)m_StrAryAttach.GetSize();
-	if ( nCountAttach < 1 ) return TRUE;
+	if (m_StrAryAttach.IsEmpty())
+		return TRUE;
 
-	for ( int i=0; i<nCountAttach; i++ )
+	int nCountAttach = (int)m_StrAryAttach.GetSize();
+	for (int i = 0; i < nCountAttach; ++i)
 	{
 		if ( !SendOnAttach ( m_StrAryAttach.GetAt(i) ) )
 			return FALSE;
@@ -1246,13 +1274,12 @@ BOOL CHwSMTP::SendOnAttach(LPCTSTR lpszFileName)
 {
 	ASSERT ( lpszFileName );
 	CString csAttach;
-	CString csShortFileName = CPathUtils::GetFileNameFromPath(lpszFileName);
+	CString csShortFileName = GetEncodedHeader(CPathUtils::GetFileNameFromPath(lpszFileName));
 
 	csAttach.AppendFormat(L"--%s\r\n", (LPCTSTR)m_csPartBoundary);
-	csAttach.AppendFormat(L"--%s\r\n", (LPCTSTR)m_csPartBoundary);
-	csAttach.AppendFormat(L"Content-Type: application/octet-stream; file=%s\r\n", (LPCTSTR)csShortFileName);
+	csAttach.AppendFormat(L"Content-Type: application/octet-stream; file=\"%s\"\r\n", (LPCTSTR)csShortFileName);
 	csAttach.AppendFormat(L"Content-Transfer-Encoding: base64\r\n");
-	csAttach.AppendFormat(L"Content-Disposition: attachment; filename=%s\r\n\r\n", (LPCTSTR)csShortFileName);
+	csAttach.AppendFormat(L"Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", (LPCTSTR)csShortFileName);
 
 	auto dwFileSize = GetFileSize(lpszFileName);
 	if ( dwFileSize > 5*1024*1024 )
@@ -1277,7 +1304,7 @@ BOOL CHwSMTP::SendOnAttach(LPCTSTR lpszFileName)
 			return FALSE;
 		}
 		UINT nFileLen = file.Read(pBuf.get(), dwFileSize);
-		filedata = EncodeBase64(pBuf.get(), nFileLen);
+		filedata = EncodeBase64(pBuf.get(), nFileLen, false);
 		filedata += L"\r\n\r\n";
 	}
 	catch (CFileException *e)

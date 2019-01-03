@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -61,6 +61,7 @@ CRebaseDlg::CRebaseDlg(CWnd* pParent /*=nullptr*/)
 	, m_IsFastForward(FALSE)
 	, m_iSquashdate((int)CRegDWORD(L"Software\\TortoiseGit\\SquashDate", 0))
 	, m_bAbort(FALSE)
+	, m_CurrentCommitEmpty(false)
 {
 }
 
@@ -986,10 +987,15 @@ int CRebaseDlg::CheckRebaseCondition()
 		{
 			if (exitcode)
 			{
-				CString temp;
-				temp.Format(IDS_ERR_HOOKFAILED, (LPCTSTR)error);
-				MessageBox(temp, L"TortoiseGit", MB_OK | MB_ICONERROR);
-				return -1;
+				CString sErrorMsg;
+				sErrorMsg.Format(IDS_HOOK_ERRORMSG, (LPCWSTR)error);
+				CTaskDialog taskdlg(sErrorMsg, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK2)), L"TortoiseGit", 0, TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS | TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW | TDF_SIZE_TO_CONTENT);
+				taskdlg.AddCommandControl(101, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK3)));
+				taskdlg.AddCommandControl(102, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK4)));
+				taskdlg.SetDefaultCommandControl(101);
+				taskdlg.SetMainIcon(TD_ERROR_ICON);
+				if (taskdlg.DoModal(GetSafeHwnd()) != 102)
+					return -1;
 			}
 		}
 	}
@@ -1393,27 +1399,51 @@ void CRebaseDlg::OnBnClickedContinue()
 			return;
 		}
 
+		CString allowempty;
+		bool skipCurrent = false;
+		if (!m_CurrentCommitEmpty)
+		{
+			if (g_Git.IsResultingCommitBecomeEmpty() == TRUE)
+			{
+				if (CheckNextCommitIsSquash() == 0)
+				{
+					allowempty = L"--allow-empty ";
+					m_CurrentCommitEmpty = false;
+				}
+				else
+				{
+					int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
+					if (choose == 2)
+						skipCurrent = true;
+					else if (choose == 1)
+					{
+						allowempty = L"--allow-empty ";
+						m_CurrentCommitEmpty = true;
+					}
+					else
+						return;
+				}
+			}
+		}
+
 		CString out;
 		CString cmd;
-		cmd.Format(L"git.exe commit --allow-empty-message -C %s", (LPCTSTR)curRev->m_CommitHash.ToString());
+		cmd.Format(L"git.exe commit %s--allow-empty-message -C %s", (LPCTSTR)allowempty, (LPCTSTR)curRev->m_CommitHash.ToString());
 
 		AddLogString(cmd);
 
-		if(g_Git.Run(cmd,&out,CP_UTF8))
+		if (!skipCurrent && g_Git.Run(cmd, &out, CP_UTF8))
 		{
 			AddLogString(out);
-			if(!g_Git.CheckCleanWorkTree())
-			{
-				CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);
-				return;
-			}
+			CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);
+			return;
 		}
 
 		AddLogString(out);
 
 		// update commit message if needed
 		CString str = m_LogMessageCtrl.GetText().Trim();
-		if (str != (curRev->GetSubject() + L'\n' + curRev->GetBody()).Trim())
+		if (!skipCurrent && str != (curRev->GetSubject() + L'\n' + curRev->GetBody()).Trim())
 		{
 			if (str.IsEmpty())
 			{
@@ -1440,6 +1470,12 @@ void CRebaseDlg::OnBnClickedContinue()
 					CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 					return;
 				}
+				CString retry;
+				retry.LoadString(IDS_MSGBOX_RETRY);
+				CString ignore;
+				ignore.LoadString(IDS_MSGBOX_IGNORE);
+				if (CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", 1, IDI_ERROR, retry, ignore) == 1)
+					return;
 			}
 
 			AddLogString(out);
@@ -1515,6 +1551,7 @@ void CRebaseDlg::OnBnClickedContinue()
 			isFirst = !m_bSplitCommit; // only select amend on second+ runs if not in split commit mode
 
 			m_SquashMessage.Empty();
+			m_CurrentCommitEmpty = dlg.m_bCommitMessageOnly;
 		} while (!g_Git.CheckCleanWorkTree() || (m_bSplitCommit && CMessageBox::Show(GetSafeHwnd(), IDS_REBASE_ADDANOTHERCOMMIT, IDS_APPNAME, MB_YESNO | MB_ICONQUESTION) == IDYES));
 
 		m_bSplitCommit = FALSE;
@@ -1557,28 +1594,43 @@ void CRebaseDlg::OnBnClickedContinue()
 			return;
 		}
 
-		CString out,cmd;
-
-		if (m_RebaseStage == REBASE_SQUASH_EDIT)
-			cmd.Format(L"git.exe commit %s-F \"%s\"", (LPCTSTR)m_SquashFirstMetaData.GetAsParam(m_iSquashdate == 2), (LPCTSTR)tempfile);
-		else
+		CString out, cmd, options;
+		bool skipCurrent = false;
+		if (m_CurrentCommitEmpty)
+			options = L"--allow-empty ";
+		else if (g_Git.IsResultingCommitBecomeEmpty(m_RebaseStage != REBASE_SQUASH_EDIT) == TRUE)
 		{
-			CString options;
-			int isEmpty = IsCommitEmpty(curRev->m_CommitHash);
-			if (isEmpty == 1)
+			int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
+			if (choose == 2)
+				skipCurrent = true;
+			else if (choose == 1)
+			{
 				options = L"--allow-empty ";
-			else if (isEmpty < 0)
+				m_CurrentCommitEmpty = true;
+			}
+			else
 				return;
-			cmd.Format(L"git.exe commit --amend %s-F \"%s\"", (LPCTSTR)options, (LPCTSTR)tempfile);
 		}
 
-		if(g_Git.Run(cmd,&out,CP_UTF8))
+		if (m_RebaseStage == REBASE_SQUASH_EDIT)
+			cmd.Format(L"git.exe commit %s%s-F \"%s\"", (LPCTSTR)options, (LPCTSTR)m_SquashFirstMetaData.GetAsParam(m_iSquashdate == 2), (LPCTSTR)tempfile);
+		else
+			cmd.Format(L"git.exe commit --amend %s-F \"%s\"", (LPCTSTR)options, (LPCTSTR)tempfile);
+
+		if (!skipCurrent && g_Git.Run(cmd, &out, CP_UTF8))
 		{
-			if(!g_Git.CheckCleanWorkTree())
+			if (!g_Git.CheckCleanWorkTree())
 			{
 				CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 				return;
 			}
+
+			CString retry;
+			retry.LoadString(IDS_MSGBOX_RETRY);
+			CString ignore;
+			ignore.LoadString(IDS_MSGBOX_IGNORE);
+			if (CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", 1, IDI_ERROR, retry, ignore) == 1)
+				return;
 		}
 
 		AddLogString(out);
@@ -1973,9 +2025,15 @@ int CRebaseDlg::DoRebase()
 
 	int isEmpty = IsCommitEmpty(pRev->m_CommitHash);
 	if (isEmpty == 1)
+	{
 		cherryPickedFrom += L"--allow-empty ";
+		if (mode != CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
+			m_CurrentCommitEmpty = true;
+	}
 	else if (isEmpty < 0)
 		return -1;
+	else
+		m_CurrentCommitEmpty = false;
 
 	if (m_IsCherryPick && pRev->m_ParentHash.size() > 1)
 	{
@@ -2136,7 +2194,29 @@ int CRebaseDlg::DoRebase()
 			}
 			if (!hasConflicts)
 			{
-				if (mode ==  CGitLogListBase::LOGACTIONS_REBASE_PICK)
+				if (out.Find(L"commit --allow-empty") > 0)
+				{
+					int choose = CMessageBox::ShowCheck(GetSafeHwnd(), IDS_CHERRYPICK_EMPTY, IDS_APPNAME, 1, IDI_QUESTION, IDS_COMMIT_COMMIT, IDS_SKIPBUTTON, IDS_MSGBOX_CANCEL, nullptr, 0);
+					if (choose != 1)
+					{
+						if (choose == 2 && !RunGitCmdRetryOrAbort(L"git.exe reset --hard"))
+						{
+							pRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
+							m_CommitList.Invalidate();
+							return 0;
+						}
+
+						m_RebaseStage = REBASE_ERROR;
+						AddLogString(L"An unrecoverable error occurred.");
+						return -1;
+					}
+
+					cmd.Format(L"git.exe commit --allow-empty -C %s", (LPCTSTR)pRev->m_CommitHash.ToString());
+					out.Empty();
+					g_Git.Run(cmd, &out, CP_UTF8);
+					m_CurrentCommitEmpty = true;
+				}
+				else if (mode == CGitLogListBase::LOGACTIONS_REBASE_PICK)
 				{
 					if (m_pTaskbarList)
 						m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);
@@ -2164,68 +2244,67 @@ int CRebaseDlg::DoRebase()
 					AddLogString(L"An unrecoverable error occurred.");
 					return -1;
 				}
-				if (mode == CGitLogListBase::LOGACTIONS_REBASE_EDIT)
+				else if (mode == CGitLogListBase::LOGACTIONS_REBASE_EDIT)
 				{
 					this->m_RebaseStage = REBASE_EDIT ;
 					return -1; // Edit return -1 to stop rebase.
 				}
 				// Squash Case
-				if(CheckNextCommitIsSquash())
+				else if (CheckNextCommitIsSquash())
 				{   // no squash
 					// let user edit last commmit message
 					this->m_RebaseStage = REBASE_SQUASH_EDIT;
 					return -1;
 				}
 			}
-
-			if (m_pTaskbarList)
-				m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);
-			if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
-				m_RebaseStage = REBASE_SQUASH_CONFLICT;
 			else
-				m_RebaseStage = REBASE_CONFLICT;
-			return -1;
-
-		}
-		else
-		{
-			AddLogString(out);
-			if (mode == CGitLogListBase::LOGACTIONS_REBASE_PICK)
 			{
-				if (nocommit.IsEmpty())
-				{
-					CGitHash head;
-					if (g_Git.GetHash(head, L"HEAD"))
-					{
-						MessageBox(g_Git.GetGitLastErr(L"Could not get HEAD hash."), L"TortoiseGit", MB_ICONERROR);
-						m_RebaseStage = REBASE_ERROR;
-						return -1;
-					}
-					m_rewrittenCommitsMap[pRev->m_CommitHash] = head;
-				}
+				if (m_pTaskbarList)
+					m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);
+				if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
+					m_RebaseStage = REBASE_SQUASH_CONFLICT;
 				else
-					m_forRewrite.push_back(pRev->m_CommitHash);
-				pRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
-				return 0;
-			}
-			if (mode == CGitLogListBase::LOGACTIONS_REBASE_EDIT)
-			{
-				this->m_RebaseStage = REBASE_EDIT ;
-				return -1; // Edit return -1 to stop rebase.
-			}
-
-			// Squash Case
-			if(CheckNextCommitIsSquash())
-			{   // no squash
-				// let user edit last commmit message
-				this->m_RebaseStage = REBASE_SQUASH_EDIT;
+					m_RebaseStage = REBASE_CONFLICT;
 				return -1;
 			}
-			else if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
+		}
+
+		AddLogString(out);
+		if (mode == CGitLogListBase::LOGACTIONS_REBASE_PICK)
+		{
+			if (nocommit.IsEmpty())
 			{
-				pRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
-				m_forRewrite.push_back(pRev->m_CommitHash);
+				CGitHash head;
+				if (g_Git.GetHash(head, L"HEAD"))
+				{
+					MessageBox(g_Git.GetGitLastErr(L"Could not get HEAD hash."), L"TortoiseGit", MB_ICONERROR);
+					m_RebaseStage = REBASE_ERROR;
+					return -1;
+				}
+				m_rewrittenCommitsMap[pRev->m_CommitHash] = head;
 			}
+			else
+				m_forRewrite.push_back(pRev->m_CommitHash);
+			pRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
+			return 0;
+		}
+		if (mode == CGitLogListBase::LOGACTIONS_REBASE_EDIT)
+		{
+			this->m_RebaseStage = REBASE_EDIT;
+			return -1; // Edit return -1 to stop rebase.
+		}
+
+		// Squash Case
+		if (CheckNextCommitIsSquash())
+		{ // no squash
+			// let user edit last commmit message
+			this->m_RebaseStage = REBASE_SQUASH_EDIT;
+			return -1;
+		}
+		else if (mode == CGitLogListBase::LOGACTIONS_REBASE_SQUASH)
+		{
+			pRev->GetRebaseAction() |= CGitLogListBase::LOGACTIONS_REBASE_DONE;
+			m_forRewrite.push_back(pRev->m_CommitHash);
 		}
 
 		return 0;

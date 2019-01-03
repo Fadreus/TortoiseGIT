@@ -13,7 +13,16 @@ Released: unreleased
  * Added the option to store hook configurations within the repository (/.tgitconfig) in order to share it with other developers
  * Fixed issue #3154: Decorate bare repository's folder with a Git icon
  * Update apr to 1.6.5
- * Updte libgit2
+ * Update libgit2
+ * Fixed issue #3304: Double click on stash list item does nothing, show log instead
+ * Fixed issue #3305: Stash Changes/Save, then allow Stash Apply
+ * TGitCache: Speed up scanning of folders with lots of unversioned files
+ * Rebase: Document start, abort and finish in reflog 
+ * Update editorconfig to 0.12.4
+ * Fixed issue #3295: TortoiseGitPlink does not work with Git protocol ver. 2
+ * Fixed issue #3290: Improve "Status/Check for modifications" documentation
+ * Fixed issue #3228: Rebase: Add full support for empty commits (e.g., commits which become empty during conflict resolution)
+ * Fixed issue #3189: Show progress bar when resolving lots of conflicts
 
 == Bug Fixes ==
  * Fixed issue #3250: GitWCRev: IsGitItem return true for item that had never been committed
@@ -28,6 +37,11 @@ Released: unreleased
    The Commit dialog still shows all staged files, this is by design and required for commit to work properly (e.g., that no files get lost in a merge commit).
  * Fixed issue #3264: Remove tag can leave an empty folder in refs/tags
  * Fixed issue #3297: Missing URI-encode of %BUGID%-part by call of issue tracker URL
+ * Fixed issue #3307: Abort Merge on a single file always results in a parameter error message
+ * Fixed issue #3269: Git Command Progress window blank, hanging on commit (e.g., when auto gc is running)
+ * Fixed issue #3039: Icon overlays don't update properly when committing after gc prune on the command line
+ * Fixed issue #3316: Misleading message box after pull with rebase, when branch is behind origin/branch, but origin/branch=remote/origin/master
+ * Fixed issue #3288: Commit window: text is cut when Russian localisation
 
 = Release 2.7.0 =
 Released: 2018-08-19

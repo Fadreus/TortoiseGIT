@@ -44,7 +44,6 @@
 #define IDI_DIALOGS                     198
 #define IDD_DIFFFILES                   199
 #define IDD_RESOLVE                     207
-#define IDI_WARNING_GENERAL             210
 #define IDD_HISTORYDLG                  211
 #define IDD_SETTINGSCOLORS_2            212
 #define IDI_ACTIONADDED                 213
@@ -558,7 +557,6 @@
 #define IDS_PROGRS_TITLE_COPY           1235
 #define IDS_PROC_DOWNLOAD               1236
 #define IDS_ERR_MISSINGVALUE            1237
-#define IDC_EXTERNALWARNING             1238
 #define IDS_STATUSLIST_GROUP_NOTVERSIONEDFILES 1238
 #define IDS_STATUSLIST_GROUP_IGNOREDFILES 1239
 #define IDC_MERGEACTIVE                 1239
@@ -1038,7 +1036,6 @@
 #define IDS_NEWHASH                     1509
 #define IDS_NEWMESSAGE                  1510
 #define IDC_SENDMAIL_SUBJECT            1510
-#define IDC_SMTP_PASSWORD               1510
 #define IDC_BUGTRAQ_LABEL               1510
 #define IDC_CHECK_SVN_BRANCH            1510
 #define IDS_SAME                        1511
@@ -1389,6 +1386,7 @@
 #define IDS_STATUSLIST_CONTEXT_ADD_EXE  1663
 #define IDC_ALTERNATIVEEDITORBROWSE     1664
 #define IDS_STATUSLIST_CONTEXT_ADD_LINK 1664
+#define IDS_CHERRYPICK_EMPTY            1665
 #define IDC_NOAUTOSELECTSUBMODULES      1669
 #define IDC_COMMIT_DATEPICKER           1670
 #define IDC_COMMIT_TIMEPICKER           1671
@@ -1607,6 +1605,8 @@
 #define IDC_FIRSTSTART_SSHHINT          1846
 #define IDC_CHECK_LFS                   1847
 #define IDC_LOCALCHECK                  1848
+#define IDC_CLEARCREDENTIALS            1848
+#define IDC_STORECREDENTIALS            1849
 #define IDS_LOG_FILTER_BY               1850
 #define IDS_LOG_FILTER_PATHS            1851
 #define IDS_LOG_FILTER_AUTHORS          1852
@@ -1665,7 +1665,6 @@
 #define IDS_STATPICFILEFILTER           2505
 #define IDS_TEXTFILEFILTER              2506
 #define IDS_CHECKUPDATE_SUMMARY         2600
-#define IDS_COMMITDLG_EXTERNALS         2700
 #define IDS_COMMITDLG_STATISTICSFORMAT  2701
 #define IDS_COMMITDLG_ONLYNUMBERS       2702
 #define IDS_COMMITDLG_NOISSUEWARNING    2703
@@ -1907,6 +1906,11 @@
 #define IDS_HOOKS_APPROVE_TASK4         9113
 #define IDS_HOOKS_APPROVE_TASK5         9114
 #define IDS_ERR_HOOKNOTAPPROVED         9115
+#define IDS_HOOK_ERRORMSG               9116
+#define IDS_HOOK_FORCEDPROCEED          9117
+#define IDS_HOOKFAILED_TASK2            9118
+#define IDS_HOOKFAILED_TASK3            9119
+#define IDS_HOOKFAILED_TASK4            9120
 #define IDS_STATUSLIST_COLADD           9603
 #define IDS_STATUSLIST_COLDEL           9604
 #define IDS_B_T_NOTEMPTY                9619
@@ -2053,7 +2057,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        363
 #define _APS_NEXT_COMMAND_VALUE         32874
-#define _APS_NEXT_CONTROL_VALUE         1848
+#define _APS_NEXT_CONTROL_VALUE         1849
 #define _APS_NEXT_SYMED_VALUE           201
 #endif
 #endif

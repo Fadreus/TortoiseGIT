@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2014 - TortoiseSVN
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -149,7 +149,6 @@ BEGIN_MESSAGE_MAP(CCommitDlg, CResizableStandAloneDialog)
 	ON_WM_TIMER()
 	ON_WM_SIZE()
 	ON_WM_SYSCOLORCHANGE()
-	ON_STN_CLICKED(IDC_EXTERNALWARNING, &CCommitDlg::OnStnClickedExternalwarning)
 	ON_BN_CLICKED(IDC_SIGNOFF, &CCommitDlg::OnBnClickedSignOff)
 	ON_BN_CLICKED(IDC_COMMIT_AMEND, &CCommitDlg::OnBnClickedCommitAmend)
 	ON_BN_CLICKED(IDC_COMMIT_MESSAGEONLY, &CCommitDlg::OnBnClickedCommitMessageOnly)
@@ -281,7 +280,6 @@ BOOL CCommitDlg::OnInitDialog()
 
 	OnEnChangeLogmessage();
 
-	m_tooltips.AddTool(IDC_EXTERNALWARNING, IDS_COMMITDLG_EXTERNALS);
 	m_tooltips.AddTool(IDC_COMMIT_AMEND,IDS_COMMIT_AMEND_TT);
 	m_tooltips.AddTool(IDC_MERGEACTIVE, IDC_MERGEACTIVE_TT);
 	m_tooltips.AddTool(IDC_COMMIT_MESSAGEONLY, IDS_COMMIT_MESSAGEONLY_TT);
@@ -374,13 +372,13 @@ BOOL CCommitDlg::OnInitDialog()
 	GetClientRect(m_DlgOrigRect);
 	m_cLogMessage.GetClientRect(m_LogMsgOrigRect);
 
-	AddAnchor(IDC_COMMITLABEL, TOP_LEFT, TOP_RIGHT);
+	AddAnchor(IDC_COMMITLABEL, TOP_LEFT, ANCHOR(94, 0));
 	AddAnchor(IDC_BUGIDLABEL, TOP_RIGHT);
 	AddAnchor(IDC_BUGID, TOP_RIGHT);
 	AddAnchor(IDC_BUGTRAQBUTTON, TOP_RIGHT);
-	AddAnchor(IDC_COMMIT_TO, TOP_LEFT, TOP_RIGHT);
+	AddAnchor(IDC_COMMIT_TO, ANCHOR(6, 0), TOP_RIGHT);
 	AddAnchor(IDC_CHECK_NEWBRANCH, TOP_RIGHT);
-	AddAnchor(IDC_NEWBRANCH, TOP_LEFT, TOP_RIGHT);
+	AddAnchor(IDC_NEWBRANCH, ANCHOR(6,0), TOP_RIGHT);
 	AddAnchor(IDC_MESSAGEGROUP, TOP_LEFT, TOP_RIGHT);
 //	AddAnchor(IDC_HISTORY, TOP_LEFT);
 	AddAnchor(IDC_LOGMESSAGE, TOP_LEFT, TOP_RIGHT);
@@ -390,7 +388,6 @@ BOOL CCommitDlg::OnInitDialog()
 	AddAnchor(IDC_SPLITTER, TOP_LEFT, TOP_RIGHT);
 	AddAnchor(IDC_FILELIST, TOP_LEFT, BOTTOM_RIGHT);
 	AddAnchor(IDC_SHOWUNVERSIONED, BOTTOM_LEFT);
-	AddAnchor(IDC_EXTERNALWARNING, BOTTOM_RIGHT);
 	AddAnchor(IDC_STATISTICS, BOTTOM_LEFT, BOTTOM_RIGHT);
 	AddAnchor(IDC_TEXT_INFO, TOP_RIGHT);
 	AddAnchor(IDC_WHOLE_PROJECT, BOTTOM_LEFT);
@@ -658,7 +655,8 @@ void CCommitDlg::OnOK()
 		return;
 
 	CHooks::Instance().SetProjectProperties(g_Git.m_CurrentDir, m_ProjectProperties);
-	if (CHooks::Instance().IsHookPresent(pre_commit_hook, g_Git.m_CurrentDir)) {
+	if (CHooks::Instance().IsHookPresent(pre_commit_hook, g_Git.m_CurrentDir))
+	{
 		DWORD exitcode = 0xFFFFFFFF;
 		CString error;
 		CTGitPathList list;
@@ -667,10 +665,15 @@ void CCommitDlg::OnOK()
 		{
 			if (exitcode)
 			{
-				CString temp;
-				temp.Format(IDS_ERR_HOOKFAILED, (LPCTSTR)error);
-				MessageBox(temp, L"TortoiseGit", MB_ICONERROR);
-				return;
+				CString sErrorMsg;
+				sErrorMsg.Format(IDS_HOOK_ERRORMSG, (LPCWSTR)error);
+				CTaskDialog taskdlg(sErrorMsg, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK2)), L"TortoiseGit", 0, TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS | TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW | TDF_SIZE_TO_CONTENT);
+				taskdlg.AddCommandControl(101, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK3)));
+				taskdlg.AddCommandControl(102, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK4)));
+				taskdlg.SetDefaultCommandControl(101);
+				taskdlg.SetMainIcon(TD_ERROR_ICON);
+				if (taskdlg.DoModal(GetSafeHwnd()) != 102)
+					return;
 			}
 		}
 	}
@@ -1286,8 +1289,6 @@ UINT CCommitDlg::StatusThread()
 	DialogEnableWindow(IDC_SHOWUNVERSIONED, false);
 	DialogEnableWindow(IDC_WHOLE_PROJECT, false);
 	DialogEnableWindow(IDC_NOAUTOSELECTSUBMODULES, false);
-	GetDlgItem(IDC_EXTERNALWARNING)->ShowWindow(SW_HIDE);
-	DialogEnableWindow(IDC_EXTERNALWARNING, false);
 	DialogEnableWindow(IDC_COMMIT_AMEND, FALSE);
 	DialogEnableWindow(IDC_COMMIT_AMENDDIFF, FALSE);
 	// read the list of recent log entries before querying the WC for status
@@ -1348,12 +1349,6 @@ UINT CCommitDlg::StatusThread()
 			DWORD dwCheck = m_bSelectFilesForCommit ? dwShow : 0;
 			dwCheck &=~(CTGitPath::LOGACTIONS_UNVER); //don't check unversion file default.
 			m_ListCtrl.Show(dwShow, dwCheck);
-		}
-
-		if (m_ListCtrl.HasExternalsFromDifferentRepos())
-		{
-			GetDlgItem(IDC_EXTERNALWARNING)->ShowWindow(SW_SHOW);
-			DialogEnableWindow(IDC_EXTERNALWARNING, TRUE);
 		}
 
 		SetDlgItemText(IDC_COMMIT_TO, g_Git.GetCurrentBranch());
@@ -1635,11 +1630,6 @@ void CCommitDlg::OnBnClickedShowunversioned()
 		m_ListCtrl.Show(dwShow, 0, true, dwShow & ~(CTGitPath::LOGACTIONS_UNVER), true);
 		UpdateCheckLinks();
 	}
-}
-
-void CCommitDlg::OnStnClickedExternalwarning()
-{
-	m_tooltips.Popup();
 }
 
 void CCommitDlg::OnEnChangeLogmessage()
@@ -2902,10 +2892,16 @@ bool CCommitDlg::RunStartCommitHook()
 	{
 		if (exitcode)
 		{
-			CString temp;
-			temp.Format(IDS_ERR_HOOKFAILED, (LPCTSTR)error);
-			MessageBox(temp, L"TortoiseGit", MB_ICONERROR);
-			return false;
+			CString sErrorMsg;
+			sErrorMsg.Format(IDS_HOOK_ERRORMSG, (LPCWSTR)error);
+
+			CTaskDialog taskdlg(sErrorMsg, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK2)), L"TortoiseGit", 0, TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS | TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW | TDF_SIZE_TO_CONTENT);
+			taskdlg.AddCommandControl(101, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK3)));
+			taskdlg.AddCommandControl(102, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK4)));
+			taskdlg.SetDefaultCommandControl(101);
+			taskdlg.SetMainIcon(TD_ERROR_ICON);
+			if (taskdlg.DoModal(GetSafeHwnd()) != 102)
+				return false;
 		}
 	}
 	return true;

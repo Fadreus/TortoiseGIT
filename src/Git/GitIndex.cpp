@@ -471,11 +471,11 @@ int CGitHeadFileList::ReadHeadHash(const CString& gitdir)
 		__int64 time;
 		if (CGit::GetFileModifyTime(m_HeadRefFile, &time, nullptr))
 		{
-			m_HeadRefFile.Empty();
 			if (GetPackRef(gitdir))
 				return -1;
 			if (m_PackRefMap.find(ref) != m_PackRefMap.end())
 			{
+				m_bRefFromPackRefFile = true;
 				m_Head = m_PackRefMap[ref];
 				return 0;
 			}
@@ -496,14 +496,13 @@ int CGitHeadFileList::ReadHeadHash(const CString& gitdir)
 
 		if (!href)
 		{
-			m_HeadRefFile.Empty();
-
 			if (GetPackRef(gitdir))
 				return -1;
 
 			if (m_PackRefMap.find(ref) == m_PackRefMap.end())
 				return -1;
 
+			m_bRefFromPackRefFile = true;
 			m_Head = m_PackRefMap[ref];
 			return 0;
 		}
@@ -545,14 +544,17 @@ bool CGitHeadFileList::CheckHeadUpdate()
 
 	if (!this->m_HeadRefFile.IsEmpty())
 	{
+		// we need to check for the HEAD ref file here, because the original ref might have come from packedrefs and now is a ref-file
 		if (CGit::GetFileModifyTime(m_HeadRefFile, &mtime))
-			return true;
+		{
+			if (!m_bRefFromPackRefFile)
+				return true;
 
-		if (mtime != this->m_LastModifyTimeRef)
+		} else if (mtime != this->m_LastModifyTimeRef)
 			return true;
 	}
 
-	if(!this->m_PackRefFile.IsEmpty())
+	if (m_bRefFromPackRefFile && !m_PackRefFile.IsEmpty())
 	{
 		size = -1;
 		if (CGit::GetFileModifyTime(m_PackRefFile, &mtime, nullptr, &size))
@@ -809,7 +811,7 @@ int CGitIgnoreList::FetchIgnoreFile(const CString &gitdir, const CString &gitign
 	return 0;
 }
 
-bool CGitIgnoreList::CheckAndUpdateIgnoreFiles(const CString& gitdir, const CString& path, bool isDir)
+bool CGitIgnoreList::CheckAndUpdateIgnoreFiles(const CString& gitdir, const CString& path, bool isDir, std::set<CString>* lastChecked)
 {
 	CString temp(gitdir);
 	temp += L'\\';
@@ -827,6 +829,13 @@ bool CGitIgnoreList::CheckAndUpdateIgnoreFiles(const CString& gitdir, const CStr
 	bool updated = false;
 	while (!temp.IsEmpty())
 	{
+		if (lastChecked)
+		{
+			if (lastChecked->find(temp) != lastChecked->end())
+				return updated;
+			lastChecked->insert(temp);
+		}
+
 		temp += L"\\.gitignore";
 
 		if (CheckFileChanged(temp))
@@ -957,7 +966,7 @@ const CString CGitIgnoreList::GetWindowsHome()
 	static CString sWindowsHome(g_Git.GetHomeDirectory());
 	return sWindowsHome;
 }
-bool CGitIgnoreList::IsIgnore(CString str, const CString& projectroot, bool isDir)
+bool CGitIgnoreList::IsIgnore(CString str, const CString& projectroot, bool isDir, const CString& adminDir)
 {
 	str.Replace(L'\\', L'/');
 
@@ -965,7 +974,7 @@ bool CGitIgnoreList::IsIgnore(CString str, const CString& projectroot, bool isDi
 		str.Truncate(str.GetLength() - 1);
 
 	int ret;
-	ret = CheckIgnore(str, projectroot, isDir);
+	ret = CheckIgnore(str, projectroot, isDir, adminDir);
 	while (ret < 0)
 	{
 		int start = str.ReverseFind(L'/');
@@ -973,7 +982,7 @@ bool CGitIgnoreList::IsIgnore(CString str, const CString& projectroot, bool isDi
 			return (ret == 1);
 
 		str.Truncate(start);
-		ret = CheckIgnore(str, projectroot, TRUE);
+		ret = CheckIgnore(str, projectroot, TRUE, adminDir);
 	}
 
 	return (ret == 1);
@@ -985,7 +994,7 @@ int CGitIgnoreList::CheckFileAgainstIgnoreList(const CString &ignorefile, const 
 
 	return (m_Map[ignorefile].IsPathIgnored(patha, base, type));
 }
-int CGitIgnoreList::CheckIgnore(const CString &path, const CString &projectroot, bool isDir)
+int CGitIgnoreList::CheckIgnore(const CString &path, const CString &projectroot, bool isDir, const CString& adminDir)
 {
 	CString temp = CombinePath(projectroot, path);
 	temp.Replace(L'/', L'\\');
@@ -1030,7 +1039,6 @@ int CGitIgnoreList::CheckIgnore(const CString &path, const CString &projectroot,
 
 		if (CPathUtils::ArePathStringsEqual(temp, projectroot))
 		{
-			CString adminDir = g_AdminDirMap.GetAdminDir(temp);
 			CString wcglobalgitignore = adminDir;
 			wcglobalgitignore += L"info\\exclude";
 			if ((ret = CheckFileAgainstIgnoreList(wcglobalgitignore, patha, base, type)) != -1)

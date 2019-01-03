@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 // Copyright (C) 2003-2011, 2013-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -142,6 +142,7 @@ bool CAppUtils::StashSave(HWND hWnd, const CString& msg, bool showPull, bool pul
 			if (showMerge)
 				postCmdList.emplace_back(IDI_MERGE, IDS_MENUMERGE, [&]{ CAppUtils::Merge(hWnd, &mergeRev, true); });
 			postCmdList.emplace_back(IDI_UNSHELVE, IDS_MENUSTASHPOP, [&hWnd] { CAppUtils::StashPop(hWnd); });
+			postCmdList.emplace_back(IDI_UNSHELVE, IDS_MENUSTASHAPPLY, [&hWnd] { CAppUtils::StashApply(hWnd, L""); });
 		};
 		return (progress.DoModal() == IDOK);
 	}
@@ -598,7 +599,12 @@ BOOL CAppUtils::StartUnifiedDiffViewer(const CString& patchfile, const CString& 
 	else
 		viewer += L" \"" + patchfile + L'"';
 	if (viewer.Find(L"%title") >= 0)
-		viewer.Replace(L"%title", title);
+	{
+		if (viewer.Find(L"\"%title\"") >= 0)
+			viewer.Replace(L"%title", title);
+		else
+			viewer.Replace(L"%title", L'"' + title + L'"');
+	}
 
 	if(!LaunchApplication(viewer, IDS_ERR_DIFFVIEWSTART, !!bWait))
 		return FALSE;
@@ -2654,7 +2660,7 @@ static bool DoFetch(HWND hWnd, const CString& url, const bool fetchAllRemotes, c
 			if (!g_Git.GetHash(headHash, L"HEAD") && (remoteBranchHash == headHash || (g_Git.IsFastForward(upstream, L"HEAD", &commonAcestor) && commonAcestor == remoteBranchHash)) && CMessageBox::ShowCheck(hWnd, IDS_REBASE_CURRENTBRANCHUPTODATE, IDS_APPNAME, MB_ICONQUESTION | MB_YESNO | MB_DEFBUTTON2, L"OpenRebaseRemoteBranchEqualsHEAD", IDS_MSGBOX_DONOTSHOWAGAIN) == IDNO)
 				return;
 
-			if (remoteBranchHash == oldUpstreamHash && !oldUpstreamHash.IsEmpty() && CMessageBox::ShowCheck(hWnd, IDS_REBASE_BRANCH_UNCHANGED, IDS_APPNAME, MB_ICONQUESTION | MB_YESNO | MB_DEFBUTTON2, L"OpenRebaseRemoteBranchUnchanged", IDS_MSGBOX_DONOTSHOWAGAIN) == IDNO)
+			if (remoteBranchHash == oldUpstreamHash && remoteBranchHash == headHash && !oldUpstreamHash.IsEmpty() && CMessageBox::ShowCheck(hWnd, IDS_REBASE_BRANCH_UNCHANGED, IDS_APPNAME, MB_ICONQUESTION | MB_YESNO | MB_DEFBUTTON2, L"OpenRebaseRemoteBranchUnchanged", IDS_MSGBOX_DONOTSHOWAGAIN) == IDNO)
 				return;
 		}
 
@@ -2716,10 +2722,15 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool pack, bool tags, bool a
 	{
 		if (exitcode)
 		{
-			CString temp;
-			temp.Format(IDS_ERR_HOOKFAILED, (LPCTSTR)error);
-			MessageBox(hWnd, temp, L"TortoiseGit", MB_OK | MB_ICONERROR);
-			return false;
+			CString sErrorMsg;
+			sErrorMsg.Format(IDS_HOOK_ERRORMSG, (LPCWSTR)error);
+			CTaskDialog taskdlg(sErrorMsg, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK2)), L"TortoiseGit", 0, TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS | TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW | TDF_SIZE_TO_CONTENT);
+			taskdlg.AddCommandControl(101, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK3)));
+			taskdlg.AddCommandControl(102, CString(MAKEINTRESOURCE(IDS_HOOKFAILED_TASK4)));
+			taskdlg.SetDefaultCommandControl(101);
+			taskdlg.SetMainIcon(TD_ERROR_ICON);
+			if (taskdlg.DoModal(hWnd) != 102)
+				return false;
 		}
 	}
 
@@ -3528,13 +3539,9 @@ int CAppUtils::Git2GetUserPassword(git_cred **out, const char *url, const char *
 	if (username_from_url)
 		dlg.m_UserName = CUnicodeUtils::GetUnicode(username_from_url, CP_UTF8);
 
-	CStringA username, password;
 	if (dlg.DoModal() == IDOK)
-	{
-		username = CUnicodeUtils::GetMulti(dlg.m_UserName, CP_UTF8);
-		password = CUnicodeUtils::GetMulti(dlg.m_Password, CP_UTF8);
-		return git_cred_userpass_plaintext_new(out, username, password);
-	}
+		return git_cred_userpass_plaintext_new(out, CUnicodeUtils::GetMulti(dlg.m_UserName, CP_UTF8), dlg.m_passwordA);
+
 	giterr_set_str(GITERR_NONE, "User cancelled.");
 	return GIT_EUSER;
 }

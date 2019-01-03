@@ -264,7 +264,6 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,260,147,10
     RTEXT           "View Patch>>",IDC_VIEW_PATCH,259,260,76,8
     CONTROL         "Show &Whole Project",IDC_WHOLE_PROJECT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,277,109,10
-    ICON            IDI_WARNING_GENERAL,IDC_EXTERNALWARNING,323,257,21,20,SS_NOTIFY | SS_REALSIZEIMAGE | NOT WS_VISIBLE | WS_DISABLED,WS_EX_TRANSPARENT
     CONTROL         "Keep changelists",IDC_KEEPLISTS,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,150,289,111,10
     CONTROL         "Message onl&y",IDC_COMMIT_MESSAGEONLY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,289,107,10
     PUSHBUTTON      "C&ommit",IDOK,171,285,69,14,WS_DISABLED
@@ -437,9 +436,9 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,84,277,10
     GROUPBOX        "Credentials",IDC_STATIC,17,97,268,51
     LTEXT           "Login:",IDC_STATIC_SMTPLOGIN,36,110,33,8
-    EDITTEXT        IDC_SMTP_USER,77,107,199,14,ES_AUTOHSCROLL
-    LTEXT           "Password:",IDC_STATIC_SMTPPASSWORD,35,129,34,8
-    EDITTEXT        IDC_SMTP_PASSWORD,77,127,199,14,ES_PASSWORD | ES_AUTOHSCROLL
+    EDITTEXT        IDC_SMTP_USER,77,107,199,14,ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "&Store credentials...",IDC_STORECREDENTIALS,77,125,98,14
+    PUSHBUTTON      "&Clear",IDC_CLEARCREDENTIALS,180,125,98,14
 END
 
 IDD_SVNPROGRESS DIALOGEX 0, 0, 434, 165
@@ -3695,7 +3694,8 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_CHERRYPICKFAILEDSKIP "Cherry-pick failed! Skip this commit?"
+    IDS_CHERRYPICKFAILEDSKIP 
+                            "Cherry-pick failed (please see log in the cherry pick/rebase dialog for details)! Skip this commit?"
     IDS_COPY_REF_NAMES      "Copy ref names"
     IDS_PROC_GITCONFIG_VIEWTGITCONFIG "View .tgitconfig"
     IDS_SMTP_MAPI           "MAPI"
@@ -3788,7 +3788,12 @@ BEGIN
     IDS_NEED_TO_RESOLVE_CONFLICTS_HINT 
                             "While merging, i.e. integrating changes of another (remote) branch into your local branch, a conflict in at least one file occurred. This means that you need to resolve this manually (i.e., you need to integrate your changes into a file which was also modified on another branch).\n\nAfter resolving all files, you need to perform a commit in order to complete the merge.\n\nIf you want to abort the merge, do a hard reset on HEAD or select abort merge on the context menu.\n\nSee help for more information."
     IDS_STATUSLIST_CONTEXT_ADD_EXE "Add as Executable (+x)"
+END
+
+STRINGTABLE
+BEGIN
     IDS_STATUSLIST_CONTEXT_ADD_LINK "Add as Symlink"
+    IDS_CHERRYPICK_EMPTY    "The current commit will be empty (e.g., due to conflict resolution). Skip the commit or keep the message only commit?"
 END
 
 STRINGTABLE
@@ -3945,7 +3950,6 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_COMMITDLG_EXTERNALS "There are changes or unversioned items inside one or more submodule.\nThose files are not listed for commit. You need to commit those files in submodule"
     IDS_COMMITDLG_STATISTICSFORMAT "%1!d! files selected, %2!d! files total"
     IDS_COMMITDLG_ONLYNUMBERS 
                             "Only numbers (optionally separated by commas)\nare allowed!"
@@ -4961,6 +4965,15 @@ BEGIN
     IDS_HOOKS_APPROVE_TASK4 "&Don't run\nDo not run the script"
     IDS_HOOKS_APPROVE_TASK5 "Do not ask again for this script"
     IDS_ERR_HOOKNOTAPPROVED "The hook script was not approved to run!"
+    IDS_HOOK_ERRORMSG       "The hook script returned an error:\n%ls"
+    IDS_HOOK_FORCEDPROCEED  "Proceed anyway"
+    IDS_HOOKFAILED_TASK2    "Hook script failed"
+    IDS_HOOKFAILED_TASK3    "&Abort\nYou can fix the reason the hook script failed first."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_HOOKFAILED_TASK4    "&Proceed anyway\nIgnore the hook script and run the command anyway."
 END
 
 #endif    // English (U.S.) resources

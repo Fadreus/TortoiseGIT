@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017 - TortoiseGit
+// Copyright (C) 2008-2018 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -165,6 +165,7 @@ private:
 	CString		m_HeadFile;
 	CString		m_Gitdir;
 	CString		m_PackRefFile;
+	bool		m_bRefFromPackRefFile;
 
 	std::map<CString,CGitHash> m_PackRefMap;
 
@@ -175,6 +176,7 @@ public:
 	, m_LastModifyTimePackRef(0)
 	, m_LastFileSizeHead(-1)
 	, m_LastFileSizePackRef(-1)
+	, m_bRefFromPackRefFile(false)
 	{
 	}
 
@@ -303,7 +305,7 @@ private:
 	bool CheckFileChanged(const CString &path);
 	int FetchIgnoreFile(const CString &gitdir, const CString &gitignore, bool isGlobal);
 
-	int  CheckIgnore(const CString &path, const CString &root, bool isDir);
+	int CheckIgnore(const CString& path, const CString& root, bool isDir, const CString& adminDir);
 	int CheckFileAgainstIgnoreList(const CString &ignorefile, const CStringA &patha, const char * base, int &type);
 
 	// core.excludesfile stuff
@@ -327,8 +329,8 @@ public:
 
 	std::map<CString, CGitIgnoreItem> m_Map;
 
-	bool CheckAndUpdateIgnoreFiles(const CString& gitdir, const CString& path, bool isDir);
-	bool IsIgnore(CString path, const CString& root, bool isDir);
+	bool CheckAndUpdateIgnoreFiles(const CString& gitdir, const CString& path, bool isDir, std::set<CString>* lastChecked = nullptr);
+	bool IsIgnore(CString path, const CString& root, bool isDir, const CString& adminDir);
 };
 
 template<class T>
