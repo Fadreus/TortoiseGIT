@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2011-2016 - TortoiseGit
+// Copyright (C) 2011-2016, 2018-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
 
 bool AddProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int& m_itemCountTotal, int& m_itemCount)
 {
+	ATLASSERT(!(m_bExecutable && m_bSymlink));
 	list->SetWindowTitle(IDS_PROGRS_TITLE_ADD, g_Git.CombinePath(m_targetPathList.GetCommonRoot().GetUIPathString()), sWindowTitle);
 	list->SetBackgroundImage(IDI_ADD_BKG);
 	if (m_bExecutable)
@@ -125,12 +126,15 @@ bool AddProgressCommand::Run(CGitProgressList* list, CString& sWindowTitle, int&
 				sCmd.Format(L"/command:commit /path:\"%s\"", (LPCTSTR)g_Git.m_CurrentDir);
 				CAppUtils::RunTortoiseGitProc(sCmd);
 			});
-		postCmdList.emplace_back(IDI_ADD, IDS_STATUSLIST_CONTEXT_ADD_EXE, [this] {
-			SetFileMode(GIT_FILEMODE_BLOB_EXECUTABLE);
-		});
-		postCmdList.emplace_back(IDI_ADD, IDS_STATUSLIST_CONTEXT_ADD_LINK, [this] {
-			SetFileMode(GIT_FILEMODE_LINK);
-		});
+		if (!(m_bExecutable || m_bSymlink))
+		{
+			postCmdList.emplace_back(IDI_ADD, IDS_STATUSLIST_CONTEXT_ADD_EXE, [this] {
+				SetFileMode(GIT_FILEMODE_BLOB_EXECUTABLE);
+			});
+			postCmdList.emplace_back(IDI_ADD, IDS_STATUSLIST_CONTEXT_ADD_LINK, [this] {
+				SetFileMode(GIT_FILEMODE_LINK);
+			});
+		}
 	};
 
 	return true;

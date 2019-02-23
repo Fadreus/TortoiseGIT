@@ -1387,6 +1387,7 @@
 #define IDC_ALTERNATIVEEDITORBROWSE     1664
 #define IDS_STATUSLIST_CONTEXT_ADD_LINK 1664
 #define IDS_CHERRYPICK_EMPTY            1665
+#define IDS_NOGITREPO                   1666
 #define IDC_NOAUTOSELECTSUBMODULES      1669
 #define IDC_COMMIT_DATEPICKER           1670
 #define IDC_COMMIT_TIMEPICKER           1671
@@ -1607,7 +1608,9 @@
 #define IDC_LOCALCHECK                  1848
 #define IDC_CLEARCREDENTIALS            1848
 #define IDC_STORECREDENTIALS            1849
+#define IDC_OPENSETTINGSELEVATED        1849
 #define IDS_LOG_FILTER_BY               1850
+#define IDC_STATICELEVATIONNEEDED       1850
 #define IDS_LOG_FILTER_PATHS            1851
 #define IDS_LOG_FILTER_AUTHORS          1852
 #define IDS_LOG_FILTER_MESSAGES         1853
@@ -2050,6 +2053,8 @@
 #define ID_GO_FORWARD_SELECT            32872
 #define ID_SELECT_SEARCHFIELD           32873
 #define ID_EXITCLEARFILTER              32874
+#define IDS_ERR_CHANGELIST_LOAD         32900
+#define IDS_ERR_CHANGELIST_SAVE         32901
 
 // Next default values for new objects
 // 
@@ -2057,7 +2062,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        363
 #define _APS_NEXT_COMMAND_VALUE         32874
-#define _APS_NEXT_CONTROL_VALUE         1849
+#define _APS_NEXT_CONTROL_VALUE         1851
 #define _APS_NEXT_SYMED_VALUE           201
 #endif
 #endif

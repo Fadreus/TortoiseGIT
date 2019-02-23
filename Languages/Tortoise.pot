@@ -476,12 +476,12 @@ msgstr ""
 msgid "&Delete Filter"
 msgstr ""
 
-#. Resource IDs: (IDS_DELETE_BRANCHTAG)
-msgid "&Delete branch/tag"
+#. Resource IDs: (IDS_PROC_DELETEREMOTEBRANCH_LOCALREMOTE)
+msgid "&Delete branch on remote && local remote-tracking branch"
 msgstr ""
 
-#. Resource IDs: (IDS_PROC_DELETEREMOTEBRANCH_LOCALREMOTE)
-msgid "&Delete remote && local"
+#. Resource IDs: (IDS_DELETE_BRANCHTAG)
+msgid "&Delete branch/tag"
 msgstr ""
 
 #. Resource IDs: (65535 - PopupMenu)
@@ -1644,6 +1644,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROC_LOG_SELECT_LOCAL_BRANCHES)
 msgid "All local branches"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 1850)
+msgid "All or some options are limited. In order to change all these settings, you need Administrator rights."
 msgstr ""
 
 #. Resource IDs: (IDS_ALLREFS)
@@ -3261,7 +3265,7 @@ msgid "Delete %d tags"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_DELETEREMOTEBRANCH_LOCAL)
-msgid "Delete &local"
+msgid "Delete &local remote-tracking branch"
 msgstr ""
 
 #. Resource IDs: (IDS_REFLOG_DEL)
@@ -6263,6 +6267,10 @@ msgstr ""
 msgid "No thesaurus suggestions"
 msgstr ""
 
+#. Resource IDs: (IDS_NOGITREPO)
+msgid "No valid git repository found."
+msgstr ""
+
 #. Resource IDs: (IDS_NOWORKINGCOPY)
 msgid "No working directory found."
 msgstr ""
@@ -6514,6 +6522,10 @@ msgstr ""
 
 #. Resource IDs: (AFX_IDS_OPENFILE, ID_FILE_OPEN - Menu)
 msgid "Open"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 1849)
+msgid "Open &settings"
 msgstr ""
 
 #. Resource IDs: (57601)
@@ -8942,7 +8954,7 @@ msgstr ""
 
 #. Resource IDs: (IDS_PROC_DELETEREMOTEBRANCH)
 #, c-format
-msgid "The branch \"%s\" is a remote branch.\n\nDo you really want to delete it?"
+msgid "The branch \"%s\" is a remote-tracking branch which locally represents a remote branch.\n\nDo you really want to delete it?"
 msgstr ""
 
 #. Resource IDs: (IDS_ERR_PATCH_CHUNKMISMATCH)
@@ -9508,6 +9520,10 @@ msgstr ""
 msgid "UTF-8"
 msgstr ""
 
+#. Resource IDs: (IDS_ERR_CHANGELIST_LOAD)
+msgid "Unable to load changelists"
+msgstr ""
+
 #. Resource IDs: (AFX_IDP_FAILED_MAPI_LOAD)
 msgid "Unable to load mail system support."
 msgstr ""
@@ -9527,6 +9543,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_LOG_REVERTREV_ERROR)
 msgid "Unable to reconstruct working tree path!\nThis can happen if the file has been renamed.\nPlease start the log dialog on this specific file alone and then revert the changes\nfrom the top pane in the log dialog."
+msgstr ""
+
+#. Resource IDs: (IDS_ERR_CHANGELIST_SAVE)
+msgid "Unable to save changelists"
 msgstr ""
 
 #. Resource IDs: (AFX_IDP_SET_NOT_SUPPORTED)

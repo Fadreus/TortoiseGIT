@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2018 - TortoiseGit
+// Copyright (C) 2016-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -164,9 +164,9 @@ TEST(libgit, RefreshIndex)
 	EXPECT_EQ(0, git_config_set_string(config, "filter.openssl.smudge", path + "/smudge_filter_openssl"));
 	EXPECT_EQ(0, git_config_set_bool(config, "filter.openssl.required", 1));
 	CString cleanFilterFilename = g_Git.m_CurrentDir + L"\\clean_filter_openssl";
-	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(cleanFilterFilename, L"#!/bin/bash\nopenssl enc -base64 -aes-256-ecb -S FEEDDEADBEEF -k PASS_FIXED"));
+	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(cleanFilterFilename, L"#!/bin/bash\nopenssl version | grep -q 1\\\\.0\nif [[ $? = 0 ]]; then\n\topenssl enc -base64 -aes-256-ecb -S FEEDDEADBEEF -k PASS_FIXED\nelse\n\topenssl enc -base64 -pbkdf2 -aes-256-ecb -S FEEDDEADBEEFFEED -k PASS_FIXED\nfi\n"));
 	CString smudgeFilterFilename = g_Git.m_CurrentDir + L"\\smudge_filter_openssl";
-	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(smudgeFilterFilename, L"#!/bin/bash\nopenssl enc -d -base64 -aes-256-ecb -k PASS_FIXED"));
+	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(smudgeFilterFilename, L"#!/bin/bash\nopenssl version | grep -q 1\\\\.0\nif [[ $? = 0 ]]; then\n\topenssl enc -d -base64 -aes-256-ecb -k PASS_FIXED\nelse\n\topenssl enc -d -base64 -pbkdf2 -aes-256-ecb -k PASS_FIXED\nfi\n"));
 	EXPECT_EQ(0, git_config_set_string(config, "filter.test.clean", path + "/clean_filter_openssl"));
 	EXPECT_EQ(0, git_config_set_string(config, "filter.test.smudge", path + "/smudge_filter_openssl"));
 	EXPECT_EQ(0, git_config_set_string(config, "filter.test.process", path + "/clean_filter_openssl"));
@@ -176,11 +176,12 @@ TEST(libgit, RefreshIndex)
 	g_Git.CheckMsysGitDir();
 	size_t size;
 	_wgetenv_s(&size, nullptr, 0, L"PATH");
-	EXPECT_LT(0U, size);
-	TCHAR* oldEnv = (TCHAR*)alloca(size * sizeof(TCHAR));
+	ASSERT_LT(0U, size);
+	auto oldEnv = std::make_unique<wchar_t[]>(size);
 	ASSERT_TRUE(oldEnv);
-	_wgetenv_s(&size, oldEnv, size, L"PATH");
+	_wgetenv_s(&size, oldEnv.get(), size, L"PATH");
 	_wputenv_s(L"PATH", g_Git.m_Environment.GetEnv(L"PATH"));
+	SCOPE_EXIT { _wputenv_s(L"PATH", oldEnv.get()); };
 	EXPECT_TRUE(CStringUtils::WriteStringToTextFile(g_Git.m_CurrentDir + L"\\somefile.txt", L"some content"));
 
 	g_Git.RefreshGitIndex();
@@ -249,8 +250,6 @@ TEST(libgit, RefreshIndex)
 	}
 
 	g_Git.RefreshGitIndex();
-
-	_wputenv_s(L"PATH", oldEnv);
 }
 
 TEST(libgit, IncludeIf)
@@ -296,4 +295,22 @@ TEST(libgit, IncludeIf)
 	EXPECT_STREQ(L"jap", g_Git.GetConfigValue(L"something.thevalue"));
 	EXPECT_STREQ(L"jop", g_Git.GetConfigValue(L"somethinga.thevalue"));
 	EXPECT_STREQ(L"", g_Git.GetConfigValue(L"somethingb.thevalue"));
+}
+
+TEST(libgit, StoreUninitializedRepositoryConfig)
+{
+	CAutoTempDir tempdir;
+	g_Git.m_CurrentDir = tempdir.GetTempDir();
+	g_Git.m_IsGitDllInited = false;
+	g_Git.m_CurrentDir = g_Git.m_CurrentDir;
+	g_Git.m_IsUseGitDLL = true;
+	g_Git.m_IsUseLibGit2 = false;
+	g_Git.m_IsUseLibGit2_mask = 0;
+	// libgit relies on CWD being set to working tree
+	SetCurrentDirectory(g_Git.m_CurrentDir);
+
+	// clear any leftovers in caches
+	EXPECT_THROW(g_Git.CheckAndInitDll(), const char*);
+
+	EXPECT_THROW(get_set_config("something", "else", CONFIG_LOCAL), const char*);
 }

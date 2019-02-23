@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2009, 2015 - TortoiseSVN
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include "LogOrdering.h"
 #include "ClipboardHelper.h"
 #include "DPIAware.h"
+#include "LogDlgFileFilter.h"
 
 #define MIN_CTRL_HEIGHT (CDPIAware::Instance().ScaleY(20))
 #define MIN_SPLITTER_HEIGHT (CDPIAware::Instance().ScaleY(10))
@@ -471,8 +472,8 @@ BOOL CLogDlg::OnInitDialog()
 	ShowGravatar();
 	m_gravatar.Init();
 
-	m_cFilter.SetCancelBitmaps(IDI_CANCELNORMAL, IDI_CANCELPRESSED, 14, 14);
-	m_cFilter.SetInfoIcon(IDI_LOGFILTER, 19, 19);
+	m_cFileFilter.SetCancelBitmaps(IDI_CANCELNORMAL, IDI_CANCELPRESSED, 14, 14);
+	m_cFileFilter.SetInfoIcon(IDI_FILTEREDIT, 19, 19);
 	temp.LoadString(IDS_FILEDIFF_FILTERCUE);
 	temp = L"   " + temp;
 	m_cFileFilter.SetCueBanner(temp);
@@ -737,7 +738,7 @@ static int DescribeCommit(CGitHash& hash, CString& result)
 	if (!repo)
 		return -1;
 	CAutoObject commit;
-	if (git_object_lookup(commit.GetPointer(), repo, hash, GIT_OBJ_COMMIT))
+	if (git_object_lookup(commit.GetPointer(), repo, hash, GIT_OBJECT_COMMIT))
 		return -1;
 
 	CAutoDescribeResult describe;
@@ -997,17 +998,15 @@ void CLogDlg::FillLogMessageCtrl(bool bShow /* = true*/)
 					((CTGitPath&)files[i]).m_Action &= ~(CTGitPath::LOGACTIONS_HIDE | CTGitPath::LOGACTIONS_GRAY);
 			}
 
-			CString fileFilter;
-			m_cFileFilter.GetWindowText(fileFilter);
-			if (!fileFilter.IsEmpty())
+			CString fileFilterText;
+			m_cFileFilter.GetWindowText(fileFilterText);
+			if (!fileFilterText.IsEmpty())
 			{
-				fileFilter.MakeLower();
+				CLogDlgFileFilter fileFilter(fileFilterText, false, 0, false);
 				bool somethingHidden = false;
 				for (int i = 0; i < count; ++i)
 				{
-					CString sPath(files[i].GetGitPathString());
-					sPath.MakeLower();
-					if (sPath.Find(fileFilter) < 0)
+					if (!fileFilter(files[i]))
 					{
 						((CTGitPath&)files[i]).m_Action |= CTGitPath::LOGACTIONS_HIDE;
 						somethingHidden = true;
@@ -1857,7 +1856,7 @@ BOOL CLogDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 			return TRUE;
 		}
 	}
-	if (pWnd && (pWnd == GetDlgItem(IDC_MSGVIEW) || pWnd == GetDlgItem(IDC_SEARCHEDIT) || pWnd == GetDlgItem(IDC_FILTER)))
+	if (pWnd && (pWnd == GetDlgItem(IDC_MSGVIEW) || pWnd == GetDlgItem(IDC_SEARCHEDIT) || pWnd == GetDlgItem(IDC_FILTER) || pWnd == GetDlgItem(IDC_LOGINFO)))
 		return CResizableStandAloneDialog::OnSetCursor(pWnd, nHitTest, message);
 
 	HCURSOR hCur = LoadCursor(nullptr, IDC_ARROW);
@@ -2608,6 +2607,9 @@ void CLogDlg::OnBnClickedJumpUp()
 	}
 	m_LogList.SetSelectionMark(-1);
 
+	auto hashMapSharedPtr = m_LogList.m_HashMap;
+	auto hashMap = *hashMapSharedPtr.get();
+
 	for (int i = index - 1; i >= 0; i--)
 	{
 		bool found = false;
@@ -2630,8 +2632,8 @@ void CLogDlg::OnBnClickedJumpUp()
 		}
 		else if (jumpType == JumpType_Tag || jumpType == JumpType_TagFF)
 		{
-			auto refList = m_LogList.m_HashMap.find(data->m_CommitHash);
-			if (refList != m_LogList.m_HashMap.cend())
+			auto refList = hashMap.find(data->m_CommitHash);
+			if (refList != hashMap.cend())
 				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/tags/"); }) != (*refList).second.cend();
 
 			if (found && jumpType == JumpType_TagFF)
@@ -2639,8 +2641,8 @@ void CLogDlg::OnBnClickedJumpUp()
 		}
 		else if (jumpType == JumpType_Branch || jumpType == JumpType_BranchFF)
 		{
-			auto refList = m_LogList.m_HashMap.find(data->m_CommitHash);
-			if (refList != m_LogList.m_HashMap.cend())
+			auto refList = hashMap.find(data->m_CommitHash);
+			if (refList != hashMap.cend())
 				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/heads/") || CStringUtils::StartsWith(ref, L"refs/remotes/"); }) != (*refList).second.cend();
 
 			if (found && jumpType == JumpType_BranchFF)
@@ -2715,6 +2717,9 @@ void CLogDlg::OnBnClickedJumpDown()
 	}
 	m_LogList.SetSelectionMark(-1);
 
+	auto hashMapSharedPtr = m_LogList.m_HashMap;
+	auto hashMap = *hashMapSharedPtr.get();
+
 	for (int i = index + 1; i < m_LogList.GetItemCount(); ++i)
 	{
 		bool found = false;
@@ -2731,8 +2736,8 @@ void CLogDlg::OnBnClickedJumpDown()
 			found = data->m_CommitHash == hashValue;
 		else if (jumpType == JumpType_Tag || jumpType == JumpType_TagFF)
 		{
-			auto refList = m_LogList.m_HashMap.find(data->m_CommitHash);
-			if (refList != m_LogList.m_HashMap.cend())
+			auto refList = hashMap.find(data->m_CommitHash);
+			if (refList != hashMap.cend())
 				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/tags/"); }) != (*refList).second.cend();
 
 			if (found && jumpType == JumpType_TagFF)
@@ -2740,8 +2745,8 @@ void CLogDlg::OnBnClickedJumpDown()
 		}
 		else if (jumpType == JumpType_Branch || jumpType == JumpType_BranchFF)
 		{
-			auto refList = m_LogList.m_HashMap.find(data->m_CommitHash);
-			if (refList != m_LogList.m_HashMap.cend())
+			auto refList = hashMap.find(data->m_CommitHash);
+			if (refList != hashMap.cend())
 				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/heads/") || CStringUtils::StartsWith(ref, L"refs/remotes/"); }) != (*refList).second.cend();
 
 			if (found && jumpType == JumpType_BranchFF)
@@ -3594,5 +3599,5 @@ void CLogDlg::OnNMCustomdrawChangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 
 	auto filter(m_LogList.m_LogFilter);
 	if ((m_SelectedFilters & LOGFILTER_PATHS) && (filter->IsFilterActive()))
-		*pResult = m_LogList.DrawListItemWithMatches(filter.get(), m_ChangedFileListCtrl, pLVCD);
+		*pResult = CGitLogListBase::DrawListItemWithMatches(filter.get(), m_ChangedFileListCtrl, pLVCD, m_Colors);
 }

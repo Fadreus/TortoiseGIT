@@ -227,8 +227,6 @@ CGit::CGit(void)
 	GetSortOptions();
 	this->m_bInitialized =false;
 	CheckMsysGitDir();
-	m_critGitDllSec.Init();
-	m_critSecThreadMap.Init();
 }
 
 CGit::~CGit(void)
@@ -244,8 +242,6 @@ CGit::~CGit(void)
 		m_GitSimpleListDiff=0;
 	}
 	git_libgit2_shutdown();
-	m_critSecThreadMap.Term();
-	m_critGitDllSec.Term();
 }
 
 bool CGit::IsBranchNameValid(const CString& branchname)
@@ -1380,11 +1376,11 @@ CString CGit::GetGitLastErr(const CString& msg, LIBGIT2_CMD cmd)
 
 CString CGit::GetLibGit2LastErr()
 {
-	const git_error *libgit2err = giterr_last();
+	const git_error *libgit2err = git_error_last();
 	if (libgit2err)
 	{
 		CString lastError = CUnicodeUtils::GetUnicode(CStringA(libgit2err->message));
-		giterr_clear();
+		git_error_clear();
 		return L"libgit2 returned: " + lastError;
 	}
 	else
@@ -1702,7 +1698,7 @@ int CGit::GetRefsCommitIsOn(STRING_VECTOR& list, const CGitHash& hash, bool incl
 			else
 				continue;
 
-			if (git_reference_type(ref) == GIT_REF_SYMBOLIC)
+			if (git_reference_type(ref) == GIT_REFERENCE_SYMBOLIC)
 			{
 				CAutoReference peeledRef;
 				if (git_reference_resolve(peeledRef.GetPointer(), ref) < 0)
@@ -1962,13 +1958,13 @@ int libgit2_addto_map_each_ref_fn(git_reference *ref, void *payload)
 
 	CAutoObject gitObject;
 	if (git_revparse_single(gitObject.GetPointer(), payloadContent->repo, git_reference_name(ref)))
-		return (git_reference_is_remote(ref) && git_reference_type(ref) == GIT_REF_SYMBOLIC) ? 0 : 1; // don't bail out for symbolic remote references ("git.exe show-ref -d" also doesn't complain), cf. issue #2926
+		return (git_reference_is_remote(ref) && git_reference_type(ref) == GIT_REFERENCE_SYMBOLIC) ? 0 : 1; // don't bail out for symbolic remote references ("git.exe show-ref -d" also doesn't complain), cf. issue #2926
 
-	if (git_object_type(gitObject) == GIT_OBJ_TAG)
+	if (git_object_type(gitObject) == GIT_OBJECT_TAG)
 	{
 		str += L"^{}"; // deref tag
 		CAutoObject derefedTag;
-		if (git_object_peel(derefedTag.GetPointer(), gitObject, GIT_OBJ_ANY))
+		if (git_object_peel(derefedTag.GetPointer(), gitObject, GIT_OBJECT_ANY))
 			return 1;
 		gitObject.Swap(derefedTag);
 	}
@@ -2557,7 +2553,7 @@ int CGit::GetOneFile(const CString &Refname, const CTGitPath &path, const CStrin
 
 		if (git_tree_entry_filemode(entry) == GIT_FILEMODE_COMMIT)
 		{
-			giterr_set_str(GITERR_NONE, "The requested object is a submodule and not a file.");
+			git_error_set_str(GIT_ERROR_NONE, "The requested object is a submodule and not a file.");
 			return -1;
 		}
 
@@ -2568,7 +2564,7 @@ int CGit::GetOneFile(const CString &Refname, const CTGitPath &path, const CStrin
 		CAutoFILE file = _wfsopen(outputfile, L"wb", SH_DENYWR);
 		if (file == nullptr)
 		{
-			giterr_set_str(GITERR_NONE, "Could not create file.");
+			git_error_set_str(GIT_ERROR_NONE, "Could not create file.");
 			return -1;
 		}
 		CAutoBuf buf;
@@ -2576,7 +2572,7 @@ int CGit::GetOneFile(const CString &Refname, const CTGitPath &path, const CStrin
 			return -1;
 		if (fwrite(buf->ptr, sizeof(char), buf->size, file) != buf->size)
 		{
-			giterr_set_str(GITERR_OS, "Could not write to file.");
+			git_error_set_str(GIT_ERROR_OS, "Could not write to file.");
 			return -1;
 		}
 
@@ -2908,10 +2904,10 @@ static int resolve_to_tree(git_repository *repo, const char *identifier, git_tre
 	int err = 0;
 	switch (git_object_type(obj))
 	{
-	case GIT_OBJ_TREE:
+	case GIT_OBJECT_TREE:
 		*tree = (git_tree *)obj.Detach();
 		break;
-	case GIT_OBJ_COMMIT:
+	case GIT_OBJECT_COMMIT:
 		err = git_commit_tree(tree, (git_commit *)(git_object*)obj);
 		break;
 	default:

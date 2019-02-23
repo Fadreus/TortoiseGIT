@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 // Copyright (C) 2003-2008, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -37,6 +37,7 @@
 #include "GitStatusListCtrl.h"
 #include "FormatMessageWrapper.h"
 #include "GitDataObject.h"
+#include "LogDlgFileFilter.h"
 
 #define ID_COMPARE 1
 #define ID_BLAME 2
@@ -194,6 +195,7 @@ BOOL CFileDiffDlg::OnInitDialog()
 
 	m_tooltips.AddTool(IDC_SWITCHLEFTRIGHT, IDS_FILEDIFF_SWITCHLEFTRIGHT_TT);
 
+	SetWindowTheme(m_cFileList.GetSafeHwnd(), L"Explorer", nullptr);
 	m_cFileList.SetRedraw(false);
 	m_cFileList.DeleteAllItems();
 	DWORD exStyle = LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP;
@@ -210,7 +212,7 @@ BOOL CFileDiffDlg::OnInitDialog()
 	m_SwitchButton.Invalidate();
 
 	m_cFilter.SetCancelBitmaps(IDI_CANCELNORMAL, IDI_CANCELPRESSED, 14, 14);
-	m_cFilter.SetInfoIcon(IDI_LOGFILTER, 19, 19);
+	m_cFilter.SetInfoIcon(IDI_FILTEREDIT, 19, 19);
 	temp.LoadString(IDS_FILEDIFF_FILTERCUE);
 	temp = L"   " + temp;
 	m_cFilter.SetCueBanner(temp);
@@ -386,6 +388,27 @@ LRESULT CFileDiffDlg::OnDiffFinished(WPARAM, LPARAM)
 	return 0;
 }
 
+static CString GetFilename(const CTGitPath* entry)
+{
+	// similar code in CGitStatusListCtrl::GetCellText
+	static CString from(MAKEINTRESOURCE(IDS_STATUSLIST_FROM));
+	static bool abbreviateRenamings(((DWORD)CRegDWORD(L"Software\\TortoiseGit\\AbbreviateRenamings", FALSE)) == TRUE);
+
+	if (!(entry->m_Action & (CTGitPath::LOGACTIONS_REPLACED | CTGitPath::LOGACTIONS_COPY) && !entry->GetGitOldPathString().IsEmpty()))
+		return entry->GetGitPathString();
+
+	if (!abbreviateRenamings)
+	{
+		CString entryname = entry->GetGitPathString();
+		entryname += L' ';
+		// relative path
+		entryname.AppendFormat(from, (LPCTSTR)entry->GetGitOldPathString());
+		return entryname;
+	}
+
+	return entry->GetAbbreviatedRename();
+}
+
 int CFileDiffDlg::AddEntry(const CTGitPath * fd)
 {
 	int ret = -1;
@@ -399,7 +422,7 @@ int CFileDiffDlg::AddEntry(const CTGitPath * fd)
 		else
 			icon_idx = SYS_IMAGE_LIST().GetPathIconIndex(fd->GetGitPathString());
 
-		ret = m_cFileList.InsertItem(index, fd->GetGitPathString(), icon_idx);
+		ret = m_cFileList.InsertItem(index, GetFilename(fd), icon_idx);
 		m_cFileList.SetItemText(index, 1, fd->GetFileExtension());
 		m_cFileList.SetItemText(index, 2, fd->GetActionName());
 		m_cFileList.SetItemText(index, 3, fd->m_StatAdd);
@@ -492,7 +515,7 @@ void CFileDiffDlg::OnNMCustomdrawFilelist(NMHDR *pNMHDR, LRESULT *pResult)
 		// item itself, but it will use the new color we set here.
 
 		// Tell Windows to paint the control itself.
-		*pResult = CDRF_DODEFAULT;
+		*pResult = CDRF_NOTIFYSUBITEMDRAW;
 
 		COLORREF crText = GetSysColor(COLOR_WINDOWTEXT);
 
@@ -517,6 +540,15 @@ void CFileDiffDlg::OnNMCustomdrawFilelist(NMHDR *pNMHDR, LRESULT *pResult)
 		}
 		// Store the color back in the NMLVCUSTOMDRAW struct.
 		pLVCD->clrText = crText;
+	}
+	else if (pLVCD->nmcd.dwDrawStage == (CDDS_ITEMPREPAINT | CDDS_ITEM | CDDS_SUBITEM))
+	{
+		if (pLVCD->iSubItem > 1) // only highlight search matches in filename and extension
+			return;
+
+		auto filter(m_filter);
+		if (filter->IsFilterActive())
+			*pResult = CGitLogListBase::DrawListItemWithMatches(filter.get(), m_cFileList, pLVCD, m_colors);
 	}
 }
 
@@ -949,7 +981,7 @@ BOOL CFileDiffDlg::PreTranslateMessage(MSG* pMsg)
 
 void CFileDiffDlg::OnCancel()
 {
-	if (m_bThreadRunning)
+	if (m_bThreadRunning || m_bLoadingRef)
 		return;
 	__super::OnCancel();
 }
@@ -1096,7 +1128,8 @@ void CFileDiffDlg::ClickRevButton(CMenuButton *button, GitRev *rev, CACEdit *edi
 
 	SetURLLabels();
 
-	InterlockedExchange(&m_bThreadRunning, TRUE);
+	if (InterlockedExchange(&m_bThreadRunning, TRUE))
+		return;
 	if (!AfxBeginThread(DiffThreadEntry, this))
 	{
 		InterlockedExchange(&m_bThreadRunning, FALSE);
@@ -1195,7 +1228,11 @@ void CFileDiffDlg::OnTimer(UINT_PTR nIDEvent)
 
 		if(mask == 0x3)
 		{
-			InterlockedExchange(&m_bThreadRunning, TRUE);
+			if (InterlockedExchange(&m_bThreadRunning, TRUE))
+			{
+				SetTimer(IDT_INPUT, 1000, nullptr);
+				return;
+			}
 			if (!AfxBeginThread(DiffThreadEntry, this))
 			{
 				InterlockedExchange(&m_bThreadRunning, FALSE);
@@ -1205,17 +1242,15 @@ void CFileDiffDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 }
 
-void CFileDiffDlg::Filter(CString sFilterText)
+void CFileDiffDlg::Filter(const CString& sFilterText)
 {
-	sFilterText.MakeLower();
+	m_filter = std::make_shared<CLogDlgFileFilter>(sFilterText, 0, 0, true);
+	auto filter = *m_filter.get();
 
 	m_arFilteredList.clear();
-
 	for (int i=0;i<m_arFileList.GetCount();i++)
 	{
-		CString sPath = m_arFileList[i].GetGitPathString();
-		sPath.MakeLower();
-		if (sPath.Find(sFilterText) >= 0)
+		if (filter(m_arFileList[i]))
 			m_arFilteredList.push_back((CTGitPath*)&(m_arFileList[i]));
 	}
 	for (const auto path : m_arFilteredList)

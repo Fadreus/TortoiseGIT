@@ -68,6 +68,7 @@
 #include "GitDiff.h"
 #include "../TGitCache/CacheInterface.h"
 #include "DPIAware.h"
+#include "IconExtractor.h"
 
 static struct last_accepted_cert {
 	BYTE*		data;
@@ -684,7 +685,7 @@ void CAppUtils::CreateFontForLogs(CFont& fontToCreate)
 	logFont.lfClipPrecision		= CLIP_DEFAULT_PRECIS;
 	logFont.lfQuality			= DRAFT_QUALITY;
 	logFont.lfPitchAndFamily	= FF_DONTCARE | FIXED_PITCH;
-	wcscpy_s(logFont.lfFaceName, 32, (LPCTSTR)GetLogFontName());
+	wcsncpy_s(logFont.lfFaceName, (LPCTSTR)GetLogFontName(), _TRUNCATE);
 	VERIFY(fontToCreate.CreateFontIndirect(&logFont));
 }
 
@@ -1038,7 +1039,7 @@ bool CAppUtils::StartShowUnifiedDiff(HWND hWnd, const CTGitPath& url1, const CSt
 	{
 		sCmd += L" /hwnd:";
 		TCHAR buf[30];
-		swprintf_s(buf, 30, L"%p", (void*)hWnd);
+		swprintf_s(buf, L"%p", (void*)hWnd);
 		sCmd += buf;
 	}
 
@@ -1236,7 +1237,7 @@ bool CAppUtils::CreateBranchTag(HWND hWnd, bool isTag /*true*/, const CString* c
 					MessageBox(hWnd, L"Could not save tag message", L"TortoiseGit", MB_OK | MB_ICONERROR);
 					return FALSE;
 				}
-				cmd += L" -F " + tempfile;
+				cmd.AppendFormat(L" -F \"%s\"", (LPCTSTR)tempfile);
 			}
 		}
 		else
@@ -1795,10 +1796,12 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 
 	if (!baseIsFile || !localIsFile || !remoteIsFile)
 	{
-		if (merge.HasAdminDir())
+		CTGitPath fullMergePath;
+		fullMergePath.SetFromWin(g_Git.CombinePath(merge));
+		if (fullMergePath.HasAdminDir())
 		{
 			CGit subgit;
-			subgit.m_CurrentDir = g_Git.CombinePath(merge);
+			subgit.m_CurrentDir = fullMergePath.GetWinPath();
 			CGitHash hash;
 			subgit.GetHash(hash, L"HEAD");
 			baseHash = hash.ToString();
@@ -1809,10 +1812,10 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 
 		bool baseOK = false, mineOK = false, theirsOK = false;
 		CString baseSubject, mineSubject, theirsSubject;
-		if (merge.HasAdminDir())
+		if (fullMergePath.HasAdminDir())
 		{
 			CGit subgit;
-			subgit.m_CurrentDir = g_Git.CombinePath(merge);
+			subgit.m_CurrentDir = fullMergePath.GetWinPath();
 			CGitDiff::GetSubmoduleChangeType(subgit, baseHash, localHash, baseOK, mineOK, changeTypeMine, baseSubject, mineSubject);
 			CGitDiff::GetSubmoduleChangeType(subgit, baseHash, remoteHash, baseOK, theirsOK, changeTypeTheirs, baseSubject, theirsSubject);
 		}
@@ -3307,6 +3310,9 @@ void CAppUtils::EditNote(HWND hWnd, GitRevLoglist* rev, ProjectProperties* proje
 	if (!CheckUserData(hWnd))
 		return;
 
+	if (g_Git.GetGitNotes(rev->m_CommitHash, rev->m_Notes))
+		MessageBox(hWnd, g_Git.GetLibGit2LastErr(L"Could not load notes for commit " + rev->m_CommitHash.ToString() + L'.'), L"TortoiseGit", MB_OK | MB_ICONERROR);
+
 	CInputDlg dlg(GetExplorerHWND() == hWnd ? nullptr : CWnd::FromHandle(hWnd));
 	dlg.m_sHintText = CString(MAKEINTRESOURCE(IDS_PROGS_TITLE_EDITNOTES));
 	dlg.m_sInputText = rev->m_Notes;
@@ -3542,7 +3548,7 @@ int CAppUtils::Git2GetUserPassword(git_cred **out, const char *url, const char *
 	if (dlg.DoModal() == IDOK)
 		return git_cred_userpass_plaintext_new(out, CUnicodeUtils::GetMulti(dlg.m_UserName, CP_UTF8), dlg.m_passwordA);
 
-	giterr_set_str(GITERR_NONE, "User cancelled.");
+	git_error_set_str(GIT_ERROR_NONE, "User cancelled.");
 	return GIT_EUSER;
 }
 
@@ -3685,10 +3691,12 @@ int CAppUtils::ResolveConflict(HWND hWnd, CTGitPath& path, resolve_with resolveW
 		{
 			if (!willBeFile)
 			{
-				if (!path.HasAdminDir()) // check if submodule is initialized
+				CTGitPath fullPath;
+				fullPath.SetFromWin(g_Git.CombinePath(path));
+				if (!fullPath.HasAdminDir()) // check if submodule is initialized
 				{
 					CString gitcmd, output;
-					if (!path.IsDirectory())
+					if (!fullPath.IsDirectory())
 					{
 						gitcmd.Format(L"git.exe checkout-index -f --stage=%d -- \"%s\"", stage, (LPCTSTR)path.GetGitPathString());
 						if (g_Git.Run(gitcmd, &output, CP_UTF8))
@@ -3707,7 +3715,7 @@ int CAppUtils::ResolveConflict(HWND hWnd, CTGitPath& path, resolve_with resolveW
 				}
 
 				CGit subgit;
-				subgit.m_CurrentDir = g_Git.CombinePath(path);
+				subgit.m_CurrentDir = fullPath.GetWinPath();
 				CGitHash submoduleHead;
 				if (subgit.GetHash(submoduleHead, L"HEAD"))
 				{
@@ -3717,7 +3725,7 @@ int CAppUtils::ResolveConflict(HWND hWnd, CTGitPath& path, resolve_with resolveW
 				if (submoduleHead.ToString() != hash)
 				{
 					CString origPath = g_Git.m_CurrentDir;
-					g_Git.m_CurrentDir = g_Git.CombinePath(path);
+					g_Git.m_CurrentDir = fullPath.GetWinPath();
 					SetCurrentDirectory(g_Git.m_CurrentDir);
 					if (!GitReset(hWnd, &hash))
 					{
@@ -3886,4 +3894,26 @@ bool CAppUtils::DeleteRef(CWnd* parent, const CString& ref)
 		return true;
 	}
 	return false;
+}
+
+void CAppUtils::SetupBareRepoIcon(const CString& path)
+{
+	if (PathFileExists(path + L"\\Desktop.ini"))
+		return;
+
+	// create a desktop.ini file which sets our own icon for the repo folder
+	// we extract the icon to use from the resources and write it to disk
+	// so even those who don't have TGit installed can benefit from it.
+	CIconExtractor gitIconResource;
+	if (gitIconResource.ExtractIcon(nullptr, MAKEINTRESOURCE(IDI_GITFOLDER), path + L"\\git.ico") == 0)
+	{
+		CAutoFile hFile = ::CreateFile(path + L"\\Desktop.ini", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN, nullptr);
+		if (hFile)
+		{
+			DWORD dwWritten = 0;
+			CString sIni = L"[.ShellClassInfo]\r\nConfirmFileOp=0\r\nIconFile=git.ico\r\nIconIndex=0\r\nInfoTip=Git Repository\r\n";
+			WriteFile(hFile, (LPCTSTR)sIni, sIni.GetLength() * sizeof(TCHAR), &dwWritten, nullptr);
+		}
+		PathMakeSystemFolder(path);
+	}
 }

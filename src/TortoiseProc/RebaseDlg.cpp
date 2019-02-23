@@ -500,7 +500,7 @@ void CRebaseDlg::LoadBranchInfo()
 	g_Git.GetTagList(list);
 	m_UpstreamCtrl.SetList(list);
 
-	AddBranchToolTips(&m_BranchCtrl);
+	AddBranchToolTips(m_BranchCtrl);
 
 	if(!m_Upstream.IsEmpty())
 		m_UpstreamCtrl.AddString(m_Upstream);
@@ -518,7 +518,7 @@ void CRebaseDlg::LoadBranchInfo()
 		else
 			m_UpstreamCtrl.SetCurSel(-1);
 	}
-	AddBranchToolTips(&m_UpstreamCtrl);
+	AddBranchToolTips(m_UpstreamCtrl);
 }
 
 void CRebaseDlg::OnCbnSelchangeBranch()
@@ -713,8 +713,8 @@ void CRebaseDlg::FetchLogList()
 #endif
 
 	m_tooltips.Pop();
-	AddBranchToolTips(&this->m_BranchCtrl);
-	AddBranchToolTips(&this->m_UpstreamCtrl);
+	AddBranchToolTips(m_BranchCtrl);
+	AddBranchToolTips(m_UpstreamCtrl);
 
 	bool bHasSKip = false;
 	if (!m_bPreserveMerges)
@@ -772,42 +772,42 @@ void CRebaseDlg::FetchLogList()
 	SetContinueButtonText();
 }
 
-void CRebaseDlg::AddBranchToolTips(CHistoryCombo *pBranch)
+void CRebaseDlg::AddBranchToolTips(CHistoryCombo& pBranch)
 {
-	if(pBranch)
+	pBranch.DisableTooltip();
+
+	CString text = pBranch.GetString();
+
+	if (text.IsEmpty())
+		return;
+
+	GitRev rev;
+	if (rev.GetCommit(text + L"^{}"))
 	{
-		CString text=pBranch->GetString();
-		CString tooltip;
-
-		if (text.IsEmpty())
-		{
-			pBranch->DisableTooltip();
-			return;
-		}
-
-		GitRev rev;
-		if (rev.GetCommit(text + L"^{}"))
-		{
-			MessageBox(L"Failed to get commit.\n" + rev.GetLastErr(), L"TortoiseGit", MB_ICONERROR);
-			pBranch->DisableTooltip();
-			return;
-		}
-
-		tooltip.Format(L"%s: %s\n%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",
-			(LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_REVISION)),
-			(LPCTSTR)rev.m_CommitHash.ToString(),
-			(LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_AUTHOR)),
-			(LPCTSTR)rev.GetAuthorName(),
-			(LPCTSTR)rev.GetAuthorEmail(),
-			(LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_DATE)),
-			(LPCTSTR)CLoglistUtils::FormatDateAndTime(rev.GetAuthorDate(), DATE_LONGDATE),
-			(LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_MESSAGE)),
-			(LPCTSTR)rev.GetSubject(),
-			(LPCTSTR)rev.GetBody());
-
-		pBranch->DisableTooltip();
-		this->m_tooltips.AddTool(pBranch->GetComboBoxCtrl(),tooltip);
+		MessageBox(L"Failed to get commit.\n" + rev.GetLastErr(), L"TortoiseGit", MB_ICONERROR);
+		return;
 	}
+
+	CString tooltip;
+	tooltip.Format(L"%s: %s\n%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",
+				   (LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_REVISION)),
+				   (LPCTSTR)rev.m_CommitHash.ToString(),
+				   (LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_AUTHOR)),
+				   (LPCTSTR)rev.GetAuthorName(),
+				   (LPCTSTR)rev.GetAuthorEmail(),
+				   (LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_DATE)),
+				   (LPCTSTR)CLoglistUtils::FormatDateAndTime(rev.GetAuthorDate(), DATE_LONGDATE),
+				   (LPCTSTR)CString(MAKEINTRESOURCE(IDS_LOG_MESSAGE)),
+				   (LPCTSTR)rev.GetSubject(),
+				   (LPCTSTR)rev.GetBody());
+
+	if (tooltip.GetLength() > 8000)
+	{
+		tooltip.Truncate(8000);
+		tooltip += L"...";
+	}
+
+	m_tooltips.AddTool(pBranch.GetComboBoxCtrl(), tooltip);
 }
 
 BOOL CRebaseDlg::PreTranslateMessage(MSG*pMsg)
@@ -2518,18 +2518,20 @@ void CRebaseDlg::OnBnClickedAbort()
 
 	SaveSplitterPos();
 
-	if(m_OrigUpstreamHash.IsEmpty())
+	if (m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage== CHOOSE_COMMIT_PICK_MODE)
 	{
 		__super::OnCancel();
+		goto end;
 	}
 
-	if(m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage== CHOOSE_COMMIT_PICK_MODE)
+	if (m_OrigUpstreamHash.IsEmpty() || m_OrigHEADHash.IsEmpty())
 	{
+		__super::OnCancel();
 		goto end;
 	}
 
 	if (!m_bAbort && CMessageBox::Show(GetSafeHwnd(), IDS_PROC_REBASE_ABORT, IDS_APPNAME, MB_YESNO | MB_ICONQUESTION) != IDYES)
-		goto end;
+		return;
 
 	m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_LOG);
 

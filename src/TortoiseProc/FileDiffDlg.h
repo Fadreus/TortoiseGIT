@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017 - TortoiseGit
+// Copyright (C) 2008-2017, 2019 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -30,6 +30,8 @@
 #include "MenuButton.h"
 #include "ACEdit.h"
 #include "GestureEnabledControl.h"
+#include "LogDlgFileFilter.h"
+
 #define IDT_FILTER		101
 #define IDT_INPUT		102
 
@@ -89,7 +91,7 @@ protected:
 	void				DoDiff(int selIndex, bool blame);
 	void				SetURLLabels(int mask=0x3);
 	void				ClearURLabels(int mask);
-	void				Filter(CString sFilterText);
+	void				Filter(const CString& sFilterText);
 	void				CopySelectionToClipboard(BOOL isFull=FALSE);
 
 	void				ClickRevButton(CMenuButton *button,GitRev *rev, CACEdit *edit);
@@ -134,6 +136,7 @@ private:
 	CMenuButton			m_cRev1Btn;
 	CMenuButton			m_cRev2Btn;
 	CFilterEdit			m_cFilter;
+	std::shared_ptr<CLogDlgFileFilter> m_filter;
 
 	CMenuButton			m_cDiffOptionsBtn;
 

@@ -1167,6 +1167,8 @@ void CCommitDlg::OnOK()
 					bCloseCommitDlg = false;
 				}
 			}
+			m_ListCtrl.PruneChangelists();
+			m_ListCtrl.SaveChangelists();
 		}
 
 		if (progress.m_GitStatus || m_PostCmd == GIT_POSTCOMMIT_CMD_RECOMMIT)
@@ -1579,7 +1581,6 @@ void CCommitDlg::StartStatusThread()
 		return;
 
 	delete m_pThread;
-	m_pThread = nullptr;
 
 	m_pThread = AfxBeginThread(StatusThreadEntry, this, THREAD_PRIORITY_NORMAL, 0, CREATE_SUSPENDED);
 	if (!m_pThread)

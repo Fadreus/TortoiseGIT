@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -36,6 +36,8 @@
 #include "FindDlg.h"
 #include <unordered_set>
 #include "LogDlgFilter.h"
+
+typedef CComCritSecLock<CComCriticalSection> Locker;
 
 template < typename Cont, typename Pred>
 void for_each(Cont& c, Pred&& p)
@@ -160,7 +162,6 @@ private:
 
 class CThreadSafePtrArray : public std::vector<GitRevLoglist*>
 {
-	typedef CComCritSecLock<CComCriticalSection> Locker;
 	CComCriticalSection *m_critSec;
 public:
 	CThreadSafePtrArray(CComCriticalSection* section) : m_critSec(section)
@@ -422,10 +423,11 @@ public:
 	int  FillGitLog(std::unordered_set<CGitHash>& hashes);
 protected:
 	CString MessageDisplayStr(GitRev* pLogEntry);
-	bool ShouldShowFilter(GitRevLoglist* pRev, const std::unordered_map<CGitHash, std::unordered_set<CGitHash>>& commitChildren);
+	bool ShouldShowFilter(GitRevLoglist* pRev, const std::unordered_map<CGitHash, std::unordered_set<CGitHash>>& commitChildren, MAP_HASH_NAME& hashMap);
 public:
 	void ShowGraphColumn(bool bShow);
-	CString	GetTagInfo(GitRev* pLogEntry);
+	CString	GetTagInfo(GitRev* pLogEntry) const;
+	CString GetTagInfo(const STRING_VECTOR& refs) const;
 
 	CFindDlg *m_pFindDialog;
 	static const UINT	m_FindDialogMessage;
@@ -463,7 +465,7 @@ public:
 	void				GetTimeRange(CTime &oldest,CTime &latest);
 protected:
 	virtual void GetParentHashes(GitRev* pRev, GIT_REV_LIST& parentHash);
-	virtual void ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMenu * menu)=0;
+	virtual void ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CMenu* menu, MAP_HASH_NAME& hashMap) = 0;
 	void UpdateSubmodulePointer()
 	{
 		m_superProjectHash.Empty();
@@ -498,10 +500,10 @@ protected:
 	void ReloadHashMap()
 	{
 		m_RefLabelPosMap.clear();
-		m_HashMap.clear();
-
-		if (g_Git.GetMapHashToFriendName(m_HashMap))
+		auto newHashMap = std::make_shared<MAP_HASH_NAME>();
+		if (g_Git.GetMapHashToFriendName(*newHashMap.get()))
 			MessageBox(g_Git.GetGitLastErr(L"Could not get all refs."), L"TortoiseGit", MB_ICONERROR);
+		m_HashMap = newHashMap;
 
 		m_CurrentBranch=g_Git.GetCurrentBranch();
 
@@ -531,6 +533,7 @@ public:
 				ret =::WaitForSingleObject(m_LoadingThread->m_hThread, 100);
 			if (ret == WAIT_TIMEOUT && m_bThreadRunning)
 				::TerminateThread(m_LoadingThread, 0);
+			delete m_LoadingThread;
 			m_LoadingThread = nullptr;
 		}
 	};
@@ -542,6 +545,7 @@ protected:
 public:
 	void SetRange(const CString& range)
 	{
+		Locker lock(m_critSec);
 		m_sRange = range;
 	}
 
@@ -552,7 +556,7 @@ protected:
 	volatile LONG		m_bExitThread;
 	CWinThread*			m_LoadingThread;
 public:
-	MAP_HASH_NAME		m_HashMap;
+	std::shared_ptr<MAP_HASH_NAME> m_HashMap;
 protected:
 	std::map<CString, std::pair<CString, CString>>	m_TrackingMap;
 
@@ -608,19 +612,19 @@ protected:
 	 * pShortname OUT: the short name of that reference label
 	 * pIndex     OUT: the index value of label of that entry
 	 */
-	bool IsMouseOnRefLabel(const GitRevLoglist* pLogEntry, const POINT& pt, CGit::REF_TYPE& type, CString* pShortname = nullptr, size_t* pIndex = nullptr);
-	bool IsMouseOnRefLabelFromPopupMenu(const GitRevLoglist* pLogEntry, const CPoint& pt, CGit::REF_TYPE& type, CString* pShortname = nullptr, size_t* pIndex = nullptr);
+	bool IsMouseOnRefLabel(const GitRevLoglist* pLogEntry, const POINT& pt, CGit::REF_TYPE& type, MAP_HASH_NAME& hashMap, CString* pShortname = nullptr, size_t* pIndex = nullptr);
+	bool IsMouseOnRefLabelFromPopupMenu(const GitRevLoglist* pLogEntry, const CPoint& pt, CGit::REF_TYPE& type, MAP_HASH_NAME& hashMap, CString* pShortname = nullptr, size_t* pIndex = nullptr);
 
 	void FillBackGround(HDC hdc, DWORD_PTR Index, CRect &rect);
 	void DrawTagBranchMessage(NMLVCUSTOMDRAW* pLVCD, CRect& rect, INT_PTR index, std::vector<REFLABEL>& refList);
 	void DrawTagBranch(HDC hdc, CDC& W_Dc, HTHEME hTheme, CRect& rect, CRect& rt, LVITEM& rItem, GitRevLoglist* data, std::vector<REFLABEL>& refList);
 	void DrawGraph(HDC,CRect &rect,INT_PTR index);
 	bool CGitLogListBase::DrawListItemWithMatchesIfEnabled(std::shared_ptr<CLogDlgFilter> filter, DWORD selectedFilter, NMLVCUSTOMDRAW* pLVCD, LRESULT* pResult);
-	void DrawListItemWithMatchesRect(NMLVCUSTOMDRAW* pLVCD, const std::vector<CHARRANGE>& ranges, CRect rect, const CString& text, HTHEME hTheme = nullptr, int txtState = 0);
+	static void DrawListItemWithMatchesRect(NMLVCUSTOMDRAW* pLVCD, const std::vector<CHARRANGE>& ranges, CRect rect, const CString& text, CColors& colors, HTHEME hTheme = nullptr, int txtState = 0);
 
 public:
-	// needs to be called from LogDlg.cpp
-	LRESULT DrawListItemWithMatches(CLogDlgFilter* filter, CListCtrl& listCtrl, NMLVCUSTOMDRAW* pLVCD);
+	// needs to be called from LogDlg.cpp and FileDiffDlg.cpp
+	static LRESULT DrawListItemWithMatches(CFilterHelper* filter, CListCtrl& listCtrl, NMLVCUSTOMDRAW* pLVCD, CColors& colors);
 
 protected:
 	void paintGraphLane(HDC hdc,int laneHeight, int type, int x1, int x2,
@@ -634,7 +638,7 @@ protected:
 	int GetHeadIndex();
 
 	std::vector<GitRevLoglist*> m_AsynDiffList;
-	CComCriticalSection m_AsynDiffListLock;
+	CComAutoCriticalSection m_AsynDiffListLock;
 	HANDLE	m_AsyncDiffEvent;
 	volatile LONG m_AsyncThreadExit;
 	CWinThread*			m_DiffingThread;
@@ -694,13 +698,14 @@ public:
 					AfxGetThread()->PumpMessage(); // process messages, so that GetTopIndex and so on in the thread work
 				ret = ::WaitForSingleObject(m_DiffingThread->m_hThread, 100);
 			}
+			delete m_DiffingThread;
 			m_DiffingThread = nullptr;
 			InterlockedExchange(&m_AsyncThreadExit, FALSE);
 		}
 	};
 
 protected:
-	CComCriticalSection	m_critSec;
+	CComAutoCriticalSection	m_critSec;
 
 	HICON				m_hModifiedIcon;
 	HICON				m_hReplacedIcon;

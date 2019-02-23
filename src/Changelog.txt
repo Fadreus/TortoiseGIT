@@ -6,14 +6,14 @@ Released: unreleased
  * Fixed issue #2591: Enable accent coloring for search term matches in log messages
  * LogDlg: Allow to use more complex search expressions, see documentation
  * Fixed issue #3279: Browse References -> lacks capability to double click an item (now opens log by default)
- * Update Scintilla to 4.1.2
+ * Update Scintilla to 4.1.3
  * Fixed issue #3277: Start of rebase process doesn't show log tab by default
  * Fixed issue #3273: Show more information (beginning of commit subject) about commit parents in context menus
  * Fixed issue #3272: Revision Graph does not show the option to checkout a remote branch
  * Added the option to store hook configurations within the repository (/.tgitconfig) in order to share it with other developers
  * Fixed issue #3154: Decorate bare repository's folder with a Git icon
  * Update apr to 1.6.5
- * Update libgit2
+ * Update libgit2 to version 0.28
  * Fixed issue #3304: Double click on stash list item does nothing, show log instead
  * Fixed issue #3305: Stash Changes/Save, then allow Stash Apply
  * TGitCache: Speed up scanning of folders with lots of unversioned files
@@ -23,6 +23,10 @@ Released: unreleased
  * Fixed issue #3290: Improve "Status/Check for modifications" documentation
  * Fixed issue #3228: Rebase: Add full support for empty commits (e.g., commits which become empty during conflict resolution)
  * Fixed issue #3189: Show progress bar when resolving lots of conflicts
+ * Fixed issue #3318: More accurate git-svn detection
+ * Fixed issue #1770: Add support for changelists
+ * Fixed issue #3327: Clarify remote and remote-tracking branch
+ * TGitCache: Significantly reduce disk access for requesting cached file statuses
 
 == Bug Fixes ==
  * Fixed issue #3250: GitWCRev: IsGitItem return true for item that had never been committed
@@ -42,6 +46,11 @@ Released: unreleased
  * Fixed issue #3039: Icon overlays don't update properly when committing after gc prune on the command line
  * Fixed issue #3316: Misleading message box after pull with rebase, when branch is behind origin/branch, but origin/branch=remote/origin/master
  * Fixed issue #3288: Commit window: text is cut when Russian localisation
+ * Fixed issue #3317: merge-ods.vbs-script: Merged document in LibreOffice 6.1 deleted by the script
+ * Fixed issue #3329: create tag with message results in fatal error if username contains space
+ * Fixed issue #3330: Edit notes don't load correctly for stash commits and reflog dialog
+ * Fixed issue #3331: "Putty Key:" label is too narrow for localization
+ * Improved stability in various unusual cases
 
 = Release 2.7.0 =
 Released: 2018-08-19
