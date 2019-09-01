@@ -36,7 +36,7 @@ private:
 	CWinThread*			m_pLoadingThread;
 	static UINT LoadingThreadEntry(LPVOID pVoid)
 	{
-		return reinterpret_cast<CChooseVersion*>(pVoid)->LoadingThread();
+		return static_cast<CChooseVersion*>(pVoid)->LoadingThread();
 	};
 	volatile LONG 		m_bLoadingThreadRunning;
 
@@ -49,6 +49,13 @@ protected:
 	CString			m_pendingRefName;
 	bool			m_bNotFullName;
 	bool			m_bSkipCurrentBranch;
+
+	typedef struct
+	{
+		STRING_VECTOR branches;
+		int current_branch_idx;
+		STRING_VECTOR tags;
+	} GUI_UPDATE_DATA;
 
 	//Notification when version changed. Can be implemented in derived classes.
 	virtual void OnVersionChanged(){}
@@ -160,10 +167,10 @@ protected:
 		}
 
 		if (CStringUtils::StartsWith(refName, L"refs/"))
-			refName = refName.Mid((int)wcslen(L"refs/"));
+			refName = refName.Mid(static_cast<int>(wcslen(L"refs/")));
 		if (CStringUtils::StartsWith(refName, L"heads/"))
 		{
-			refName = refName.Mid((int)wcslen(L"heads/"));
+			refName = refName.Mid(static_cast<int>(wcslen(L"heads/")));
 			SetDefaultChoose(IDC_RADIO_BRANCH);
 			m_ChooseVersioinBranch.SetCurSel(
 				m_ChooseVersioinBranch.FindStringExact(-1, refName));
@@ -176,8 +183,9 @@ protected:
 		}
 		else if (CStringUtils::StartsWith(refName, L"tags/"))
 		{
-			refName = refName.Mid((int)wcslen(L"refs/"));
-			refName.Replace(L"^{}", L"");
+			refName = refName.Mid(static_cast<int>(wcslen(L"refs/")));
+			if (CStringUtils::EndsWith(refName, L"^{}"))
+				refName.Truncate(refName.GetLength() - static_cast<int>(wcslen(L"^{}")));
 			SetDefaultChoose(IDC_RADIO_TAGS);
 			m_ChooseVersioinTags.SetCurSel(
 				m_ChooseVersioinTags.FindStringExact(-1, refName));
@@ -192,25 +200,27 @@ protected:
 
 	UINT LoadingThread()
 	{
-		STRING_VECTOR list;
+		GUI_UPDATE_DATA data;
+		data.current_branch_idx = -1;
+		g_Git.GetBranchList(data.branches, &data.current_branch_idx, CRegDWORD(L"Software\\TortoiseGit\\BranchesIncludeFetchHead", TRUE) ? CGit::BRANCH_ALL_F : CGit::BRANCH_ALL, m_bSkipCurrentBranch);
 
-		int current = -1;
-		g_Git.GetBranchList(list, &current, CRegDWORD(L"Software\\TortoiseGit\\BranchesIncludeFetchHead", TRUE) ? CGit::BRANCH_ALL_F : CGit::BRANCH_ALL, m_bSkipCurrentBranch);
-		m_ChooseVersioinBranch.SetList(list);
-		m_ChooseVersioinBranch.SetCurSel(current);
+		g_Git.GetTagList(data.tags);
 
-		list.clear();
-		g_Git.GetTagList(list);
-		m_ChooseVersioinTags.SetList(list);
-		m_ChooseVersioinTags.SetCurSel(0);
-
-		m_pWin->SendMessage(WM_GUIUPDATES);
+		m_pWin->SendMessage(WM_GUIUPDATES, reinterpret_cast<WPARAM>(&data));
 
 		InterlockedExchange(&m_bLoadingThreadRunning, FALSE);
 		return 0;
 	}
-	void UpdateGUI()
+	void UpdateGUI(GUI_UPDATE_DATA* data = nullptr)
 	{
+		if (data)
+		{
+			m_ChooseVersioinBranch.SetList(data->branches);
+			m_ChooseVersioinBranch.SetCurSel(data->current_branch_idx);
+			m_ChooseVersioinTags.SetList(data->tags);
+			m_ChooseVersioinTags.SetCurSel(0);
+		}
+
 		m_RadioBranch.EnableWindow(TRUE);
 		m_RadioTag.EnableWindow(TRUE);
 
@@ -306,7 +316,7 @@ public:
 	}
 
 #define CHOOSE_EVENT_RADIO() \
-	LRESULT OnUpdateGUIHost(WPARAM, LPARAM) { UpdateGUI(); return 0; } \
+	LRESULT OnUpdateGUIHost(WPARAM data, LPARAM) { UpdateGUI(reinterpret_cast<GUI_UPDATE_DATA*>(data)); return 0; } \
 	afx_msg void OnBnClickedChooseRadioHost(){OnBnClickedChooseRadio();}\
 	afx_msg void OnBnClickedShow(){OnBnClickedChooseVersion();}\
 	afx_msg void OnBnClickedButtonBrowseRefHost(){OnBnClickedButtonBrowseRef();}

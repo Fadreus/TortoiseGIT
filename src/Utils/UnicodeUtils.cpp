@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2014, 2016 - TortoiseGit
+// Copyright (C) 2009-2014, 2016, 2019 - TortoiseGit
 // Copyright (C) 2003-2006, 2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -258,7 +258,7 @@ CString CUnicodeUtils::GetUnicode(const CStringA& string, int acp)
 #ifdef UNICODE
 std::string CUnicodeUtils::StdGetUTF8(const std::wstring& wide)
 {
-	int len = (int)wide.size();
+	int len = static_cast<int>(wide.size());
 	if (len==0)
 		return std::string();
 	int size = len*4;
@@ -272,7 +272,7 @@ std::string CUnicodeUtils::StdGetUTF8(const std::wstring& wide)
 
 std::wstring CUnicodeUtils::StdGetUnicode(const std::string& multibyte)
 {
-	int len = (int)multibyte.size();
+	int len = static_cast<int>(multibyte.size());
 	if (len==0)
 		return std::wstring();
 	int size = len*4;
@@ -289,7 +289,7 @@ std::string WideToMultibyte(const std::wstring& wide)
 {
 	char * narrow = new char[wide.length()*3+2];
 	BOOL defaultCharUsed;
-	int ret = (int)WideCharToMultiByte(CP_ACP, 0, wide.c_str(), (int)wide.size(), narrow, (int)wide.length()*3 - 1, ".", &defaultCharUsed);
+	int ret = WideCharToMultiByte(CP_ACP, 0, wide.c_str(), static_cast<int>(wide.size()), narrow, static_cast<int>(wide.length()) * 3 - 1, ".", &defaultCharUsed);
 	narrow[ret] = '\0';
 	std::string str = narrow;
 	delete[] narrow;
@@ -299,7 +299,7 @@ std::string WideToMultibyte(const std::wstring& wide)
 std::string WideToUTF8(const std::wstring& wide)
 {
 	char * narrow = new char[wide.length()*3+2];
-	int ret = (int)WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), (int)wide.size(), narrow, (int)wide.length() * 3 - 1, nullptr, nullptr);
+	int ret = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), static_cast<int>(wide.size()), narrow, static_cast<int>(wide.length()) * 3 - 1, nullptr, nullptr);
 	narrow[ret] = '\0';
 	std::string str = narrow;
 	delete[] narrow;
@@ -315,7 +315,7 @@ std::wstring MultibyteToWide(const std::string& multibyte)
 	wchar_t * wide = new wchar_t[multibyte.length()*2+2];
 	if (!wide)
 		return std::wstring();
-	int ret = (int)MultiByteToWideChar(CP_ACP, 0, multibyte.c_str(), (int)multibyte.size(), wide, (int)length*2 - 1);
+	int ret = MultiByteToWideChar(CP_ACP, 0, multibyte.c_str(), static_cast<int>(multibyte.size()), wide, static_cast<int>(length) * 2 - 1);
 	wide[ret] = L'\0';
 	std::wstring str = wide;
 	delete[] wide;
@@ -331,20 +331,12 @@ std::wstring UTF8ToWide(const std::string& multibyte)
 	wchar_t * wide = new wchar_t[length*2+2];
 	if (!wide)
 		return std::wstring();
-	int ret = (int)MultiByteToWideChar(CP_UTF8, 0, multibyte.c_str(), (int)multibyte.size(), wide, (int)length*2 - 1);
+	int ret = MultiByteToWideChar(CP_UTF8, 0, multibyte.c_str(), static_cast<int>(multibyte.size()), wide, static_cast<int>(length) * 2 - 1);
 	wide[ret] = L'\0';
 	std::wstring str = wide;
 	delete[] wide;
 	return str;
 }
-#ifdef UNICODE
-std::wstring UTF8ToString(const std::string& string) {return UTF8ToWide(string);}
-std::string StringToUTF8(const std::wstring& string) {return WideToUTF8(string);}
-#else
-std::wstring UTF8ToString(const std::string& string) {return WideToMultibyte(UTF8ToWide(string));}
-std::string StringToUTF8(const std::wstring& string) {return WideToUTF8(MultibyteToWide(string));}
-#endif
-
 
 #pragma warning(push)
 #pragma warning(disable: 4200)
@@ -365,8 +357,6 @@ int LoadStringEx(HINSTANCE hInstance, UINT uID, LPTSTR lpBuffer, int nBufferMax,
 #ifndef UNICODE
 	BOOL defaultCharUsed;
 #endif
-	int ret;
-
 	if (!lpBuffer)
 		return 0;
 	lpBuffer[0] = L'\0';
@@ -381,7 +371,7 @@ int LoadStringEx(HINSTANCE hInstance, UINT uID, LPTSTR lpBuffer, int nBufferMax,
 	hGlobal = LoadResource(hInstance, hResource);
 	if (!hGlobal)
 		return 0;
-	pImage = (const STRINGRESOURCEIMAGE*)::LockResource(hGlobal);
+	pImage = static_cast<const STRINGRESOURCEIMAGE*>(::LockResource(hGlobal));
 	if(!pImage)
 		return 0;
 
@@ -399,13 +389,13 @@ int LoadStringEx(HINSTANCE hInstance, UINT uID, LPTSTR lpBuffer, int nBufferMax,
 	if (pImage->nLength == 0)
 		return 0;
 #ifdef UNICODE
-	ret = pImage->nLength;
+	int ret = pImage->nLength;
 	if (ret >= nBufferMax)
 		ret = nBufferMax - 1;
-	wcsncpy_s((wchar_t *)lpBuffer, nBufferMax, pImage->achString, ret);
+	wcsncpy_s(static_cast<wchar_t*>(lpBuffer), nBufferMax, pImage->achString, ret);
 	lpBuffer[ret] = L'\0';
 #else
-	ret = WideCharToMultiByte(CP_ACP, 0, pImage->achString, pImage->nLength, (LPSTR)lpBuffer, nBufferMax-1, ".", &defaultCharUsed);
+	auto ret = WideCharToMultiByte(CP_ACP, 0, pImage->achString, pImage->nLength, static_cast<LPSTR>(lpBuffer), nBufferMax - 1, ".", &defaultCharUsed);
 	lpBuffer[ret] = L'\0';
 #endif
 	return ret;

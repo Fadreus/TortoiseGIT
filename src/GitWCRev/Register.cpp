@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2017 - TortoiseGit
+// Copyright (C) 2017, 2019 - TortoiseGit
 // Copyright (C) 2005-2008, 2010-2011, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -231,14 +231,11 @@ void CLSIDtochar(const CLSID& clsid, TCHAR* szCLSID, int length)
 {
 	assert(length >= CLSID_STRING_SIZE);
 	// Get CLSID
-	LPOLESTR wszCLSID = nullptr;
+	CComHeapPtr<OLECHAR> wszCLSID;
 	StringFromCLSID(clsid, &wszCLSID);
 
 	// Covert from wide characters to non-wide.
 	wcscpy_s(szCLSID, length, wszCLSID);
-
-	// Free memory.
-	CoTaskMemFree(wszCLSID);
 }
 
 //
@@ -304,7 +301,7 @@ BOOL setKeyAndValue(const TCHAR* szKey, const TCHAR* szSubkey, const TCHAR* szVa
 
 	// Set the Value.
 	if (szValue)
-		RegSetValueEx(hKey, nullptr, 0, REG_SZ, (BYTE*)szValue, DWORD((1 + wcslen(szValue)) * sizeof(TCHAR)));
+		RegSetValueEx(hKey, nullptr, 0, REG_SZ, reinterpret_cast<BYTE*>(const_cast<TCHAR*>(szValue)), DWORD((1 + wcslen(szValue)) * sizeof(TCHAR)));
 
 	RegCloseKey(hKey);
 	return TRUE;
@@ -321,7 +318,7 @@ BOOL setValue(const TCHAR* szKey, const TCHAR* szEntry, const TCHAR* szValue)
 
 	// Set the Value.
 	if (szValue)
-		RegSetValueEx(hKey, szEntry, 0, REG_SZ, (BYTE*)szValue, DWORD((1 + wcslen(szValue)) * sizeof(TCHAR)));
+		RegSetValueEx(hKey, szEntry, 0, REG_SZ, reinterpret_cast<BYTE*>(const_cast<TCHAR*>(szValue)), DWORD((1 + wcslen(szValue)) * sizeof(TCHAR)));
 
 	RegCloseKey(hKey);
 

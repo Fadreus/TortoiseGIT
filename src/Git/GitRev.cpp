@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2016, 2018 - TortoiseGit
+// Copyright (C) 2008-2016, 2018-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -55,7 +55,7 @@ int GitRev::ParserParentFromCommit(GIT_COMMIT *commit)
 
 	git_get_commit_first_parent(commit,&list);
 	while(git_get_commit_next_parent(&list,parent)==0)
-		m_ParentHash.emplace_back(parent);
+		m_ParentHash.emplace_back(CGitHash::FromRaw(parent));
 	return 0;
 }
 
@@ -66,33 +66,33 @@ int GitRev::ParserFromCommit(GIT_COMMIT *commit)
 	if(commit->m_Encode != 0 && commit->m_EncodeSize != 0)
 	{
 		CString str;
-		CGit::StringAppend(&str, (BYTE*)commit->m_Encode, CP_UTF8, commit->m_EncodeSize);
+		CGit::StringAppend(&str, commit->m_Encode, CP_UTF8, commit->m_EncodeSize);
 		encode = CUnicodeUtils::GetCPCode(str);
 	}
 
-	this->m_CommitHash = commit->m_hash;
+	this->m_CommitHash = CGitHash::FromRaw(commit->m_hash);
 
 	this->m_AuthorDate = commit->m_Author.Date;
 
 	this->m_AuthorEmail.Empty();
-	CGit::StringAppend(&m_AuthorEmail, (BYTE*)commit->m_Author.Email, encode, commit->m_Author.EmailSize);
+	CGit::StringAppend(&m_AuthorEmail, commit->m_Author.Email, encode, commit->m_Author.EmailSize);
 
 	this->m_AuthorName.Empty();
-	CGit::StringAppend(&m_AuthorName, (BYTE*)commit->m_Author.Name, encode, commit->m_Author.NameSize);
+	CGit::StringAppend(&m_AuthorName, commit->m_Author.Name, encode, commit->m_Author.NameSize);
 
 	this->m_Body.Empty();
-	CGit::StringAppend(&m_Body, (BYTE*)commit->m_Body, encode, commit->m_BodySize);
+	CGit::StringAppend(&m_Body, commit->m_Body, encode, commit->m_BodySize);
 
 	this->m_CommitterDate = commit->m_Committer.Date;
 
 	this->m_CommitterEmail.Empty();
-	CGit::StringAppend(&m_CommitterEmail, (BYTE*)commit->m_Committer.Email, encode, commit->m_Committer.EmailSize);
+	CGit::StringAppend(&m_CommitterEmail, commit->m_Committer.Email, encode, commit->m_Committer.EmailSize);
 
 	this->m_CommitterName.Empty();
-	CGit::StringAppend(&m_CommitterName, (BYTE*)commit->m_Committer.Name, encode, commit->m_Committer.NameSize);
+	CGit::StringAppend(&m_CommitterName, commit->m_Committer.Name, encode, commit->m_Committer.NameSize);
 
 	this->m_Subject.Empty();
-	CGit::StringAppend(&m_Subject, (BYTE*)commit->m_Subject,encode,commit->m_SubjectSize);
+	CGit::StringAppend(&m_Subject, commit->m_Subject,encode,commit->m_SubjectSize);
 
 	return 0;
 }
@@ -102,7 +102,7 @@ int GitRev::ParserParentFromCommit(const git_commit* commit)
 	m_ParentHash.clear();
 	unsigned int parentCount = git_commit_parentcount(commit);
 	for (unsigned int i = 0; i < parentCount; ++i)
-		m_ParentHash.emplace_back(git_commit_parent_id(commit, i)->id);
+		m_ParentHash.emplace_back(git_commit_parent_id(commit, i));
 
 	return 0;
 }
@@ -135,7 +135,7 @@ int GitRev::ParserFromCommit(const git_commit* commit)
 		m_Subject = CUnicodeUtils::GetUnicode(msg, encode);
 	else
 	{
-		m_Subject = CUnicodeUtils::GetUnicode(CStringA(msg, (int)(body - msg)), encode);
+		m_Subject = CUnicodeUtils::GetUnicode(CStringA(msg, static_cast<int>(body - msg)), encode);
 		m_Body = CUnicodeUtils::GetUnicode(body + 1, encode);
 	}
 
@@ -164,7 +164,7 @@ int GitRev::GetCommit(git_repository* repo, const CString& refname)
 	}
 
 	CGitHash hash;
-	if (CGit::GetHash(repo, hash, refname))
+	if (CGit::GetHash(repo, hash, refname + L"^{}")) // add ^{} in order to dereference signed tags
 	{
 		m_sErr = CGit::GetLibGit2LastErr();
 		return -1;
@@ -175,10 +175,10 @@ int GitRev::GetCommit(git_repository* repo, const CString& refname)
 
 void GitRev::DbgPrint()
 {
-	ATLTRACE(L"Commit %s\r\n", (LPCTSTR)this->m_CommitHash.ToString());
+	ATLTRACE(L"Commit %s\r\n", static_cast<LPCTSTR>(this->m_CommitHash.ToString()));
 	for (unsigned int i = 0; i < this->m_ParentHash.size(); ++i)
 	{
-		ATLTRACE(L"Parent %i %s", i, (LPCTSTR)m_ParentHash[i].ToString());
+		ATLTRACE(L"Parent %i %s", i, static_cast<LPCTSTR>(m_ParentHash[i].ToString()));
 	}
 	ATLTRACE(L"\n");
 }
@@ -192,7 +192,7 @@ int GitRev::GetParentFromHash(const CGitHash& hash)
 	{
 		g_Git.CheckAndInitDll();
 
-		if (git_get_commit_from_hash(&commit, static_cast<const unsigned char*>(hash)))
+		if (git_get_commit_from_hash(&commit, hash.ToRaw()))
 		{
 			m_sErr = L"git_get_commit_from_hash failed for " + hash.ToString();
 			return -1;
@@ -226,7 +226,7 @@ int GitRev::GetCommitFromHash_withoutLock(const CGitHash& hash)
 	GIT_COMMIT commit;
 	try
 	{
-		if (git_get_commit_from_hash(&commit, static_cast<const unsigned char*>(hash)))
+		if (git_get_commit_from_hash(&commit, hash.ToRaw()))
 		{
 			m_sErr = L"git_get_commit_from_hash failed for " + hash.ToString();
 			return -1;
@@ -279,8 +279,7 @@ int GitRev::GetCommit(const CString& refname)
 			m_sErr.Empty();
 			return 0;
 		}
-	CStringA rev;
-	rev= CUnicodeUtils::GetUTF8(g_Git.FixBranchName(refname));
+	CStringA rev = CUnicodeUtils::GetUTF8(g_Git.FixBranchName(refname + L"^{}")); // add ^{} in order to dereference signed tags
 	GIT_HASH sha;
 
 	try
@@ -297,6 +296,6 @@ int GitRev::GetCommit(const CString& refname)
 		return -1;
 	}
 
-	CGitHash hash(sha);
+	CGitHash hash = CGitHash::FromRaw(sha);
 	return GetCommitFromHash_withoutLock(hash);
 }

@@ -1,4 +1,4 @@
-// TortoiseIDiff - an image diff viewer in TortoiseSVN
+﻿// TortoiseIDiff - an image diff viewer in TortoiseSVN
 
 // Copyright (C) 2006-2010, 2012-2013, 2015 - TortoiseSVN
 
@@ -43,10 +43,10 @@
 
 
 #ifndef GET_X_LPARAM
-#define GET_X_LPARAM(lp)                        ((int)(short)LOWORD(lp))
+#define GET_X_LPARAM(lp)                        static_cast<int>(static_cast<short>(LOWORD(lp)))
 #endif
 #ifndef GET_Y_LPARAM
-#define GET_Y_LPARAM(lp)                        ((int)(short)HIWORD(lp))
+#define GET_Y_LPARAM(lp)                        static_cast<int>(static_cast<short>(HIWORD(lp)))
 #endif
 
 /**
@@ -150,7 +150,7 @@ public:
         m_blend = type;
         blendAlpha = a;
         if (m_AlphaSlider.IsValid())
-            SendMessage(m_AlphaSlider.GetWindow(), TBM_SETPOS, (WPARAM)1, (LPARAM)(a*16.0f));
+            SendMessage(m_AlphaSlider.GetWindow(), TBM_SETPOS, 1, static_cast<LPARAM>(a * 16.0f));
         PositionTrackBar();
         InvalidateRect(*this, nullptr, FALSE);
     }
@@ -202,7 +202,7 @@ public:
     void                OnMouseWheel(short fwKeys, short zDelta);
 protected:
     /// the message handler for this window
-    LRESULT CALLBACK    WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK    WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
     /// Draws the view title bar
     void                DrawViewTitle(HDC hDC, RECT * rect);
     /// Creates the image buttons

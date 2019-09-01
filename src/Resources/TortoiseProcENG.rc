@@ -1145,7 +1145,7 @@ BEGIN
     GROUPBOX        "Options",IDC_GROUP_OPTION,7,89,313,79
 END
 
-IDD_PUSH DIALOGEX 0, 0, 317, 280
+IDD_PUSH DIALOGEX 0, 0, 311, 269
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 CAPTION "Push"
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
@@ -1164,25 +1164,23 @@ BEGIN
     PUSHBUTTON      "Mana&ge",IDC_REMOTE_MANAGE,251,91,43,16
     CONTROL         "Arbitrary &URL:",IDC_RD_URL,"Button",BS_AUTORADIOBUTTON,15,113,57,10
     CONTROL         "",IDC_URL,"ComboBoxEx32",CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP,76,111,218,140
-    GROUPBOX        "Options",IDC_OPTION_GROUP,7,142,295,111
+    GROUPBOX        "Options",IDC_OPTION_GROUP,7,142,295,99
     LTEXT           "Force: May discard",IDC_STATIC_FORCE,15,154,91,8
     CONTROL         "&known changes",IDC_FORCE_WITH_LEASE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,113,153,85,10
     CONTROL         "u&nknown changes",IDC_FORCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,205,154,89,10
-    CONTROL         "Use Thin &Pack (For slow network connections)",IDC_PACK,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,165,279,10
-    CONTROL         "Include &Tags",IDC_TAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,178,279,10
-    CONTROL         "&Autoload Putty Key",IDC_PUTTYKEY_AUTOLOAD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,190,279,10
+    CONTROL         "Include &Tags",IDC_TAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,166,279,10
+    CONTROL         "&Autoload Putty Key",IDC_PUTTYKEY_AUTOLOAD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,178,279,10
     CONTROL         "&Set upstream/track remote branch",IDC_PROC_PUSH_SET_UPSTREAM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,201,279,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,189,279,10
     CONTROL         "Always push to the selected remote archive for this local branch",IDC_PROC_PUSH_SET_PUSHREMOTE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,212,279,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,200,279,10
     CONTROL         "Always push to the selected remote branch for this local branch",IDC_PROC_PUSH_SET_PUSHBRANCH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,223,279,10
-    LTEXT           "Recurse submodule",IDC_STATIC_RECURSE_SUBMODULES,15,234,100,10
-    COMBOBOX        IDC_COMBOBOX_RECURSE_SUBMODULES,125,234,100,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK",IDOK,143,259,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,201,259,50,14
-    PUSHBUTTON      "Help",IDHELP,258,259,50,14
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,211,279,10
+    LTEXT           "Recurse submodule",IDC_STATIC_RECURSE_SUBMODULES,15,222,100,10
+    COMBOBOX        IDC_COMBOBOX_RECURSE_SUBMODULES,125,222,100,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,137,247,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,195,247,50,14
+    PUSHBUTTON      "Help",IDHELP,252,247,50,14
 END
 
 IDD_SVNDCOMMITTYPE DIALOGEX 0, 0, 242, 90
@@ -1986,7 +1984,7 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,125,103,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,184,103,50,14
     PUSHBUTTON      "Help",IDHELP,242,103,50,14
-    LTEXT           "In order to abort a merge progess a reset (to HEAD) is needed.",IDC_STATIC_REMINDER,7,7,285,10
+    LTEXT           "In order to abort a merge progress a reset (to HEAD) is needed.",IDC_STATIC_REMINDER,7,7,285,10
 END
 
 IDD_SETTINGSDIALOGS3 DIALOGEX 0, 0, 301, 231
@@ -2711,14 +2709,13 @@ BEGIN
     IDD_PUSH, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 307
+        RIGHTMARGIN, 302
         VERTGUIDE, 15
         VERTGUIDE, 76
-        VERTGUIDE, 271
+        VERTGUIDE, 272
         VERTGUIDE, 294
-        VERTGUIDE, 302
         TOPMARGIN, 7
-        BOTTOMMARGIN, 258
+        BOTTOMMARGIN, 261
     END
 
     IDD_SVNDCOMMITTYPE, DIALOG
@@ -3248,6 +3245,7 @@ BEGIN
         MENUITEM "&Filter",                     ID_VIEW_FILTER
         MENUITEM SEPARATOR
         MENUITEM "Show Ove&rview",              ID_VIEW_SHOWOVERVIEW
+        MENUITEM "Show branchings and &merges", ID_VIEW_SHOWBRANCHINGSANDMERGES
     END
     POPUP "&Git"
     BEGIN
@@ -3759,7 +3757,7 @@ BEGIN
     IDS_HOOKTYPE_PREREBASE  "Pre-rebase hook"
     IDS_BROWSE_REFS_ONLYMERGED "Only merged (to HEAD)"
     IDS_BROWSE_REFS_ONLYUNMERGED "Only unmerged (to HEAD)"
-    IDS_ARCHIVEFILEFILTER   "ZIP archive (*.zip)|*.zip|All Files (*.*)|*.*||"
+    IDS_ARCHIVEFILEFILTER   "ZIP archive (*.zip)|*.zip|TAR archive (*.tar)|*.tar|TAR GZIP archive (*.tar.gz)|*.tar.gz|All Files (*.*)|*.*||"
     IDS_PROC_USELFS_TT      "Use Git LFS"
     IDS_EXTRAPATH_TT        "If your git installation needs an extra entry in the PATH environment variable, you can enter it here and it will get appended to %PATH% automatically when TortoiseGit starts."
     IDS_FIRSTSTART_HINT1    "TortoiseGit is designed as a Shell Extension. Therefore the main interaction with TortoiseGit will be using the context menu of the Windows shell such as the Windows Explorer."

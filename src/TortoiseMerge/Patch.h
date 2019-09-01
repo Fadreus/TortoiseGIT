@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2006-2008, 2014 - TortoiseSVN
-// Copyright (C) 2012-2013, 2018 - Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2012-2013, 2018-2019 - Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@ public:
 
 	BOOL		OpenUnifiedDiffFile(const CString& filename);
 	int			PatchFile(const int strip, const int nIndex, const CString& sPath, const CString& sSavePath = L"", const CString& sBaseFile = L"", const bool force = false);
-	int			GetNumberOfFiles() const { return (int)m_arFileDiffs.size(); }
+	int			GetNumberOfFiles() const { return static_cast<int>(m_arFileDiffs.size()); }
 	CString		GetFilename(int nIndex);
 	CString		GetRevision(int nIndex);
 	CString		GetFilename2(int nIndex);
@@ -48,12 +48,6 @@ public:
 	CString		GetErrorMessage() const  {return m_sErrorMessage;}
 	CString		CheckPatchPath(const CString& path);
 
-	/**
-	 * Returns TRUE if stripping prefixes from the paths in the patch file
-	 * allows the patch file to being applied. The variable m_nStrip is then set appropriately.
-	 * Returns FALSE if stripping prefixes doesn't help. The variable m_nStrip is set to 0.
-	 */
-	BOOL		StripPrefixes(const CString& path);
 protected:
 	void		FreeMemory();
 	BOOL		HasExpandedKeyWords(const CString& line) const;

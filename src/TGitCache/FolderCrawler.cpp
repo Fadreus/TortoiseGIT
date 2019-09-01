@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005-2008,2011,2014 - TortoiseSVN
-// Copyright (C) 2008-2014, 2016-2018 - TortoiseGit
+// Copyright (C) 2008-2014, 2016-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@ CFolderCrawler::CFolderCrawler(void)
 	m_hWakeEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	m_hTerminationEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 	m_lCrawlInhibitSet = 0;
-	m_crawlHoldoffReleasesAt = (LONGLONG)GetTickCount64();
+	m_crawlHoldoffReleasesAt = static_cast<LONGLONG>(GetTickCount64());
 	m_bRun = false;
 	m_bPathsAddedSinceLastCrawl = false;
 	m_bItemsAddedSinceLastCrawl = false;
@@ -68,23 +68,10 @@ void CFolderCrawler::Initialise()
 
 	m_bRun = true;
 	unsigned int threadId;
-	m_hThread = (HANDLE)_beginthreadex(nullptr, 0, ThreadEntry, this, 0, &threadId);
+	m_hThread = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0, ThreadEntry, this, 0, &threadId));
 	SetThreadPriority(m_hThread, THREAD_PRIORITY_BELOW_NORMAL);
 }
 
-void CFolderCrawler::RemoveDuplicate(std::deque<CTGitPath> &list,const CTGitPath &path)
-{
-	for (auto it = list.cbegin(); it != list.cend(); ++it)
-	{
-		if(*it == path)
-		{
-			list.erase(it);
-			it = list.cbegin(); /* search again*/
-			if (it == list.cend())
-				break;
-		}
-	}
-}
 void CFolderCrawler::AddDirectoryForUpdate(const CTGitPath& path)
 {
 	/* Index file changing*/
@@ -150,7 +137,7 @@ void CFolderCrawler::WorkerThread()
 
 	for(;;)
 	{
-		bool bRecursive = !!(DWORD)CRegStdDWORD(L"Software\\TortoiseGit\\RecursiveOverlay", TRUE);
+		bool bRecursive = !!static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\RecursiveOverlay", TRUE));
 
 		SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_END);
 
@@ -459,7 +446,7 @@ void CFolderCrawler::WorkerThread()
 
 bool CFolderCrawler::SetHoldoff(DWORD milliseconds /* = 100*/)
 {
-	LONGLONG tick = (LONGLONG)GetTickCount64();
+	LONGLONG tick = static_cast<LONGLONG>(GetTickCount64());
 	bool ret = ((tick - m_crawlHoldoffReleasesAt) > 0);
 	m_crawlHoldoffReleasesAt = tick + milliseconds;
 	return ret;

@@ -1,7 +1,7 @@
 // TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005-2008, 2011-2012 - TortoiseSVN
-// Copyright (C) 2008-2014, 2016 - TortoiseGit
+// Copyright (C) 2008-2017, 2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -59,7 +59,7 @@ CDirectoryWatcher::CDirectoryWatcher(void)
 	}
 
 	unsigned int threadId = 0;
-	m_hThread = (HANDLE)_beginthreadex(nullptr, 0, ThreadEntry, this, 0, &threadId);
+	m_hThread = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0, ThreadEntry, this, 0, &threadId));
 }
 
 CDirectoryWatcher::~CDirectoryWatcher(void)
@@ -341,7 +341,7 @@ void CDirectoryWatcher::WorkerThread()
 					pDirInfo->m_hDevNotify = NotificationFilter.dbch_hdevnotify;
 
 
-					HANDLE port = CreateIoCompletionPort(pDirInfo->m_hDir, m_hCompPort, (ULONG_PTR)pDirInfo, 0);
+					HANDLE port = CreateIoCompletionPort(pDirInfo->m_hDir, m_hCompPort, reinterpret_cast<ULONG_PTR>(pDirInfo), 0);
 					if (port == INVALID_HANDLE_VALUE)
 					{
 						CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": CreateIoCompletionPort failed. Can't watch directory %s\n", watchedPath.GetWinPath());
@@ -413,14 +413,14 @@ void CDirectoryWatcher::WorkerThread()
 						{
 							continue;
 						}
-						PFILE_NOTIFY_INFORMATION pnotify = (PFILE_NOTIFY_INFORMATION)pdi->m_Buffer;
+						auto pnotify = reinterpret_cast<PFILE_NOTIFY_INFORMATION>(pdi->m_Buffer);
 						DWORD nOffset = 0;
 
 						do
 						{
-							pnotify = (PFILE_NOTIFY_INFORMATION)((LPBYTE)pnotify + nOffset);
+							pnotify = reinterpret_cast<PFILE_NOTIFY_INFORMATION>(reinterpret_cast<LPBYTE>(pnotify) + nOffset);
 
-							if ((ULONG_PTR)pnotify - (ULONG_PTR)pdi->m_Buffer > READ_DIR_CHANGE_BUFFER_SIZE)
+							if (reinterpret_cast<ULONG_PTR>(pnotify) - reinterpret_cast<ULONG_PTR>(pdi->m_Buffer) > READ_DIR_CHANGE_BUFFER_SIZE)
 								break;
 
 							nOffset = pnotify->NextEntryOffset;
@@ -466,7 +466,7 @@ void CDirectoryWatcher::WorkerThread()
 								if ((pFound = wcsstr(buf, L".git")) != nullptr)
 								{
 									// omit repository data change except .git/index.lock- or .git/HEAD.lock-files
-									if ((ULONG_PTR)pnotify - (ULONG_PTR)pdi->m_Buffer > READ_DIR_CHANGE_BUFFER_SIZE)
+									if (reinterpret_cast<ULONG_PTR>(pnotify) - reinterpret_cast<ULONG_PTR>(pdi->m_Buffer) > READ_DIR_CHANGE_BUFFER_SIZE)
 										break;
 
 									path = g_AdminDirMap.GetWorkingCopy(CTGitPath(buf).GetContainingDirectory().GetWinPathString());
@@ -619,7 +619,7 @@ CDirectoryWatcher::CDirWatchInfo::CDirWatchInfo(HANDLE hDir, const CTGitPath& Di
 	: m_hDir(std::move(hDir))
 	, m_DirName(DirectoryName)
 {
-	ATLASSERT(hDir && !DirectoryName.IsEmpty());
+	ATLASSERT(m_hDir && !DirectoryName.IsEmpty());
 	m_Buffer[0] = '\0';
 	SecureZeroMemory(&m_Overlapped, sizeof(m_Overlapped));
 	m_DirPath = m_DirName.GetWinPathString();

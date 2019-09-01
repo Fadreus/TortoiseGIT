@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -39,21 +39,12 @@
 #define GITDLL_API EXTERN __declspec(dllimport)
 #endif
 
-#if 0
-// This class is exported from the gitdll.dll
-class GITDLL_API Cgitdll {
-public:
-	Cgitdll(void);
-	// TODO: add your methods here.
-};
-#endif
+#define LIBGIT_GIT_HASH_SIZE 32
 
-#define GIT_HASH_SIZE 20
-
-typedef unsigned char GIT_HASH[GIT_HASH_SIZE];
+typedef unsigned char GIT_HASH[LIBGIT_GIT_HASH_SIZE];
 
 struct GIT_OBJECT_OID {
-	unsigned char hash[GIT_HASH_SIZE];
+	unsigned char hash[LIBGIT_GIT_HASH_SIZE];
 };
 
 typedef void *  GIT_HANDLE;

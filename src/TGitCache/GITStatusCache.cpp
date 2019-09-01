@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005-2006,2008,2010,2014 - TortoiseSVN
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -152,7 +152,6 @@ bool CGitStatusCache::SaveCache()
 		return false;
 
 #define WRITEVALUETOFILE(x) if (fwrite(&x, sizeof(x), 1, pFile)!=1) goto error;
-	unsigned int value = 0;
 	// save the cache to disk
 	// find a location to write the cache to
 	CString path = CPathUtils::GetLocalAppDataDirectory();
@@ -162,9 +161,9 @@ bool CGitStatusCache::SaveCache()
 		CAutoFILE pFile = _wfsopen(path, L"wb", SH_DENYRW);
 		if (pFile)
 		{
-			value = CACHEDISKVERSION;
+			unsigned int value = CACHEDISKVERSION;
 			WRITEVALUETOFILE(value);
-			value = (int)m_pInstance->m_directoryCache.size();
+			value = static_cast<int>(m_pInstance->m_directoryCache.size());
 			WRITEVALUETOFILE(value);
 			for (auto I = m_pInstance->m_directoryCache.cbegin(); I != m_pInstance->m_directoryCache.cend(); ++I)
 			{
@@ -179,7 +178,7 @@ bool CGitStatusCache::SaveCache()
 				WRITEVALUETOFILE(value);
 				if (value)
 				{
-					if (fwrite((LPCTSTR)key, sizeof(TCHAR), value, pFile)!=value)
+					if (fwrite(static_cast<LPCTSTR>(key), sizeof(TCHAR), value, pFile)!=value)
 						goto error;
 					if (!I->second->SaveToDisk(pFile))
 						goto error;
@@ -187,7 +186,7 @@ bool CGitStatusCache::SaveCache()
 			}
 		}
 	}
-	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": cache saved to disk at %s\n", (LPCTSTR)path);
+	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": cache saved to disk at %s\n", static_cast<LPCTSTR>(path));
 	return true;
 error:
 	Destroy();
@@ -493,7 +492,7 @@ CStatusCacheEntry CGitStatusCache::GetStatusForPath(const CTGitPath& path, DWORD
 	bool bRecursive = !!(flags & TGITCACHE_FLAGS_RECUSIVE_STATUS);
 
 	// Check a very short-lived 'mini-cache' of the last thing we were asked for.
-	LONGLONG now = (LONGLONG)GetTickCount64();
+	LONGLONG now = static_cast<LONGLONG>(GetTickCount64());
 	if(now-m_mostRecentExpiresAt < 0)
 	{
 		if (path.IsEquivalentTo(m_mostRecentPath))
@@ -585,11 +584,9 @@ void CGitStatusCache::CloseWatcherHandles(const CTGitPath& path)
 
 CString CGitStatusCache::GetSpecialFolder(REFKNOWNFOLDERID rfid)
 {
-	PWSTR pszPath = nullptr;
+	CComHeapPtr<WCHAR> pszPath;
 	if (SHGetKnownFolderPath(rfid, KF_FLAG_CREATE, nullptr, &pszPath) != S_OK)
 		return CString();
 
-	CString path = pszPath;
-	CoTaskMemFree(pszPath);
-	return path;
+	return CString(pszPath);
 }

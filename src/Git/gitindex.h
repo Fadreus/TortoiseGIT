@@ -55,7 +55,7 @@ public:
 	__time64_t  m_LastModifyTime;
 	__int64		m_LastFileSize;
 	BOOL		m_bHasConflicts;
-	inline bool	IsIgnoreCase() { return m_iIndexCaps & GIT_INDEXCAP_IGNORE_CASE; }
+	inline bool	IsIgnoreCase() { return m_iIndexCaps & GIT_INDEX_CAPABILITY_IGNORE_CASE; }
 
 	CGitIndexList();
 	~CGitIndexList();
@@ -336,11 +336,11 @@ inline void DoSortFilenametSortVector(T& vector, bool ignoreCase)
 		std::sort(vector.begin(), vector.end(), [](const auto& e1, const auto& e2) { return e1.m_FileName.Compare(e2.m_FileName) < 0; });
 }
 
-static const size_t NPOS = (size_t)-1; // bad/missing length/position
+static const size_t NPOS = static_cast<size_t>(-1); // bad/missing length/position
 static_assert(MAXSIZE_T == NPOS, "NPOS must equal MAXSIZE_T");
 #pragma warning(push)
-#pragma warning(disable: 4310)
-static_assert(-1 == (int)NPOS, "NPOS must equal -1");
+#pragma warning(disable: 4309)
+static_assert(-1 == static_cast<int>(NPOS), "NPOS must equal -1");
 #pragma warning(pop)
 
 template<class T>

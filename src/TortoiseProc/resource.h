@@ -1010,7 +1010,6 @@
 #define IDS_B_CANNOTFORCECURRENT        1495
 #define IDC_REMOTE                      1496
 #define IDS_REPOBROWSEASKSUBMODULEUPDATE 1496
-#define IDC_PACK                        1497
 #define IDS_TRACKEDBRANCH               1497
 #define IDS_REBASE_AUTOSKIPPED          1498
 #define IDC_FORCE_WITH_LEASE            1498
@@ -2053,6 +2052,7 @@
 #define ID_GO_FORWARD_SELECT            32872
 #define ID_SELECT_SEARCHFIELD           32873
 #define ID_EXITCLEARFILTER              32874
+#define ID_VIEW_SHOWBRANCHINGSANDMERGES 32874
 #define IDS_ERR_CHANGELIST_LOAD         32900
 #define IDS_ERR_CHANGELIST_SAVE         32901
 
@@ -2061,7 +2061,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        363
-#define _APS_NEXT_COMMAND_VALUE         32874
+#define _APS_NEXT_COMMAND_VALUE         32875
 #define _APS_NEXT_CONTROL_VALUE         1851
 #define _APS_NEXT_SYMED_VALUE           201
 #endif

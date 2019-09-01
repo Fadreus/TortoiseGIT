@@ -57,6 +57,7 @@ IMPLEMENT_DYNAMIC(CSettingGitCredential, ISettingsPropPage)
 CSettingGitCredential::CSettingGitCredential()
 	: ISettingsPropPage(CSettingGitCredential::IDD)
 	, m_bUseHttpPath(FALSE)
+	, m_iSimpleStoredValue(-2)
 {
 	m_ChangedMask = 0;
 }
@@ -133,11 +134,11 @@ BOOL CSettingGitCredential::OnInitDialog()
 	m_ctrlConfigType.SetCurSel(0);
 
 	if (WincredExists())
-		((CComboBox*) GetDlgItem(IDC_COMBO_HELPER))->AddString(L"wincred");
+		static_cast<CComboBox*>(GetDlgItem(IDC_COMBO_HELPER))->AddString(L"wincred");
 	if (WinstoreExists())
-		((CComboBox*) GetDlgItem(IDC_COMBO_HELPER))->AddString(GetWinstorePath());
+		static_cast<CComboBox*>(GetDlgItem(IDC_COMBO_HELPER))->AddString(GetWinstorePath());
 	if (GCMExists())
-		((CComboBox*)GetDlgItem(IDC_COMBO_HELPER))->AddString(L"manager");
+		static_cast<CComboBox*>(GetDlgItem(IDC_COMBO_HELPER))->AddString(L"manager");
 
 	LoadList();
 	m_iSimpleStoredValue = m_ctrlSimpleCredential.GetCurSel();
@@ -178,13 +179,13 @@ void CSettingGitCredential::OnBnClickedButtonAdd()
 	CString prefix = sel == ConfigType::System ? L"S" : sel == ConfigType::Global ? L"G" : L"L";
 	CString text;
 	if (!m_strUrl.IsEmpty())
-		text.Format(L"%s:%s", (LPCTSTR)prefix, (LPCTSTR)m_strUrl);
+		text.Format(L"%s:%s", static_cast<LPCTSTR>(prefix), static_cast<LPCTSTR>(m_strUrl));
 	else
 		text = prefix;
 	if (IsUrlExist(text))
 	{
 		CString msg;
-		msg.Format(IDS_GITCREDENTIAL_OVERWRITEHELPER, (LPCTSTR)m_strUrl);
+		msg.Format(IDS_GITCREDENTIAL_OVERWRITEHELPER, static_cast<LPCTSTR>(m_strUrl));
 		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) == IDYES)
 			m_ChangedMask &= ~CREDENTIAL_URL;
 		else
@@ -357,7 +358,7 @@ void CSettingGitCredential::LoadList()
 	git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitGlobalConfig()), GIT_CONFIG_LEVEL_GLOBAL, repo, FALSE);
 	git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitGlobalXDGConfig()), GIT_CONFIG_LEVEL_XDG, repo, FALSE);
 	git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitSystemConfig()), GIT_CONFIG_LEVEL_SYSTEM, repo, FALSE);
-	if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git)
+	if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty())
 		git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitProgramDataConfig()), GIT_CONFIG_LEVEL_PROGRAMDATA, repo, FALSE);
 
 	STRING_VECTOR defaultList, urlList;
@@ -470,9 +471,9 @@ CString CSettingGitCredential::Load(CString key)
 	CString cmd;
 
 	if (m_strUrl.IsEmpty())
-		cmd.Format(L"credential.%s", (LPCTSTR)key);
+		cmd.Format(L"credential.%s", static_cast<LPCTSTR>(key));
 	else
-		cmd.Format(L"credential.%s.%s", (LPCTSTR)m_strUrl, (LPCTSTR)key);
+		cmd.Format(L"credential.%s.%s", static_cast<LPCTSTR>(m_strUrl), static_cast<LPCTSTR>(key));
 
 	CAutoConfig config(true);
 	CAutoRepository repo(g_Git.GetGitRepository());
@@ -502,9 +503,9 @@ void CSettingGitCredential::Save(CString key, CString value)
 	CString cmd, out;
 
 	if (m_strUrl.IsEmpty())
-		cmd.Format(L"credential.%s", (LPCTSTR)key);
+		cmd.Format(L"credential.%s", static_cast<LPCTSTR>(key));
 	else
-		cmd.Format(L"credential.%s.%s", (LPCTSTR)m_strUrl, (LPCTSTR)key);
+		cmd.Format(L"credential.%s.%s", static_cast<LPCTSTR>(m_strUrl), static_cast<LPCTSTR>(key));
 
 	int sel = m_ctrlConfigType.GetCurSel();
 	CONFIG_TYPE configLevel = sel == ConfigType::System ? CONFIG_SYSTEM : sel == ConfigType::Global ? CONFIG_GLOBAL : CONFIG_LOCAL;
@@ -516,7 +517,7 @@ void CSettingGitCredential::Save(CString key, CString value)
 	if (g_Git.SetConfigValue(cmd, value, configLevel))
 	{
 		CString msg;
-		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, (LPCTSTR)cmd, (LPCTSTR)value);
+		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(cmd), static_cast<LPCTSTR>(value));
 		CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 	}
 	if (value.IsEmpty())
@@ -524,7 +525,7 @@ void CSettingGitCredential::Save(CString key, CString value)
 		if (g_Git.UnsetConfigValue(cmd, configLevel))
 		{
 			CString msg;
-			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, (LPCTSTR)cmd, (LPCTSTR)value);
+			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(cmd), static_cast<LPCTSTR>(value));
 			CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 		}
 	}
@@ -589,7 +590,7 @@ int CSettingGitCredential::DeleteOtherKeys(int type)
 		if (g_Git.UnsetConfigValue(key, configLevel))
 		{
 			CString msg;
-			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, (LPCTSTR)key, L"");
+			msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, static_cast<LPCTSTR>(key), L"");
 			CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 			return 1;
 		}
@@ -652,7 +653,7 @@ bool CSettingGitCredential::SaveSimpleCredential(int type)
 	if (g_Git.SetConfigValue(L"credential.helper", value, configLevel))
 	{
 		CString msg;
-		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, L"credential.helper", (LPCTSTR)value);
+		msg.FormatMessage(IDS_PROC_SAVECONFIGFAILED, L"credential.helper", static_cast<LPCTSTR>(value));
 		CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_OK | MB_ICONERROR);
 		return false;
 	}
@@ -728,7 +729,7 @@ bool CSettingGitCredential::SaveSettings()
 		CString prefix = sel == ConfigType::System ? L"S" : sel == ConfigType::Global ? L"G" : L"L";
 		CString text;
 		if (!m_strUrl.IsEmpty())
-			text.Format(L"%s:%s", (LPCTSTR)prefix, (LPCTSTR)m_strUrl);
+			text.Format(L"%s:%s", static_cast<LPCTSTR>(prefix), static_cast<LPCTSTR>(m_strUrl));
 		else
 			text = prefix;
 		int urlIndex = m_ctrlUrlList.AddString(text);
@@ -763,7 +764,7 @@ void CSettingGitCredential::OnBnClickedButtonRemove()
 		CString str;
 		m_ctrlUrlList.GetText(index, str);
 		CString msg;
-		msg.Format(IDS_WARN_REMOVE, (LPCTSTR)str);
+		msg.Format(IDS_WARN_REMOVE, static_cast<LPCTSTR>(str));
 		if (CMessageBox::Show(GetSafeHwnd(), msg, L"TortoiseGit", MB_YESNO | MB_ICONQUESTION) == IDYES)
 		{
 			CAutoConfig config(true);
@@ -798,7 +799,7 @@ void CSettingGitCredential::OnBnClickedButtonRemove()
 				}
 				configLevel = CONFIG_SYSTEM;
 				git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitSystemConfig()), GIT_CONFIG_LEVEL_SYSTEM, repo, FALSE);
-				if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git)
+				if (!g_Git.ms_bCygwinGit && !g_Git.ms_bMsys2Git && !g_Git.GetGitProgramDataConfig().IsEmpty())
 					git_config_add_file_ondisk(config, CGit::GetGitPathStringA(g_Git.GetGitProgramDataConfig()), GIT_CONFIG_LEVEL_PROGRAMDATA, repo, FALSE);
 				break;
 				}
@@ -819,6 +820,6 @@ void CSettingGitCredential::OnBnClickedButtonRemove()
 void CSettingGitCredential::OnBnClickedOpensettingselevated()
 {
 	CString sCmd;
-	sCmd.Format(L"/command:settings /page:gitcredential /path:\"%s\"", (LPCTSTR)g_Git.m_CurrentDir);
+	sCmd.Format(L"/command:settings /page:gitcredential /path:\"%s\"", static_cast<LPCTSTR>(g_Git.m_CurrentDir));
 	CAppUtils::RunTortoiseGitProc(sCmd, true);
 }

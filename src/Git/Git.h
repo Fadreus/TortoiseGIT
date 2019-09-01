@@ -280,8 +280,6 @@ public:
 	int RunAsync(CString cmd, PROCESS_INFORMATION* pi, HANDLE* hRead, HANDLE* hErrReadOut, const CString* StdioFile = nullptr);
 	int RunLogFile(CString cmd, const CString &filename, CString *stdErr);
 
-	int GetGitEncode(TCHAR* configkey);
-
 	bool IsFastForward(const CString& from, const CString& to, CGitHash* commonAncestor = nullptr);
 	CString GetConfigValue(const CString& name, const CString& def = CString(), bool wantBool = false);
 	bool GetConfigValueBool(const CString& name, const bool def = false);
@@ -292,6 +290,8 @@ public:
 
 	CString GetUserName(void);
 	CString GetUserEmail(void);
+	CString GetCommitterName(void);
+	CString GetCommitterEmail(void);
 	CString GetCurrentBranch(bool fallback = false);
 	void GetRemoteTrackedBranch(const CString& localBranch, CString& remote, CString& branch);
 	void GetRemoteTrackedBranchForHEAD(CString& remote, CString& branch);
@@ -363,6 +363,7 @@ public:
 		LOG_INFO_SIMPILFY_BY_DECORATION = 0x4000,
 		LOG_INFO_LOCAL_BRANCHES = 0x8000,
 		LOG_INFO_BASIC_REFS = 0x10000,
+		LOG_INFO_SPARSE = 0x20000,
 	}LOG_INFO_MASK;
 
 	typedef enum
@@ -405,8 +406,11 @@ public:
 	int GetHash(CGitHash &hash, const CString& friendname);
 	static int GetHash(git_repository * repo, CGitHash &hash, const CString& friendname, bool skipFastCheck = false);
 
-	int BuildOutputFormat(CString &format,bool IsFull=TRUE);
-	static void StringAppend(CString *str, const BYTE *p, int code = CP_UTF8, int length = -1);
+	static void StringAppend(CString* str, const char* p, int code = CP_UTF8, int length = -1);
+	inline static void StringAppend(CString* str, const BYTE* p, int code = CP_UTF8, int length = -1)
+	{
+		StringAppend(str, reinterpret_cast<const char*>(p), code, length);
+	}
 
 	BOOL CanParseRev(CString ref);
 	/**
@@ -421,6 +425,8 @@ public:
 	int IsRebaseRunning();
 	void GetBisectTerms(CString* good, CString* bad);
 	int GetRefList(STRING_VECTOR &list);
+
+	CGitHash GetSubmodulePointer();
 
 	int RefreshGitIndex();
 	int GetOneFile(const CString &Refname, const CTGitPath &path, const CString &outputfile);
@@ -438,12 +444,12 @@ public:
 	{
 		winTime -= 116444736000000000LL; /* Windows to Unix Epoch conversion */
 		winTime /= 10000000;		 /* Nano to seconds resolution */
-		return (time_t)winTime;
+		return static_cast<time_t>(winTime);
 	}
 
 	static inline __int64 filetime_to_time_t(const FILETIME *ft)
 	{
-		return filetime_to_time_t(((__int64)ft->dwHighDateTime << 32) + ft->dwLowDateTime);
+		return filetime_to_time_t(static_cast<__int64>(ft->dwHighDateTime) << 32 | ft->dwLowDateTime);
 	}
 
 	static int GetFileModifyTime(LPCTSTR filename, __int64* time, bool* isDir = nullptr, __int64* size = nullptr, bool* isSymlink = nullptr)
@@ -451,11 +457,11 @@ public:
 		WIN32_FILE_ATTRIBUTE_DATA fdata;
 		if (GetFileAttributesEx(filename, GetFileExInfoStandard, &fdata))
 		{
-			if(time)
-				*time = ((__int64)fdata.ftLastWriteTime.dwHighDateTime << 32) + fdata.ftLastWriteTime.dwLowDateTime;
+			if (time)
+				*time = static_cast<__int64>(fdata.ftLastWriteTime.dwHighDateTime) << 32 | fdata.ftLastWriteTime.dwLowDateTime;
 
 			if (size)
-				*size = ((__int64)fdata.nFileSizeHigh << 32) + fdata.nFileSizeLow;
+				*size = static_cast<__int64>(fdata.nFileSizeHigh) << 32 | fdata.nFileSizeLow;
 
 			if(isDir)
 				*isDir = !!( fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
@@ -477,7 +483,7 @@ public:
 		{
 			shortname = ref.Right(ref.GetLength() - prefix.GetLength());
 			if (CStringUtils::EndsWith(shortname, L"^{}"))
-				shortname.Truncate(shortname.GetLength() - 3);
+				shortname.Truncate(shortname.GetLength() - static_cast<int>(wcslen(L"^{}")));
 			return TRUE;
 		}
 		return FALSE;

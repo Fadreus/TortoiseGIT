@@ -5443,7 +5443,7 @@ msgid "In Commits"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_MERGEABORT: Control id 1649)
-msgid "In order to abort a merge progess a reset (to HEAD) is needed."
+msgid "In order to abort a merge progress a reset (to HEAD) is needed."
 msgstr ""
 
 #. Resource IDs: (IDS_FIRSTSTART_LANGUAGEHINT2)
@@ -6261,10 +6261,6 @@ msgstr ""
 
 #. Resource IDs: (IDS_SETTINGS_CACHENONE_TT)
 msgid "No status cache. Only versioned folders get an overlay, files don't get an overlay"
-msgstr ""
-
-#. Resource IDs: (IDS_SPELLEDIT_NOTHESAURUS)
-msgid "No thesaurus suggestions"
 msgstr ""
 
 #. Resource IDs: (IDS_NOGITREPO)
@@ -8267,6 +8263,10 @@ msgstr ""
 msgid "Show branches this commit is &on"
 msgstr ""
 
+#. Resource IDs: (ID_VIEW_SHOWBRANCHINGSANDMERGES - Menu)
+msgid "Show branchings and &merges"
+msgstr ""
+
 #. Resource IDs: (IDS_LOG_POPUP_GNUDIFF)
 msgid "Show changes as &unified diff"
 msgstr ""
@@ -9221,10 +9221,6 @@ msgstr ""
 msgid "There is nothing to add.\nAll the files and folders are either under version control,\nhave been ignored or the global ignore configuration setting."
 msgstr ""
 
-#. Resource IDs: (IDS_SPELLEDIT_THESAURUS)
-msgid "Thesaurus"
-msgstr ""
-
 #. Resource IDs: (AFX_IDS_AUTOSAVE_RECOVERY_ASK_2)
 msgid "These are more recently saved than the currently open documents and contain changes that were made before the application closed."
 msgstr ""
@@ -9701,10 +9697,6 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETMAINPAGE: Control id 1066)
 msgid "Use Ribbons"
-msgstr ""
-
-#. Resource IDs: (Dialog IDD_PUSH: Control id 1497)
-msgid "Use Thin &Pack (For slow network connections)"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_OPENDLG: Control id 1064)
@@ -10266,7 +10258,7 @@ msgid "Z"
 msgstr ""
 
 #. Resource IDs: (IDS_ARCHIVEFILEFILTER)
-msgid "ZIP archive (*.zip)|*.zip|All Files (*.*)|*.*||"
+msgid "ZIP archive (*.zip)|*.zip|TAR archive (*.tar)|*.tar|TAR GZIP archive (*.tar.gz)|*.tar.gz|All Files (*.*)|*.*||"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_EXPORT: Control id 1074)

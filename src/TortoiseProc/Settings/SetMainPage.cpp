@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ void CSetMainPage::DoDataExchange(CDataExchange* pDX)
 {
 	ISettingsPropPage::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LANGUAGECOMBO, m_LanguageCombo);
-	m_dwLanguage = (DWORD)m_LanguageCombo.GetItemData(m_LanguageCombo.GetCurSel());
+	m_dwLanguage = static_cast<DWORD>(m_LanguageCombo.GetItemData(m_LanguageCombo.GetCurSel()));
 	DDX_Text(pDX, IDC_MSYSGIT_PATH, m_sMsysGitPath);
 	DDX_Text(pDX, IDC_MSYSGIT_EXTERN_PATH, m_sMsysGitExtranPath);
 	DDX_Check(pDX, IDC_CHECKNEWERVERSION, m_bCheckNewer);
@@ -113,13 +113,17 @@ BOOL CSetMainPage::OnInitDialog()
 			sFileVer = sFileVer.Left(sFileVer.ReverseFind('.'));
 			if (sFileVer.Compare(sVer)!=0)
 				continue;
-			CString sLoc = filename.Mid((int)wcslen(L"TortoiseProc"));
-			sLoc = sLoc.Left(sLoc.GetLength() - (int)wcslen(L".dll")); // cut off ".dll"
+			CString sLoc = filename.Mid(static_cast<int>(wcslen(L"TortoiseProc")));
+			sLoc = sLoc.Left(sLoc.GetLength() - static_cast<int>(wcslen(L".dll"))); // cut off ".dll"
 			if (CStringUtils::StartsWith(sLoc, L"32") && (sLoc.GetLength() > 5))
 				continue;
-			DWORD loc = _wtoi(filename.Mid((int)wcslen(L"TortoiseProc")));
+			DWORD loc = _wtoi(filename.Mid(static_cast<int>(wcslen(L"TortoiseProc"))));
+			if (loc == 0)
+				continue;
+			buf[0] = 0;
 			GetLocaleInfo(loc, LOCALE_SNATIVELANGNAME, buf, _countof(buf));
 			CString sLang = buf;
+			buf[0] = 0;
 			GetLocaleInfo(loc, LOCALE_SNATIVECTRYNAME, buf, _countof(buf));
 			if (buf[0])
 			{

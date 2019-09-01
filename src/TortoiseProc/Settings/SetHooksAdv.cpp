@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2010, 2013-2018 - TortoiseGit
+// Copyright (C) 2010, 2013-2019 - TortoiseGit
 // Copyright (C) 2003-2008,2010 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -22,7 +22,8 @@
 #include "SetHooksAdv.h"
 #include "BrowseFolder.h"
 #include "AppUtils.h"
-
+#include "Git.h"
+#include "GitAdminDir.h"
 
 IMPLEMENT_DYNAMIC(CSetHooksAdv, CResizableStandAloneDialog)
 
@@ -85,7 +86,7 @@ BOOL CSetHooksAdv::OnInitDialog()
 	// preselect the right hook type in the combobox
 	for (int i=0; i<m_cHookTypeCombo.GetCount(); ++i)
 	{
-		hooktype ht = (hooktype)m_cHookTypeCombo.GetItemData(i);
+		hooktype ht = static_cast<hooktype>(m_cHookTypeCombo.GetItemData(i));
 		if (ht == key.htype)
 		{
 			CString str;
@@ -104,6 +105,8 @@ BOOL CSetHooksAdv::OnInitDialog()
 
 	UpdateData(FALSE);
 	OnBnClickedLocalcheck();
+
+	DialogEnableWindow(IDC_LOCALCHECK, GitAdminDir::HasAdminDir(g_Git.m_CurrentDir));
 
 	AddAnchor(IDC_ENABLE, TOP_LEFT);
 	AddAnchor(IDC_HOOKTYPELABEL, TOP_LEFT, TOP_RIGHT);
@@ -131,7 +134,7 @@ void CSetHooksAdv::OnOK()
 	key.htype = unknown_hook;
 	if (cursel != CB_ERR)
 	{
-		key.htype = (hooktype)m_cHookTypeCombo.GetItemData(cursel);
+		key.htype = static_cast<hooktype>(m_cHookTypeCombo.GetItemData(cursel));
 		key.path = CTGitPath(m_sPath);
 		cmd.commandline = m_sCommandLine;
 		cmd.bEnabled = m_bEnabled == BST_CHECKED;
@@ -153,7 +156,7 @@ void CSetHooksAdv::OnOK()
 		}
 		if (key.path.GetWinPathString() != L"*" && (!PathIsDirectory(key.path.GetWinPathString()) || PathIsRelative(key.path.GetWinPathString())))
 		{
-			ShowEditBalloon(IDC_HOOKPATH, (LPCTSTR)CFormatMessageWrapper(ERROR_PATH_NOT_FOUND), CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), TTI_ERROR);
+			ShowEditBalloon(IDC_HOOKPATH, static_cast<LPCTSTR>(CFormatMessageWrapper(ERROR_PATH_NOT_FOUND)), CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), TTI_ERROR);
 			return;
 		}
 	}

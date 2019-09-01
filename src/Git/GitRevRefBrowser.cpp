@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2018 - TortoiseGit
+// Copyright (C) 2009-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ int GitRevRefBrowser::GetGitRevRefMap(MAP_REF_GITREVREFBROWSER& map, int mergefi
 	}
 
 	CString cmd;
-	cmd.Format(L"git.exe for-each-ref%s --format=\"%%(refname)%%04 %%(objectname)%%04 %%(upstream)%%04 %%(subject)%%04 %%(authorname)%%04%%(authordate:raw)%%03\"", (LPCTSTR)args);
+	cmd.Format(L"git.exe for-each-ref%s --format=\"%%(refname)%%04 %%(objectname)%%04 %%(upstream)%%04 %%(subject)%%04 %%(authorname)%%04 %%(authordate:raw)%%04 %%(creator)%%04 %%(creatordate:raw)%%03\"", static_cast<LPCTSTR>(args));
 	CString allRefs;
 	if (g_Git.Run(cmd, &allRefs, &err, CP_UTF8))
 		return -1;
@@ -70,15 +70,22 @@ int GitRevRefBrowser::GetGitRevRefMap(MAP_REF_GITREVREFBROWSER& map, int mergefi
 			continue;
 
 		GitRevRefBrowser ref;
-		ref.m_CommitHash = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
+		ref.m_CommitHash = CGitHash::FromHexStrTry(singleRef.Tokenize(L"\04", valuePos).Trim()); if (valuePos < 0) continue;
 		ref.m_UpstreamRef = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
 		ref.m_Subject = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
 		ref.m_AuthorName = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
 		CString date = singleRef.Tokenize(L"\04", valuePos).Trim();
 		ref.m_AuthorDate = StrToInt(date);
+		if (ref.m_AuthorName.IsEmpty())
+		{
+			ref.m_AuthorName = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
+			ref.m_AuthorName = ref.m_AuthorName.Left(ref.m_AuthorName.Find(L" <")).Trim();
+			date = singleRef.Tokenize(L"\04", valuePos).Trim();
+			ref.m_AuthorDate = StrToInt(date);
+		}
 
 		if (CStringUtils::StartsWith(refName, L"refs/heads/"))
-			ref.m_Description = descriptions[refName.Mid((int)wcslen(L"refs/heads/"))];
+			ref.m_Description = descriptions[refName.Mid(static_cast<int>(wcslen(L"refs/heads/")))];
 
 		map.emplace(refName, ref);
 	}

@@ -98,7 +98,7 @@ BOOL CChangedDlg::OnInitDialog()
 
 	UpdateData(FALSE);
 
-	m_FileListCtrl.Init(GITSLC_COLEXT | GITSLC_COLSTATUS | GITSLC_COLADD| GITSLC_COLDEL | GITSLC_COLMODIFICATIONDATE, L"ChangedDlg", (GITSLC_POPALL ^ (GITSLC_POPSAVEAS | GITSLC_POPRESTORE | GITSLC_POPPREPAREDIFF)), false);
+	m_FileListCtrl.Init(GITSLC_COLEXT | GITSLC_COLSTATUS | GITSLC_COLADD | GITSLC_COLDEL | GITSLC_COLMODIFICATIONDATE, L"ChangedDlg", (GITSLC_POPALL ^ (GITSLC_POPSAVEAS | GITSLC_POPRESTORE | GITSLC_POPPREPAREDIFF | GITSLC_POPCHANGELISTS)), false);
 	m_FileListCtrl.SetCancelBool(&m_bCanceled);
 	m_FileListCtrl.SetBackgroundImage(IDI_CFM_BKG);
 	m_FileListCtrl.SetEmptyString(IDS_REPOSTATUS_EMPTYFILELIST);
@@ -131,7 +131,7 @@ BOOL CChangedDlg::OnInitDialog()
 
 	m_ctrlStash.m_bAlwaysShowArrow = true;
 
-	m_bRemote = !!(DWORD)CRegDWORD(L"Software\\TortoiseGit\\CheckRepo", FALSE);
+	m_bRemote = !!static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\CheckRepo", FALSE));
 
 	// first start a thread to obtain the status without
 	// blocking the dialog
@@ -142,7 +142,7 @@ BOOL CChangedDlg::OnInitDialog()
 
 UINT CChangedDlg::ChangedStatusThreadEntry(LPVOID pVoid)
 {
-	return reinterpret_cast<CChangedDlg*>(pVoid)->ChangedStatusThread();
+	return static_cast<CChangedDlg*>(pVoid)->ChangedStatusThread();
 }
 
 UINT CChangedDlg::ChangedStatusThread()
@@ -188,7 +188,7 @@ UINT CChangedDlg::ChangedStatusThread()
 	DialogEnableWindow(IDC_SHOWSTAGED, TRUE);
 	InterlockedExchange(&m_bBlock, FALSE);
 	// revert the remote flag back to the default
-	m_bRemote = !!(DWORD)CRegDWORD(L"Software\\TortoiseGit\\CheckRepo", FALSE);
+	m_bRemote = !!static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\CheckRepo", FALSE));
 	RefreshCursor();
 	return 0;
 }
@@ -429,7 +429,7 @@ void CChangedDlg::OnBnClickedButtonUnifieddiff()
 	if (bSingleFile)
 		commonDirectory = m_pathList[0];
 	CString sCmd;
-	sCmd.Format(L"/command:showcompare /unified /path:\"%s\" /revision1:HEAD /revision2:%s", (LPCTSTR)g_Git.CombinePath(commonDirectory), (LPCTSTR)GitRev::GetWorkingCopy());
+	sCmd.Format(L"/command:showcompare /unified /path:\"%s\" /revision1:HEAD /revision2:%s", static_cast<LPCTSTR>(g_Git.CombinePath(commonDirectory)), static_cast<LPCTSTR>(GitRev::GetWorkingCopy()));
 	if (!!(GetAsyncKeyState(VK_SHIFT) & 0x8000))
 		sCmd += L" /alternative";
 	CAppUtils::RunTortoiseGitProc(sCmd);

@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2014-2018 - TortoiseGit
+// Copyright (C) 2014-2019 - TortoiseGit
 // based on SmartHandle of TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -212,10 +212,10 @@ public:
 
 	void ConvertFrom(CAutoObject&& h)
 	{
-		if (m_Ref != (git_tree*)(git_object*)h)
+		if (m_Ref != reinterpret_cast<git_tree*>(static_cast<git_object*>(h)))
 		{
 			Free();
-			m_Ref = (git_tree*)h.Detach();
+			m_Ref = reinterpret_cast<git_tree*>(h.Detach());
 		}
 	}
 
@@ -253,16 +253,15 @@ public:
 			return -1;
 
 		CAutoBuf buf;
-		int ret = 0;
-		if ((ret = git_config_get_string_buf(buf, m_Ref, CUnicodeUtils::GetUTF8(key))))
+		if (auto ret = git_config_get_string_buf(buf, m_Ref, CUnicodeUtils::GetUTF8(key)); ret)
 		{
 			value.Empty();
 			return ret;
 		}
 
-		value = CUnicodeUtils::GetUnicode((CStringA)buf->ptr);
+		value = CUnicodeUtils::GetUnicode(CStringA(buf->ptr));
 
-		return ret;
+		return 0;
 	}
 
 	int GetBOOL(const CString &key, BOOL &b) const
@@ -279,13 +278,12 @@ public:
 			return -1;
 
 		int value = FALSE;
-		int ret = 0;
-		if ((ret = GetBOOL(key, value)) < 0)
+		if (auto ret = GetBOOL(key, value); ret < 0)
 			return ret;
 
 		b = (value == TRUE);
 
-		return ret;
+		return 0;
 	}
 #endif
 

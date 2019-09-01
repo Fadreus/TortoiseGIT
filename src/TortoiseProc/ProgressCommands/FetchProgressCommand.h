@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2013-2015, 2017 - TortoiseGit
+// Copyright (C) 2013-2015, 2017, 2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,9 +25,9 @@ protected:
 	git_remote_autotag_option_t	m_AutoTag;
 	git_fetch_prune_t m_Prune;
 
-	static int FetchCallback(const git_transfer_progress *stats, void *payload)
+	static int FetchCallback(const git_indexer_progress *stats, void *payload)
 	{
-		return ((CGitProgressList::Payload*)payload)->list->UpdateProgress(stats);
+		return static_cast<CGitProgressList::Payload*>(payload)->list->UpdateProgress(stats);
 	}
 
 public:

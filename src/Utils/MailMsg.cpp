@@ -4,7 +4,7 @@
   Copyright (c) 2003, Michael Carruth
   All rights reserved.
 
-  Adjusted by Sven Strickroth <email@cs-ware.de>, 2011-2018
+  Adjusted by Sven Strickroth <email@cs-ware.de>, 2011-2019
    * make it work with no attachments
    * added flag to show mail compose dialog
    * make it work with 32-64bit inconsistencies (http://msdn.microsoft.com/en-us/library/dd941355.aspx)
@@ -127,10 +127,7 @@ BOOL CMailMsg::DetectMailClient(CString& sMailClientName)
 {
 	CRegKey regKey;
 	TCHAR buf[1024] = L"";
-	ULONG buf_size = 0;
-	LONG lResult;
-
-	lResult = regKey.Open(HKEY_CURRENT_USER, L"SOFTWARE\\Clients\\Mail", KEY_READ);
+	LONG lResult = regKey.Open(HKEY_CURRENT_USER, L"SOFTWARE\\Clients\\Mail", KEY_READ);
 	if(lResult!=ERROR_SUCCESS)
 	{
 		lResult = regKey.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Clients\\Mail", KEY_READ);
@@ -138,7 +135,7 @@ BOOL CMailMsg::DetectMailClient(CString& sMailClientName)
 
 	if(lResult==ERROR_SUCCESS)
 	{
-		buf_size = 1023;
+		ULONG buf_size = 1023;
 #pragma warning(disable:4996)
 		LONG result = regKey.QueryValue(buf, L"", &buf_size);
 #pragma warning(default:4996)
@@ -212,9 +209,9 @@ BOOL CMailMsg::Send()
 	message.lpszSubject						= const_cast<LPWSTR>(static_cast<LPCWSTR>(m_sSubject));
 	message.lpszNoteText					= const_cast<LPWSTR>(static_cast<LPCWSTR>(m_sMessage));
 	message.lpOriginator					= &originator;
-	message.nRecipCount						= (ULONG)recipients.size();
+	message.nRecipCount						= static_cast<ULONG>(recipients.size());
 	message.lpRecips						= recipients.data();
-	message.nFileCount						= (ULONG)attachments.size();
+	message.nFileCount						= static_cast<ULONG>(attachments.size());
 	message.lpFiles							= attachments.data();
 
 	ULONG status = MAPISendMailHelper(NULL, 0, &message, (m_bShowComposeDialog ? MAPI_DIALOG : 0) | MAPI_LOGON_UI, 0);

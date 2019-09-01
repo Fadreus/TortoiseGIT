@@ -113,7 +113,7 @@ void CRefLogDlg::OnBnClickedOk()
 			// all ok, pick up the revision
 			GitRev* pLogEntry = m_RefList.m_arShownList.SafeGetAt(selIndex);
 			// extract the hash
-			m_SelectedHash = pLogEntry->m_CommitHash.ToString();
+			m_SelectedHash = pLogEntry->m_CommitHash;
 		}
 	}
 
@@ -146,11 +146,10 @@ void CRefLogDlg::OnCbnSelchangeRef()
 
 	m_RefList.SetRedraw(false);
 
-	CString err;
-	if (GitRevLoglist::GetRefLog(m_CurrentBranch, m_RefList.m_RevCache, err))
+	if (CString err; GitRevLoglist::GetRefLog(m_CurrentBranch, m_RefList.m_RevCache, err))
 		MessageBox(L"Error while loading reflog.\n" + err, L"TortoiseGit", MB_ICONERROR);
 
-	m_RefList.SetItemCountEx((int)m_RefList.m_RevCache.size());
+	m_RefList.SetItemCountEx(static_cast<int>(m_RefList.m_RevCache.size()));
 
 	this->m_RefList.m_arShownList.clear();
 
@@ -214,7 +213,7 @@ void CRefLogDlg::Refresh()
 		m_CurrentBranch = L"HEAD";
 
 	bool found = false;
-	for (int i = 0; i < (int)list.size(); ++i)
+	for (int i = 0; i < static_cast<int>(list.size()); ++i)
 	{
 		if (list[i] == m_CurrentBranch)
 		{
@@ -304,8 +303,8 @@ LRESULT CRefLogDlg::OnFindDialogMessage(WPARAM /*wParam*/, LPARAM /*lParam*/)
 
 		if (bFound)
 		{
-			m_RefList.SetHotItem((int)i - 1);
-			m_RefList.EnsureVisible((int)i - 1, FALSE);
+			m_RefList.SetHotItem(static_cast<int>(i) - 1);
+			m_RefList.EnsureVisible(static_cast<int>(i) - 1, FALSE);
 			m_nSearchLine = i;
 		}
 		else

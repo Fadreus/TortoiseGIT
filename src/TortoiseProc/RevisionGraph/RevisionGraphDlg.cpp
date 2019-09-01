@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2012, 2018 - TortoiseSVN
-// Copyright (C) 2012-2016, 2018 - TortoiseGit
+// Copyright (C) 2012-2016, 2018-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -47,7 +47,7 @@ struct CToolBarData
 
 	WORD* items()
 	{
-		return (WORD*)(this + 1);
+		return reinterpret_cast<WORD*>(this + 1);
 	}
 };
 
@@ -104,7 +104,7 @@ BEGIN_MESSAGE_MAP(CRevisionGraphDlg, CResizableStandAloneDialog)
 	ON_COMMAND(ID_VIEW_UNIFIEDDIFF, OnViewUnifieddiff)
 	ON_COMMAND(ID_VIEW_UNIFIEDDIFFOFHEADREVISIONS, OnViewUnifieddiffofheadrevisions)
 	ON_WM_WINDOWPOSCHANGING()
-
+	ON_COMMAND(ID_VIEW_SHOWBRANCHINGSANDMERGES, OnViewShowBranchingsMerges)
 END_MESSAGE_MAP()
 
 BOOL CRevisionGraphDlg::InitializeToolbar()
@@ -168,7 +168,7 @@ BOOL CRevisionGraphDlg::InitializeToolbar()
 
 		CSize	  cSize(bmBitmap.bmWidth, bmBitmap.bmHeight);
 		int nNbBtn = cSize.cx / CDPIAware::Instance().ScaleX(20);
-		RGBTRIPLE * rgb = (RGBTRIPLE*)(bmBitmap.bmBits);
+		auto rgb = static_cast<RGBTRIPLE*>(bmBitmap.bmBits);
 		COLORREF	rgbMask = RGB(rgb[0].rgbtRed, rgb[0].rgbtGreen, rgb[0].rgbtBlue);
 
 		cImageList.Create(CDPIAware::Instance().ScaleX(20), cSize.cy, ILC_COLOR32 | ILC_MASK, nNbBtn, 0);
@@ -178,7 +178,7 @@ BOOL CRevisionGraphDlg::InitializeToolbar()
 		// See the source of SetSizes().
 		m_ToolBar.SetSizes(CSize(CDPIAware::Instance().ScaleX(27), CDPIAware::Instance().ScaleY(26)),
 			CSize(CDPIAware::Instance().ScaleX(20), CDPIAware::Instance().ScaleY(20)));
-		m_ToolBar.SendMessage(TB_SETIMAGELIST, 0, (LPARAM)cImageList.m_hImageList);
+		m_ToolBar.SendMessage(TB_SETIMAGELIST, 0, reinterpret_cast<LPARAM>(cImageList.m_hImageList));
 		cImageList.Detach();
 		cBitmap.Detach();
 	}
@@ -260,6 +260,24 @@ BOOL CRevisionGraphDlg::OnInitDialog()
 	m_pTaskbarList.Release();
 	if (FAILED(m_pTaskbarList.CoCreateInstance(CLSID_TaskbarList)))
 		m_pTaskbarList = nullptr;
+
+	CMenu* pMenu = GetMenu();
+	if (pMenu)
+	{
+		CRegDWORD reg = CRegDWORD(L"Software\\TortoiseGit\\ShowRevGraphOverview", FALSE);
+		m_Graph.SetShowOverview((DWORD)reg != FALSE);
+		pMenu->CheckMenuItem(ID_VIEW_SHOWOVERVIEW, MF_BYCOMMAND | (DWORD(reg) ? MF_CHECKED : 0));
+		int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWOVERVIEW);
+		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWOVERVIEW, tbstate | (DWORD(reg) ? TBSTATE_CHECKED : 0));
+	}
+	if (pMenu)
+	{
+		CRegDWORD reg(L"Software\\TortoiseGit\\ShowRevGraphBranchesMerges", FALSE);
+		m_Graph.m_bShowBranchingsMerges = (DWORD)reg != FALSE;
+		pMenu->CheckMenuItem(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND | (DWORD(reg) ? MF_CHECKED : 0));
+		int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWBRANCHINGSANDMERGES);
+		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWBRANCHINGSANDMERGES, tbstate | (DWORD(reg) ? TBSTATE_CHECKED : 0));
+	}
 
 //	m_hAccel = LoadAccelerators(AfxGetResourceHandle(),MAKEINTRESOURCE(IDR_ACC_REVISIONGRAPH));
 
@@ -375,6 +393,32 @@ BOOL CRevisionGraphDlg::PreTranslateMessage(MSG* pMsg)
 		return TranslateAccelerator(m_hWnd,m_hAccel,pMsg);
 	}
 	return __super::PreTranslateMessage(pMsg);
+}
+
+void CRevisionGraphDlg::OnViewShowBranchingsMerges()
+{
+	CMenu* pMenu = GetMenu();
+	if (!pMenu)
+		return;
+	int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWBRANCHINGSANDMERGES);
+	UINT state = pMenu->GetMenuState(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND);
+	if (state & MF_CHECKED)
+	{
+		pMenu->CheckMenuItem(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND | MF_UNCHECKED);
+		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWBRANCHINGSANDMERGES, tbstate & (~TBSTATE_CHECKED));
+		m_Graph.m_bShowBranchingsMerges = false;
+	}
+	else
+	{
+		pMenu->CheckMenuItem(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND | MF_CHECKED);
+		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWBRANCHINGSANDMERGES, tbstate | TBSTATE_CHECKED);
+		m_Graph.m_bShowBranchingsMerges = true;
+	}
+
+	CRegDWORD reg(L"Software\\TortoiseGit\\ShowRevGraphBranchesMerges", FALSE);
+	reg = m_Graph.m_bShowBranchingsMerges;
+
+	UpdateFullHistory();
 }
 
 void CRevisionGraphDlg::DoZoom (float zoom)
@@ -541,7 +585,7 @@ CRect CRevisionGraphDlg::GetGraphRect()
 void CRevisionGraphDlg::UpdateStatusBar()
 {
 //	CString sFormat;
-//	sFormat.Format(IDS_REVGRAPH_STATUSBARURL, (LPCTSTR)m_Graph.m_sPath);
+//	sFormat.Format(IDS_REVGRAPH_STATUSBARURL, static_cast<LPCTSTR>(m_Graph.m_sPath));
 //	m_StatusBar.SetText(sFormat,1,0);
 //	sFormat.Format(IDS_REVGRAPH_STATUSBARNUMNODES, m_Graph.m_state.GetNodeCount());
 //	m_StatusBar.SetText(sFormat,0,0);
@@ -552,19 +596,19 @@ void CRevisionGraphDlg::OnChangeZoom()
 	if (!IsWindow(m_Graph.GetSafeHwnd()))
 		return;
 	CString strItem;
-	CComboBoxEx* pCBox = (CComboBoxEx*)m_ToolBar.GetDlgItem(ID_REVGRAPH_ZOOMCOMBO);
+	auto pCBox = static_cast<CComboBoxEx*>(m_ToolBar.GetDlgItem(ID_REVGRAPH_ZOOMCOMBO));
 	pCBox->GetWindowText(strItem);
 	if (strItem.IsEmpty())
 		return;
 
-	DoZoom ((float)(_wtof(strItem) / 100.0));
+	DoZoom(static_cast<float>(_wtof(strItem) / 100.0));
 }
 
 void CRevisionGraphDlg::UpdateZoomBox()
 {
 	CString strText;
 	CString strItem;
-	CComboBoxEx* pCBox = (CComboBoxEx*)m_ToolBar.GetDlgItem(ID_REVGRAPH_ZOOMCOMBO);
+	auto pCBox = static_cast<CComboBoxEx*>(m_ToolBar.GetDlgItem(ID_REVGRAPH_ZOOMCOMBO));
 	pCBox->GetWindowText(strItem);
 	strText.Format(L"%.0f%%", (m_fZoomFactor * 100.0));
 	if (strText.Compare(strItem) != 0)
@@ -574,8 +618,8 @@ void CRevisionGraphDlg::UpdateZoomBox()
 BOOL CRevisionGraphDlg::OnToolTipNotify(UINT /*id*/, NMHDR *pNMHDR, LRESULT *pResult)
 {
 	// need to handle both ANSI and UNICODE versions of the message
-	TOOLTIPTEXTA* pTTTA = (TOOLTIPTEXTA*)pNMHDR;
-	TOOLTIPTEXTW* pTTTW = (TOOLTIPTEXTW*)pNMHDR;
+	auto pTTTA = reinterpret_cast<TOOLTIPTEXTA*>(pNMHDR);
+	auto pTTTW = reinterpret_cast<TOOLTIPTEXTW*>(pNMHDR);
 	CString strTipText;
 
 	UINT_PTR nID = pNMHDR->idFrom;
@@ -584,7 +628,7 @@ BOOL CRevisionGraphDlg::OnToolTipNotify(UINT /*id*/, NMHDR *pNMHDR, LRESULT *pRe
 		pNMHDR->code == TTN_NEEDTEXTW && (pTTTW->uFlags & TTF_IDISHWND))
 	{
 		// idFrom is actually the HWND of the tool
-		nID = ::GetDlgCtrlID((HWND)nID);
+		nID = ::GetDlgCtrlID(reinterpret_cast<HWND>(nID));
 	}
 
 	if (nID != 0) // will be zero on a separator

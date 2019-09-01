@@ -43,10 +43,7 @@ bool IgnoreCommand::Execute()
 
 	if (parser.HasKey(L"delete"))
 	{
-		int key;
-
 		CString format;
-
 		if(CMessageBox::Show(GetExplorerHWND(), IDS_PROC_KEEPFILELOCAL, IDS_APPNAME, MB_ICONERROR|MB_YESNO) == IDYES)
 			format = L"git.exe rm --cache -r -f -- \"%s\"";
 		else
@@ -57,11 +54,10 @@ bool IgnoreCommand::Execute()
 		int nPath;
 		for (nPath = 0; nPath < pathList.GetCount(); ++nPath)
 		{
-			cmd.Format(format, (LPCTSTR)pathList[nPath].GetGitPathString());
+			cmd.Format(format, static_cast<LPCTSTR>(pathList[nPath].GetGitPathString()));
 			if (g_Git.Run(cmd, &output, CP_UTF8))
 			{
-				key = MessageBox(GetExplorerHWND(), output, L"TortoiseGit", MB_ICONERROR | MB_OKCANCEL);
-				if(key == IDCANCEL)
+				if (MessageBox(GetExplorerHWND(), output, L"TortoiseGit", MB_ICONERROR | MB_OKCANCEL) == IDCANCEL)
 					return FALSE;
 			}
 		}

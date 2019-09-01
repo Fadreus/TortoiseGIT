@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2011 - TortoiseSVN
-// Copyright (C) 2012-2018 - TortoiseGit
+// Copyright (C) 2012-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -68,8 +68,8 @@ void CRevisionGraphWnd::BuildPreview()
 
 	// make sure the preview window has a minimal size
 
-	m_previewWidth = min((LONG)max(graphRect.Width() * m_previewZoom, 30.0f), preViewSize.cx);
-	m_previewHeight = min((LONG)max(graphRect.Height() * m_previewZoom, 30.0f), preViewSize.cy);
+	m_previewWidth = min(static_cast<LONG>(max(graphRect.Width() * m_previewZoom, 30.0f)), preViewSize.cx);
+	m_previewHeight = min(static_cast<LONG>(max(graphRect.Height() * m_previewZoom, 30.0f)), preViewSize.cy);
 
 	CClientDC ddc(this);
 	CDC dc;
@@ -77,7 +77,7 @@ void CRevisionGraphWnd::BuildPreview()
 		return;
 
 	m_Preview.CreateCompatibleBitmap(&ddc, m_previewWidth, m_previewHeight);
-	HBITMAP oldbm = (HBITMAP)dc.SelectObject (m_Preview);
+	HBITMAP oldbm = static_cast<HBITMAP>(dc.SelectObject (m_Preview));
 
 	// paint the whole graph
 	DoZoom (m_previewZoom, false);
@@ -160,7 +160,7 @@ int CRevisionGraphWnd::GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 	if(size == 0)
 		return -1;  // Failure
 
-	ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
+	auto pImageCodecInfo = reinterpret_cast<ImageCodecInfo*>(malloc(size));
 	if (!pImageCodecInfo)
 		return -1;  // Failure
 
@@ -191,56 +191,116 @@ bool CRevisionGraphWnd::FetchRevisionData
 	this->m_logEntries.ClearAll();
 	CString range;
 	if (!m_ToRev.IsEmpty() && !m_FromRev.IsEmpty())
-		range.Format(L"%s..%s", (LPCTSTR)g_Git.FixBranchName(m_FromRev), (LPCTSTR)g_Git.FixBranchName(m_ToRev));
+		range.Format(L"%s..%s", static_cast<LPCTSTR>(g_Git.FixBranchName(m_FromRev)), static_cast<LPCTSTR>(g_Git.FixBranchName(m_ToRev)));
 	else if (!m_ToRev.IsEmpty())
 		range = m_ToRev;
 	else if (!m_FromRev.IsEmpty())
 		range = m_FromRev;
-	DWORD infomask = CGit::LOG_INFO_SIMPILFY_BY_DECORATION | (m_bCurrentBranch ? 0 : m_bLocalBranches ? CGit::LOG_INFO_LOCAL_BRANCHES : CGit::LOG_INFO_ALL_BRANCH);
+	DWORD infomask = CGit::LOG_INFO_SIMPILFY_BY_DECORATION | (m_bCurrentBranch ? 0 : m_bLocalBranches ? CGit::LOG_INFO_LOCAL_BRANCHES : CGit::LOG_INFO_ALL_BRANCH) | (m_bShowBranchingsMerges ? CGit::LOG_ORDER_TOPOORDER | CGit::LOG_INFO_SPARSE : 0);
 	m_logEntries.ParserFromLog(nullptr, 0, infomask, &range);
 
 	ReloadHashMap();
 	this->m_Graph.clear();
 
+	m_superProjectHash.Empty();
+	if (CRegDWORD(L"Software\\TortoiseGit\\LogShowSuperProjectSubmodulePointer", TRUE) != FALSE)
+		m_superProjectHash = g_Git.GetSubmodulePointer();
+
+	// build child graph
+	if (m_bShowBranchingsMerges)
+	{
+		std::unordered_map<CGitHash, std::vector<CGitHash>> childMap;
+		for (size_t i = 0; i < m_logEntries.size(); ++i)
+		{
+			const GitRev& rev = m_logEntries.GetGitRevAt(i);
+			std::for_each(rev.m_ParentHash.cbegin(), rev.m_ParentHash.cend(), [&](const auto& parent) { childMap[parent].push_back(m_logEntries[i]); });
+		}
+
+		// rewrite history
+		std::unordered_set<CGitHash> skipList;
+		for (size_t i = 0; i < m_logEntries.size(); ++i)
+		{
+			auto& rev = m_logEntries.GetGitRevAt(i);
+
+			// keep labeled commits
+			if (m_HashMap.find(rev.m_CommitHash) != m_HashMap.cend() || rev.m_CommitHash == m_superProjectHash)
+				continue;
+
+			if (rev.m_ParentHash.size() != 1)
+				continue;
+
+			auto childIt = childMap.find(rev.m_CommitHash);
+			if (childIt == childMap.cend() || childIt->second.size() != 1)
+				continue;
+
+			auto& childRev = m_logEntries.GetGitRevAt(m_logEntries.m_HashMap.find(childIt->second[0])->second);
+			if (childRev.m_ParentHash.size() != 1)
+				continue;
+
+			// it's ok to erase this commit
+			skipList.insert(rev.m_CommitHash);
+
+			childRev.m_ParentHash[0] = rev.m_ParentHash[0];
+
+			auto& parentChildren = childMap[rev.m_ParentHash[0]];
+			if (auto it = std::find(parentChildren.begin(), parentChildren.end(), rev.m_CommitHash); it != parentChildren.end())
+				*it = childIt->second[0];
+
+			childMap.erase(childIt);
+		}
+
+		// cleanup lists
+		m_logEntries.erase(std::remove_if(m_logEntries.begin(), m_logEntries.end(), [&skipList](const auto& hash) { return skipList.find(hash) != skipList.cend(); }), m_logEntries.end());
+		m_logEntries.m_HashMap.clear();
+		for (size_t i = 0; i < m_logEntries.size(); ++i)
+			m_logEntries.m_HashMap[m_logEntries[i]] = i;
+	}
+
+	// build revision graph
 	CArray<ogdf::node> nodes;
 	GraphicsDevice dev;
 	dev.pDC = this->GetDC();
 	dev.graphics = Graphics::FromHDC(dev.pDC->m_hDC);
 	dev.graphics->SetPageUnit (UnitPixel);
 
+	Gdiplus::Font font(CAppUtils::GetLogFontName(), static_cast<REAL>(m_nFontSize), FontStyleRegular);
+	Rect commitString;
+	MeasureTextLength(dev, font, CString(L'8', g_Git.GetShortHASHLength()), commitString.Width, commitString.Height);
+
 	m_HeadNode = nullptr;
 
-	for (size_t i = 0; i < m_logEntries.size(); ++i)
+	for (const auto& hash : m_logEntries)
 	{
 		auto nd = m_Graph.newNode();
 		nodes.Add(nd);
 		m_GraphAttr.width(nd)=100;
 		m_GraphAttr.height(nd)=20;
-		SetNodeRect(dev, &nd, m_logEntries[i], 0);
-		if (m_logEntries[i] == m_HeadHash)
+		SetNodeRect(dev, font, commitString, &nd, hash);
+		if (hash == m_HeadHash)
 			m_HeadNode = nd;
 	}
 
 	for (size_t i = 0; i < m_logEntries.size(); ++i)
 	{
-		GitRev rev=m_logEntries.GetGitRevAt(i);
+		const GitRev& rev = m_logEntries.GetGitRevAt(i);
 		for (size_t j = 0; j < rev.m_ParentHash.size(); ++j)
 		{
-			if(m_logEntries.m_HashMap.find(rev.m_ParentHash[j]) == m_logEntries.m_HashMap.end())
+			auto parentId = m_logEntries.m_HashMap.find(rev.m_ParentHash[j]);
+			if (parentId == m_logEntries.m_HashMap.end())
 			{
 				TRACE(L"Can't found parent node");
 				//new parent node as new node
 				auto nd = this->m_Graph.newNode();
 				m_Graph.newEdge(nodes[i], nd);
 				m_logEntries.push_back(rev.m_ParentHash[j]);
-				m_logEntries.m_HashMap[rev.m_ParentHash[j]] = (int)m_logEntries.size() -1;
+				m_logEntries.m_HashMap[rev.m_ParentHash[j]] = m_logEntries.size() - 1;
 				nodes.Add(nd);
-				SetNodeRect(dev, &nd, rev.m_ParentHash[j], 0);
+				SetNodeRect(dev, font, commitString, &nd, rev.m_ParentHash[j]);
 
 			}else
 			{
 				TRACE(L"edge %d - %d\n",i, m_logEntries.m_HashMap[rev.m_ParentHash[j]]);
-				m_Graph.newEdge(nodes[i], nodes[m_logEntries.m_HashMap[rev.m_ParentHash[j]]]);
+				m_Graph.newEdge(nodes[i], nodes[parentId->second]);
 			}
 		}
 	}
@@ -265,8 +325,8 @@ bool CRevisionGraphWnd::FetchRevisionData
 	}
 
 	this->m_GraphRect.top=m_GraphRect.left=0;
-	m_GraphRect.bottom = (LONG)ymax;
-	m_GraphRect.right = (LONG)xmax;
+	m_GraphRect.bottom = static_cast<LONG>(ymax);
+	m_GraphRect.right = static_cast<LONG>(xmax);
 
 	return true;
 }
@@ -329,40 +389,31 @@ CString	CRevisionGraphWnd::GetFriendRefName(ogdf::node v)
 {
 	if (!v)
 		return CString();
-	CGitHash hash = this->m_logEntries[v->index()];
-	if(this->m_HashMap.find(hash) == m_HashMap.end())
-		return hash.ToString();
-	else if (m_HashMap[hash].empty())
-		return hash.ToString();
-	else if(this->m_HashMap[hash][0].IsEmpty())
+	const CGitHash& hash = this->m_logEntries[v->index()];
+	if (const auto refsIt = m_HashMap.find(hash); refsIt == m_HashMap.end())
 		return hash.ToString();
 	else
-		return m_HashMap[hash][0];
+		return refsIt->second[0];
 }
 
 STRING_VECTOR CRevisionGraphWnd::GetFriendRefNames(ogdf::node v, const CString* exclude, CGit::REF_TYPE* onlyRefType)
 {
 	if (!v)
 		return STRING_VECTOR();
-	CGitHash hash = m_logEntries[v->index()];
-	if (m_HashMap.find(hash) == m_HashMap.end())
-		return STRING_VECTOR();
-	else if (m_HashMap[hash].empty())
-		return STRING_VECTOR();
-	else if (m_HashMap[hash][0].IsEmpty())
+	const CGitHash& hash = m_logEntries[v->index()];
+	if (const auto refsIt = m_HashMap.find(hash); refsIt == m_HashMap.end())
 		return STRING_VECTOR();
 	else
 	{
-		STRING_VECTOR &all = m_HashMap[hash];
 		STRING_VECTOR list;
-		for (size_t i = 0; i < all.size(); ++i)
+		for (const auto& ref: refsIt->second)
 		{
 			CGit::REF_TYPE refType;
-			CString shortName = CGit::GetShortName(all[i], &refType);
+			CString shortName = CGit::GetShortName(ref, &refType);
 			if (exclude && *exclude == shortName)
 				continue;
 			if (!onlyRefType)
-				list.push_back(all[i]);
+				list.push_back(ref);
 			else if (*onlyRefType == refType)
 				list.push_back(shortName);
 		}
@@ -380,9 +431,9 @@ void CRevisionGraphWnd::CompareRevs(const CString& revTo)
 	CString sCmd;
 
 	sCmd.Format(L"/command:showcompare %s /revision1:%s /revision2:%s",
-			this->m_sPath.IsEmpty() ? L"" : (LPCTSTR)(L"/path:\"" + this->m_sPath + L'"'),
-			(LPCTSTR)GetFriendRefName(m_SelectedEntry1),
-			!revTo.IsEmpty() ? (LPCTSTR)revTo : (LPCTSTR)GetFriendRefName(m_SelectedEntry2));
+			this->m_sPath.IsEmpty() ? L"" : static_cast<LPCTSTR>(L"/path:\"" + this->m_sPath + L'"'),
+			static_cast<LPCTSTR>(GetFriendRefName(m_SelectedEntry1)),
+			!revTo.IsEmpty() ? static_cast<LPCTSTR>(revTo) : static_cast<LPCTSTR>(GetFriendRefName(m_SelectedEntry2)));
 
 	if (alternativeTool)
 		sCmd += L" /alternative";
@@ -408,17 +459,7 @@ void CRevisionGraphWnd::DoZoom (float fZoomFactor, bool updateScrollbars)
 
 	m_nFontSize = max(1, int(DEFAULT_ZOOM_FONT * fZoomFactor));
 	if (m_nFontSize < SMALL_ZOOM_FONT_THRESHOLD)
-		m_nFontSize = min((int)SMALL_ZOOM_FONT_THRESHOLD, int(SMALL_ZOOM_FONT * fZoomFactor));
-
-	for (int i = 0; i < MAXFONTS; ++i)
-	{
-		if (m_apFonts[i])
-		{
-			m_apFonts[i]->DeleteObject();
-			delete m_apFonts[i];
-		}
-		m_apFonts[i] = nullptr;
-	}
+		m_nFontSize = min(static_cast<int>(SMALL_ZOOM_FONT_THRESHOLD), int(SMALL_ZOOM_FONT * fZoomFactor));
 
 	if (updateScrollbars)
 	{

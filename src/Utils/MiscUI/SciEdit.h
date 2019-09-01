@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2018 - TortoiseGit
+// Copyright (C) 2009-2019 - TortoiseGit
 // Copyright (C) 2003-2008, 2013, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -21,12 +21,14 @@
 #include "../SmartHandle.h"
 #include "scintilla.h"
 #include "SciLexer.h"
-#include "hunspell.hxx"
-#include "mythes.hxx"
 #include "ProjectProperties.h"
 #include "PersonalDictionary.h"
 #include <regex>
 #include "LruCache.h"
+// the following should be last
+#pragma include_alias("hunvisapi.h", "../../ext/build/hunspell/hunvisapi.h")
+#pragma include_alias("config.h", "../../ext/build/hunspell/config.h")
+#include "../../ext/hunspell/src/hunspell/hunspell.hxx"
 
 #define AUTOCOMPLETE_SPELLING		0
 #define AUTOCOMPLETE_FILENAME		1
@@ -139,7 +141,6 @@ private:
 	LRESULT		m_DirectFunction;
 	LRESULT		m_DirectPointer;
 	std::unique_ptr<Hunspell>	pChecker;
-	std::unique_ptr<MyThes>		pThesaur;
 	UINT		m_spellcodepage;
 	std::map<CString, int> m_autolist;
 	TCHAR		m_separator;
@@ -169,10 +170,10 @@ protected:
 	bool		FindStyleChars(const char* line, char styler, Sci_Position& start, Sci_Position& end);
 	void		AdvanceUTF8(const char * str, int& pos);
 	BOOL		IsMisspelled(const CString& sWord);
-	int			GetStyleAt(Sci_Position pos) { return (int)Call(SCI_GETSTYLEAT, pos) & 0x1f; }
+	int			GetStyleAt(Sci_Position pos) { return static_cast<int>(Call(SCI_GETSTYLEAT, pos)) & 0x1f; }
 	bool		IsUrlOrEmail(const CStringA& sText);
-	CStringA	GetWordForSpellChecker(const CString& sWord);
-	CString		GetWordFromSpellChecker(const CStringA& sWordA);
+	std::string GetWordForSpellChecker(const CString& sWord);
+	CString		GetWordFromSpellChecker(const std::string& sWordA);
 
 	virtual afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);

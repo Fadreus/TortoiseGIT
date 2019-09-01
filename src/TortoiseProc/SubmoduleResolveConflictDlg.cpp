@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2018 - TortoiseGit
+// Copyright (C) 2012-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -45,12 +45,12 @@ CSubmoduleResolveConflictDlg::~CSubmoduleResolveConflictDlg()
 void CSubmoduleResolveConflictDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CHorizontalResizableStandAloneDialog::DoDataExchange(pDX);
-	DDX_Text(pDX, IDC_BASEHASH, m_sBaseHash);
 	DDX_Text(pDX, IDC_BASESUBJECT, m_sBaseSubject);
-	DDX_Text(pDX, IDC_MINEHASH, m_sMineHash);
 	DDX_Text(pDX, IDC_MINESUBJECT, m_sMineSubject);
-	DDX_Text(pDX, IDC_THEIRSHASH, m_sTheirsHash);
 	DDX_Text(pDX, IDC_THEIRSSUBJECT, m_sTheirsSubject);
+	GetDlgItem(IDC_BASEHASH)->SetWindowText(m_sBaseHash.ToString());
+	GetDlgItem(IDC_MINEHASH)->SetWindowText(m_sMineHash.ToString());
+	GetDlgItem(IDC_THEIRSHASH)->SetWindowText(m_sTheirsHash.ToString());
 }
 
 BEGIN_MESSAGE_MAP(CSubmoduleResolveConflictDlg, CHorizontalResizableStandAloneDialog)
@@ -155,7 +155,7 @@ HBRUSH CSubmoduleResolveConflictDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlC
 	return CHorizontalResizableStandAloneDialog::OnCtlColor(pDC, pWnd, nCtlColor);
 }
 
-void CSubmoduleResolveConflictDlg::SetDiff(const CString& path, bool revertTheirMy, const CString& baseTitle, const CString& mineTitle, const CString& theirsTitle, const CString& baseHash, const CString& baseSubject, bool baseOK, const CString& mineHash, const CString& mineSubject, bool mineOK, CGitDiff::ChangeType mineChangeType, const CString& theirsHash, const CString& theirsSubject, bool theirsOK, CGitDiff::ChangeType theirsChangeType)
+void CSubmoduleResolveConflictDlg::SetDiff(const CString& path, bool revertTheirMy, const CString& baseTitle, const CString& mineTitle, const CString& theirsTitle, const CGitHash& baseHash, const CString& baseSubject, bool baseOK, const CGitHash& mineHash, const CString& mineSubject, bool mineOK, CGitDiff::ChangeType mineChangeType, const CGitHash& theirsHash, const CString& theirsSubject, bool theirsOK, CGitDiff::ChangeType theirsChangeType)
 {
 	m_sPath = path;
 
@@ -199,23 +199,23 @@ void CSubmoduleResolveConflictDlg::SetDiff(const CString& path, bool revertTheir
 void CSubmoduleResolveConflictDlg::ShowLog(CString hash)
 {
 	CString sCmd;
-	sCmd.Format(L"/command:log /path:\"%s\" /endrev:%s", (LPCTSTR)g_Git.CombinePath(m_sPath), (LPCTSTR)hash);
+	sCmd.Format(L"/command:log /path:\"%s\" /endrev:%s", static_cast<LPCTSTR>(g_Git.CombinePath(m_sPath)), static_cast<LPCTSTR>(hash));
 	CAppUtils::RunTortoiseGitProc(sCmd, false, false);
 }
 
 void CSubmoduleResolveConflictDlg::OnBnClickedLog()
 {
-	ShowLog(m_sBaseHash);
+	ShowLog(m_sBaseHash.ToString());
 }
 
 void CSubmoduleResolveConflictDlg::OnBnClickedLog2()
 {
-	ShowLog(m_sMineHash);
+	ShowLog(m_sMineHash.ToString());
 }
 
 void CSubmoduleResolveConflictDlg::OnBnClickedLog3()
 {
-	ShowLog(m_sTheirsHash);
+	ShowLog(m_sTheirsHash.ToString());
 }
 
 void CSubmoduleResolveConflictDlg::Resolve(const CString& path, bool useMine)

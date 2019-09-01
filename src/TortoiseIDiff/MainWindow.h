@@ -1,4 +1,4 @@
-// TortoiseIDiff - an image diff viewer in TortoiseSVN
+﻿// TortoiseIDiff - an image diff viewer in TortoiseSVN
 
 // Copyright (C) 2015-2016 - TortoiseGit
 // Copyright (C) 2006-2007, 2009, 2011-2013, 2015 - TortoiseSVN
@@ -71,7 +71,7 @@ public:
         , resolveMsgLParam(0)
         , resolveMsgWParam(0)
     {
-        SetWindowTitle((LPCTSTR)ResString(hResource, IDS_APP_TITLE));
+        SetWindowTitle(static_cast<LPCTSTR>(ResString(hResource, IDS_APP_TITLE)));
     };
 
     /**
@@ -99,7 +99,7 @@ public:
 
 protected:
     /// the message handler for this window
-    LRESULT CALLBACK                    WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK                    WinMsgHandler(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
     /// Handles all the WM_COMMAND window messages (e.g. menu commands)
     LRESULT                             DoCommand(int id, LPARAM lParam);
 

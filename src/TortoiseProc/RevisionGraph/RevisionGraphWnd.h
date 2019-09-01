@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2011 - TortoiseSVN
-// Copyright (C) 2012-2018 - TortoiseGit
+// Copyright (C) 2012-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -109,6 +109,8 @@ enum NodeShape
 // forward declarations
 
 class CRevisionGraphDlg;
+struct AllColorsAndBrushes;
+struct ColorsAndBrushes;
 
 // simplify usage of classes from other namespaces
 
@@ -141,12 +143,15 @@ public:
 	CLogDataVector		m_logEntries;
 	MAP_HASH_NAME		m_HashMap;
 	CString				m_CurrentBranch;
-	CGitHash				m_HeadHash;
+	CGitHash			m_HeadHash;
+	CGitHash			m_superProjectHash;
 
 	BOOL		m_bCurrentBranch;
 	BOOL		m_bLocalBranches;
 	CString		m_FromRev;
 	CString		m_ToRev;
+
+	bool		m_bShowBranchingsMerges;
 
 	void ReloadHashMap()
 	{
@@ -198,8 +203,6 @@ protected:
 	ogdf::node		m_HeadNode;
 	ogdf::node		m_SelectedEntry1;
 	ogdf::node		m_SelectedEntry2;
-	LOGFONT			m_lfBaseFont;
-	CFont *			m_apFonts[MAXFONTS];
 	int				m_nFontSize;
 	CToolTipCtrl *	m_pDlgTip;
 	char			m_szTip[MAX_TT_LENGTH+1];
@@ -333,7 +336,6 @@ private:
 
 	void			SetScrollbar (int bar, int newPos, int clientMax, int graphMax);
 	void			SetScrollbars (int nVert = -1, int nHorz = -1);
-	CFont*			GetFont(BOOL bItalic = FALSE, BOOL bBold = FALSE);
 
 	CSize			UsableTooltipRect();
 	CString			DisplayableText (const CString& wholeText, const CSize& tooltipSize);
@@ -355,17 +357,16 @@ private:
 		ROUND_BOTH = 0x3,
 	};
 	void			DrawRoundedRect (GraphicsDevice& graphics, const Color& penColor, int penWidth, const Pen* pen, const Color& fillColor, const Brush* brush, const RectF& rect, int mask=ROUND_BOTH);
-	void			DrawOctangle (GraphicsDevice& graphics, const Color& penColor, int penWidth, const Pen* pen, const Color& fillColor, const Brush* brush, const RectF& rect);
 	RectF			TransformRectToScreen (const CRect& rect, const CSize& offset) const;
 	RectF			GetNodeRect (const ogdf::node& v, const CSize& offset) const;
-	void			DrawSquare (GraphicsDevice& graphics, const PointF& leftTop,
-								const Color& lightColor, const Color& darkColor, const Color& penColor);
 	void			DrawMarker ( GraphicsDevice& graphics, const RectF& noderect
 							   , MarkerPosition position, int relPosition, const Color& penColor, int num);
 	void			DrawConnections (GraphicsDevice& graphics, const CRect& logRect, const CSize& offset);
 	void			DrawTexts (GraphicsDevice& graphics, const CRect& logRect, const CSize& offset);
 	void			DrawGraph(GraphicsDevice& graphics, const CRect& rect, int nVScrollPos, int nHScrollPos, bool bDirectDraw);
+	void DrawNode(GraphicsDevice& graphics, AllColorsAndBrushes& colorsAndBrushes, ColorsAndBrushes* colors, const Gdiplus::Font& font, const CString& fontname, double height, RectF noderect, const CString& shortname, size_t line, size_t lines);
 
 	int				GetEncoderClsid(const WCHAR* format, CLSID* pClsid);
-	void	SetNodeRect(GraphicsDevice& graphics, ogdf::node *pnode, CGitHash rev, int mode = 0);
+	void	SetNodeRect(GraphicsDevice& graphics, Gdiplus::Font& font, const Rect& commitString, ogdf::node* pnode, const CGitHash& rev);
+	void	MeasureTextLength(GraphicsDevice& graphics, Gdiplus::Font& font, const CString& text, int& xmax, int& ymax);
 };

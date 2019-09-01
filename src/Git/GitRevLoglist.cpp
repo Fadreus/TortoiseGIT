@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2018 - TortoiseGit
+// Copyright (C) 2008-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -126,7 +126,7 @@ int GitRevLoglist::SafeGetSimpleList(CGit* git)
 
 	try
 	{
-		if (git_get_commit_from_hash(&commit, static_cast<const unsigned char*>(m_CommitHash)))
+		if (git_get_commit_from_hash(&commit, m_CommitHash.ToRaw()))
 			return -1;
 	}
 	catch (char *)
@@ -196,14 +196,23 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 	{
 		CAutoRepository repo(git->GetGitRepository());
 		if (!repo)
+		{
+			m_sErr = CGit::GetLibGit2LastErr();
 			return -1;
+		}
 		CAutoCommit commit;
 		if (git_commit_lookup(commit.GetPointer(), repo, m_CommitHash) < 0)
+		{
+			m_sErr = CGit::GetLibGit2LastErr();
 			return -1;
+		}
 
 		CAutoTree commitTree;
 		if (git_commit_tree(commitTree.GetPointer(), commit) < 0)
+		{
+			m_sErr = CGit::GetLibGit2LastErr();
 			return -1;
+		}
 
 		bool isRoot = git_commit_parentcount(commit) == 0;
 		for (unsigned int parentId = 0; isRoot || parentId < git_commit_parentcount(commit); ++parentId)
@@ -213,25 +222,37 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 			{
 				CAutoCommit parentCommit;
 				if (git_commit_parent(parentCommit.GetPointer(), commit, parentId) < 0)
+				{
+					m_sErr = CGit::GetLibGit2LastErr();
 					return -1;
+				}
 
 				if (git_commit_tree(parentTree.GetPointer(), parentCommit) < 0)
+				{
+					m_sErr = CGit::GetLibGit2LastErr();
 					return -1;
+				}
 			}
 			isRoot = false;
 
 			CAutoDiff diff;
 			if (git_diff_tree_to_tree(diff.GetPointer(), repo, parentTree, commitTree, nullptr) < 0)
+			{
+				m_sErr = CGit::GetLibGit2LastErr();
 				return -1;
+			}
 
 			// cf. CGit::GetGitDiff()
 			if (CGit::ms_iSimilarityIndexThreshold > 0)
 			{
 				git_diff_find_options diffopts = GIT_DIFF_FIND_OPTIONS_INIT;
 				diffopts.flags = GIT_DIFF_FIND_COPIES | GIT_DIFF_FIND_RENAMES;
-				diffopts.rename_threshold = diffopts.copy_threshold = (uint16_t)CGit::ms_iSimilarityIndexThreshold;
+				diffopts.rename_threshold = diffopts.copy_threshold = static_cast<uint16_t>(CGit::ms_iSimilarityIndexThreshold);
 				if (git_diff_find_similar(diff, &diffopts) < 0)
-					return-1;
+				{
+					m_sErr = CGit::GetLibGit2LastErr();
+					return -1;
+				}
 			}
 
 			const git_diff_delta* lastDelta = nullptr;
@@ -241,7 +262,10 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 			{
 				CAutoPatch patch;
 				if (git_patch_from_diff(patch.GetPointer(), diff, i) < 0)
+				{
+					m_sErr = CGit::GetLibGit2LastErr();
 					return -1;
+				}
 
 				const git_diff_delta* delta = git_patch_get_delta(patch);
 
@@ -288,7 +312,10 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 				{
 					size_t adds, dels;
 					if (git_patch_line_stats(nullptr, &adds, &dels, patch) < 0)
+					{
+						m_sErr = CGit::GetLibGit2LastErr();
 						return -1;
+					}
 					path.m_StatAdd.Format(L"%zu", adds);
 					path.m_StatDel.Format(L"%zu", dels);
 				}
@@ -310,11 +337,15 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 
 	try
 	{
-		if (git_get_commit_from_hash(&commit, static_cast<const unsigned char*>(m_CommitHash)))
+		if (git_get_commit_from_hash(&commit, m_CommitHash.ToRaw()))
+		{
+			m_sErr = L"git_get_commit_from_hash failed for " + m_CommitHash.ToString();
 			return -1;
+		}
 	}
-	catch (char *)
+	catch (const char* msg)
 	{
+		m_sErr = L"Could not get commit \"" + m_CommitHash.ToString() + L"\".\nlibgit reports:\n" + CString(msg);
 		return -1;
 	}
 
@@ -330,12 +361,13 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 		try
 		{
 			if (isRoot)
-				git_root_diff(git->GetGitDiff(), static_cast<const unsigned char*>(m_CommitHash), &file, &count, 1);
+				git_root_diff(git->GetGitDiff(), m_CommitHash.ToRaw(), &file, &count, 1);
 			else
 				git_do_diff(git->GetGitDiff(), parent, commit.m_hash, &file, &count, 1);
 		}
-		catch (char*)
+		catch (const char* msg)
 		{
+			m_sErr = L"Could do diff for \"" + m_CommitHash.ToString() + L"\".\nlibgit reports:\n" + CString(msg);
 			git_free_commit(&commit);
 			return -1;
 		}
@@ -357,15 +389,15 @@ int GitRevLoglist::SafeFetchFullInfo(CGit* git)
 			int status, isBin, inc, dec, isDir;
 			git_get_diff_file(git->GetGitDiff(), file, j, &newname, &oldname, &isDir, &status, &isBin, &inc, &dec);
 
-			CGit::StringAppend(&strnewname, (BYTE*)newname, CP_UTF8);
+			CGit::StringAppend(&strnewname, newname, CP_UTF8);
 			if (strcmp(newname, oldname) == 0)
 				path.SetFromGit(strnewname, isDir != FALSE);
 			else
 			{
-				CGit::StringAppend(&stroldname, (BYTE*)oldname, CP_UTF8);
+				CGit::StringAppend(&stroldname, oldname, CP_UTF8);
 				path.SetFromGit(strnewname, &stroldname, &isDir);
 			}
-			path.ParserAction((BYTE)status);
+			path.ParserAction(static_cast<BYTE>(status));
 			path.m_ParentNo = i;
 
 			m_Action |= path.m_Action;
@@ -421,7 +453,7 @@ int GitRevLoglist::GetRefLog(const CString& ref, std::vector<GitRevLoglist>& ref
 
 			GitRevLoglist rev;
 			rev.m_CommitHash = git_reflog_entry_id_new(entry);
-			rev.m_Ref.Format(L"%s@{%zu}", (LPCTSTR)ref, i);
+			rev.m_Ref.Format(L"%s@{%zu}", static_cast<LPCTSTR>(ref), i);
 			rev.GetCommitterDate() = CTime(git_reflog_entry_committer(entry)->when.time);
 			if (git_reflog_entry_message(entry) != nullptr)
 			{
@@ -446,9 +478,9 @@ int GitRevLoglist::GetRefLog(const CString& ref, std::vector<GitRevLoglist>& ref
 		// no error checking, because the only error which could occur is file not found
 		git_for_each_reflog_ent(CUnicodeUtils::GetUTF8(ref), [](struct GIT_OBJECT_OID* /*old_oid*/, struct GIT_OBJECT_OID* new_oid, const char* /*committer*/, unsigned long long time, int /*sz*/, const char* msg, void* data)
 		{
-			std::vector<GitRevLoglist>* vector = (std::vector<GitRevLoglist>*)data;
+			auto vector = static_cast<std::vector<GitRevLoglist>*>(data);
 			GitRevLoglist rev;
-			rev.m_CommitHash = (const unsigned char*)new_oid->hash;
+			rev.m_CommitHash = CGitHash::FromRaw(new_oid->hash);
 			rev.GetCommitterDate() = CTime(time);
 
 			CString one = CUnicodeUtils::GetUnicode(msg);
@@ -468,7 +500,7 @@ int GitRevLoglist::GetRefLog(const CString& ref, std::vector<GitRevLoglist>& ref
 		for (size_t i = tmp.size(), id = 0; i > 0; --i, ++id)
 		{
 			GitRevLoglist rev = tmp[i - 1];
-			rev.m_Ref.Format(L"%s@{%zu}", (LPCTSTR)ref, id);
+			rev.m_Ref.Format(L"%s@{%zu}", static_cast<LPCTSTR>(ref), id);
 			refloglist.push_back(rev);
 		}
 		return 0;
@@ -487,7 +519,7 @@ int GitRevLoglist::GetRefLog(const CString& ref, std::vector<GitRevLoglist>& ref
 		return 0;
 
 	CString cmd, out;
-	cmd.Format(L"git.exe reflog show --pretty=\"%%H %%gD: %%gs\" --date=raw %s", (LPCTSTR)ref);
+	cmd.Format(L"git.exe reflog show --pretty=\"%%H %%gD: %%gs\" --date=raw %s", static_cast<LPCTSTR>(ref));
 	if (g_Git.Run(cmd, &out, &error, CP_UTF8))
 		return -1;
 
@@ -502,8 +534,8 @@ int GitRevLoglist::GetRefLog(const CString& ref, std::vector<GitRevLoglist>& ref
 			continue;
 
 		GitRevLoglist rev;
-		rev.m_CommitHash = one.Left(refPos);
-		rev.m_Ref.Format(L"%s@{%d}", (LPCTSTR)ref, i++);
+		rev.m_CommitHash = CGitHash::FromHexStrTry(one.Left(refPos));
+		rev.m_Ref.Format(L"%s@{%d}", static_cast<LPCTSTR>(ref), i++);
 		int prefixPos = one.Find(prefix, refPos + 1);
 		if (prefixPos != refPos + 1)
 			continue;

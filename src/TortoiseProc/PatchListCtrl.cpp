@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2013, 2015-2016, 2018 - TortoiseGit
+// Copyright (C) 2009-2013, 2015-2016, 2018-2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -81,9 +81,8 @@ void CPatchListCtrl::OnNMDblclk(NMHDR *pNMHDR, LRESULT *pResult)
 void CPatchListCtrl::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 {
 	int selected=this->GetSelectedCount();
-	int index=0;
 	POSITION pos=this->GetFirstSelectedItemPosition();
-	index=this->GetNextSelectedItem(pos);
+	auto index = this->GetNextSelectedItem(pos);
 
 	CIconMenu popup;
 	if (popup.CreatePopupMenu())
@@ -160,7 +159,7 @@ int CPatchListCtrl::LaunchProc(const CString& command)
 	{
 		int index = this->GetNextSelectedItem(pos);
 		CString one=this->GetItemText(index,0);
-		file.Write((LPCTSTR)one, sizeof(TCHAR) * one.GetLength());
+		file.Write(static_cast<LPCTSTR>(one), sizeof(TCHAR) * one.GetLength());
 		file.Write(L"\n", sizeof(TCHAR) * 1);
 	}
 
@@ -197,7 +196,7 @@ void CPatchListCtrl::OnNMCustomdraw(NMHDR *pNMHDR, LRESULT *pResult)
 			// Tell Windows to send draw notifications for each subitem.
 			*pResult = CDRF_NOTIFYSUBITEMDRAW;
 
-			DWORD_PTR data = this->GetItemData((int)pNMCD->nmcd.dwItemSpec);
+			DWORD_PTR data = this->GetItemData(static_cast<int>(pNMCD->nmcd.dwItemSpec));
 			if(data & (STATUS_APPLY_FAIL | STATUS_APPLY_SUCCESS | STATUS_APPLY_SKIP))
 				pNMCD->clrTextBk = RGB(200,200,200);
 

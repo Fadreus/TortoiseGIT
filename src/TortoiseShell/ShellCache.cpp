@@ -59,7 +59,7 @@ ShellCache::ShellCache()
 	menumaskticker = 0;
 	langid = CRegStdDWORD(L"Software\\TortoiseGit\\LanguageID", 1033, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
 	blockstatus = CRegStdDWORD(L"Software\\TortoiseGit\\BlockStatus", 0, false, HKEY_CURRENT_USER, KEY_WOW64_64KEY);
-	std::fill_n(drivetypecache, 27, (UINT)-1);
+	std::fill_n(drivetypecache, 27, UINT(-1));
 	if (DWORD(drivefloppy) == 0)
 	{
 		// A: and B: are floppy disks
@@ -163,8 +163,8 @@ bool ShellCache::RefreshIfNeeded()
 	else
 	{
 		// reset floppy drive cache
-		drivetypecache[0] = (UINT)-1;
-		drivetypecache[1] = (UINT)-1;
+		drivetypecache[0] = UINT(-1);
+		drivetypecache[1] = UINT(-1);
 	}
 
 	Locker lock(m_critSec);
@@ -176,7 +176,7 @@ bool ShellCache::RefreshIfNeeded()
 ShellCache::CacheType ShellCache::GetCacheType()
 {
 	RefreshIfNeeded();
-	return CacheType(DWORD((cachetype)));
+	return CacheType(static_cast<DWORD>(cachetype));
 }
 
 DWORD ShellCache::BlockStatus()
@@ -188,17 +188,19 @@ DWORD ShellCache::BlockStatus()
 unsigned __int64 ShellCache::GetMenuLayout()
 {
 	RefreshIfNeeded();
-	unsigned __int64 temp = unsigned __int64(DWORD(menulayouthigh)) << 32;
-	temp |= unsigned __int64(DWORD(menulayoutlow));
-	return temp;
+	ULARGE_INTEGER temp;
+	temp.HighPart = menulayouthigh;
+	temp.LowPart = menulayoutlow;
+	return temp.QuadPart;
 }
 
 unsigned __int64 ShellCache::GetMenuExt()
 {
 	RefreshIfNeeded();
-	unsigned __int64 temp = unsigned __int64(DWORD(menuexthigh)) << 32;
-	temp |= unsigned __int64(DWORD(menuextlow));
-	return temp;
+	ULARGE_INTEGER temp;
+	temp.HighPart = menuexthigh;
+	temp.LowPart = menuextlow;
+	return temp.QuadPart;
 }
 
 unsigned __int64 ShellCache::GetMenuMask()
@@ -210,11 +212,11 @@ unsigned __int64 ShellCache::GetMenuMask()
 		menumasklow_lm.read();
 		menumaskhigh_lm.read();
 	}
-	DWORD low = (DWORD)menumasklow_lm | (DWORD)menumasklow_cu;
-	DWORD high = (DWORD)menumaskhigh_lm | (DWORD)menumaskhigh_cu;
-	unsigned __int64 temp = unsigned __int64(high) << 32;
-	temp |= unsigned __int64(low);
-	return temp;
+
+	ULARGE_INTEGER temp;
+	temp.LowPart = menumasklow_lm | menumasklow_cu;
+	temp.HighPart = menumaskhigh_lm | menumaskhigh_cu;
+	return temp.QuadPart;
 }
 
 bool ShellCache::IsProcessElevated()
@@ -460,9 +462,9 @@ void ShellCache::ExcludeContextValid()
 	if (RefreshIfNeeded())
 	{
 		Locker lock(m_critSec);
-		if (excludecontextstr.compare((tstring)nocontextpaths) == 0)
+		if (excludecontextstr.compare(nocontextpaths) == 0)
 			return;
-		excludecontextstr = (tstring)nocontextpaths;
+		excludecontextstr = nocontextpaths;
 		excontextvector.clear();
 		size_t pos = 0, pos_ant = 0;
 		pos = excludecontextstr.find(L'\n', pos_ant);
@@ -475,7 +477,7 @@ void ShellCache::ExcludeContextValid()
 		}
 		if (!excludecontextstr.empty())
 			excontextvector.push_back(excludecontextstr.substr(pos_ant, excludecontextstr.size() - 1));
-		excludecontextstr = (tstring)nocontextpaths;
+		excludecontextstr = nocontextpaths;
 	}
 }
 
@@ -500,8 +502,7 @@ void ShellCache::CPathFilter::AddEntry(const tstring& s, bool include)
 	if (!entry.path.empty() && (*entry.path.rbegin() == L'\\'))
 		entry.path.erase(entry.path.length() - 1);
 
-	auto ret = ExpandEnvironmentStrings(entry.path.c_str(), pathbuf, _countof(pathbuf));
-	if ((ret > 0) && (ret < _countof(pathbuf)))
+	if (auto ret = ExpandEnvironmentStrings(entry.path.c_str(), pathbuf, _countof(pathbuf)); ret > 0 && ret < _countof(pathbuf))
 		entry.path = pathbuf;
 
 	data.push_back(entry);
@@ -656,11 +657,11 @@ void ShellCache::CPathFilter::Refresh()
 	excludelist.read();
 	includelist.read();
 
-	if ((excludeliststr.compare((tstring)excludelist) == 0) && (includeliststr.compare((tstring)includelist) == 0))
+	if (excludeliststr.compare(excludelist) == 0 && includeliststr.compare(includelist) == 0)
 		return;
 
-	excludeliststr = (tstring)excludelist;
-	includeliststr = (tstring)includelist;
+	excludeliststr = excludelist;
+	includeliststr = includelist;
 	data.clear();
 	AddEntries(excludeliststr, false);
 	AddEntries(includeliststr, true);

@@ -1,5 +1,6 @@
-// TortoiseGitMerge - a Windows shell extension for easy version control
+﻿// TortoiseGitMerge - a Windows shell extension for easy version control
 
+// Copyright (C) 2019 - TortoiseGit
 // Copyright (C) 2003-2012 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -69,13 +70,17 @@ CTGitPath CTempFiles::ConstructTempPath(const CTGitPath& path)
 			// that's longer than MAX_PATH (in that case, we can't really do much to avoid longer paths)
 			do
 			{
-				possibletempfile.Format(L"%s%s.tsm%3.3x.tmp%s", temppath.get(), (LPCTSTR)filename, i, (LPCTSTR)path.GetFileExtension());
+				possibletempfile.Format(L"%s%s.tsm%3.3x.tmp%s", temppath.get(), static_cast<LPCTSTR>(filename), i, static_cast<LPCTSTR>(path.GetFileExtension()));
 				tempfile.SetFromWin(possibletempfile);
-				filename = filename.Left(filename.GetLength()-1);
+				filename.Truncate(std::max(0, filename.GetLength() - 1));
 			} while (   (filename.GetLength() > 4)
 					 && (tempfile.GetWinPathString().GetLength() >= MAX_PATH));
 			i++;
-		} while (PathFileExists(tempfile.GetWinPath()));
+			// now create the temp file in a thread safe way, so that subsequent calls to GetTempFile() return different filenames.
+			CAutoFile hFile = CreateFile(tempfile.GetWinPath(), GENERIC_READ, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, nullptr);
+			if (hFile || GetLastError() != ERROR_FILE_EXISTS)
+				break;
+		} while (true);
 	}
 
 	// caller has to actually grab the file path
@@ -161,13 +166,13 @@ void CTempFiles::DeleteOldTempFiles(LPCTSTR wildCard)
 	CSimpleFileFind finder = CSimpleFileFind(path.get(), wildCard);
 	FILETIME systime_;
 	::GetSystemTimeAsFileTime(&systime_);
-	__int64 systime = (__int64)systime_.dwLowDateTime | (__int64)systime_.dwHighDateTime << 32LL;
+	__int64 systime = static_cast<__int64>(systime_.dwHighDateTime) << 32 | systime_.dwLowDateTime;
 	while (finder.FindNextFileNoDirectories())
 	{
 		CString filepath = finder.GetFilePath();
 
 		FILETIME createtime_ = finder.GetCreateTime();
-		__int64 createtime = (__int64)createtime_.dwLowDateTime | (__int64)createtime_.dwHighDateTime << 32LL;
+		__int64 createtime = static_cast<__int64>(createtime_.dwHighDateTime) << 32 | createtime_.dwLowDateTime;
 		createtime += 864000000000LL;      //only delete files older than a day
 		if (createtime < systime)
 		{

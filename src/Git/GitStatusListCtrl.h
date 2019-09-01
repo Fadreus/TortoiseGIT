@@ -240,7 +240,7 @@ public:
 	};
 	static_assert(IDGITLC_MOVETOCS < 64, "IDs must be <64 in order to be usable in a bitfield");
 	int GetColumnIndex(int colmask);
-	static inline unsigned __int64 GetContextMenuBit(int i){ return ((unsigned __int64 )0x1)<<i ;}
+	static inline unsigned __int64 GetContextMenuBit(int i) { return static_cast<unsigned __int64>(0x1) << i; }
 	/**
 	 * Sent to the parent window (using ::SendMessage) after a context menu
 	 * command has finished if the item count has changed.
@@ -274,8 +274,8 @@ public:
 
 	HWND GetParentHWND();
 
-	CString m_Rev1;
-	CString m_Rev2;
+	CGitHash m_Rev1;
+	CGitHash m_Rev2;
 
 	/**
 	 * \ingroup TortoiseProc
@@ -411,7 +411,7 @@ public:
 	 * \param bHasCheckboxes TRUE if the control should show check boxes on the left of each file entry.
 	 * \param bHasWC TRUE if the reporisty is not a bare repository (hides wc related items on the contextmenu)
 	 */
-	void Init(DWORD dwColumns, const CString& sColumnInfoContainer, unsigned __int64 dwContextMenus = ((GITSLC_POPALL ^ GITSLC_POPCOMMIT) ^ GITSLC_POPRESTORE), bool bHasCheckboxes = true, bool bHasWC = true, DWORD allowedColumns = 0xffffffff);
+	void Init(DWORD dwColumns, const CString& sColumnInfoContainer, unsigned __int64 dwContextMenus, bool bHasCheckboxes = true, bool bHasWC = true, DWORD allowedColumns = 0xffffffff);
 	/**
 	 * Sets a background image for the list control.
 	 * The image is shown in the right bottom corner.

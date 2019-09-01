@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2018 - TortoiseGit
+// Copyright (C) 2012-2019 - TortoiseGit
 // Copyright (C) 2009-2011, 2013 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -93,6 +93,10 @@ CSettingsAdvanced::CSettingsAdvanced()
 	settings[i].sName	= L"LogIncludeBoundaryCommits";
 	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
 	settings[i++].def.b	= false;
+
+	settings[i].sName	= L"LogIncludeWorkingTreeChanges";
+	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
+	settings[i++].def.b	= true;
 
 	settings[i].sName	= L"LogShowSuperProjectSubmodulePointer";
 	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
@@ -252,7 +256,7 @@ BOOL CSettingsAdvanced::OnInitDialog()
 		case SettingTypeNumber:
 			{
 				CRegDWORD s(L"Software\\TortoiseGit\\" + settings[i].sName, settings[i].def.l);
-				temp.Format(L"%ld", (DWORD)s);
+				temp.Format(L"%ld", static_cast<DWORD>(s));
 				m_ListCtrl.SetItemText(i, 0, temp);
 			}
 			break;
@@ -266,10 +270,7 @@ BOOL CSettingsAdvanced::OnInitDialog()
 		++i;
 	}
 
-	int mincol = 0;
-	int maxcol = m_ListCtrl.GetHeaderCtrl()->GetItemCount() - 1;
-	int col;
-	for (col = mincol; col <= maxcol; ++col)
+	for (int col = 0, maxcol = m_ListCtrl.GetHeaderCtrl()->GetItemCount(); col < maxcol; ++col)
 		m_ListCtrl.SetColumnWidth(col, LVSCW_AUTOSIZE_USEHEADER);
 	int arr[2] = {1,0};
 	m_ListCtrl.SetColumnOrderArray(2, arr);

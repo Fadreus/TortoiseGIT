@@ -409,7 +409,7 @@ public:
 		LOGACTIONS_REBASE_MODE_MASK	= 0x07C00000,
 	};
 	static_assert(ID_COMPARETWOCOMMITCHANGES < 64 && ID_COPYCLIPBOARDFULL <= 64, "IDs must be <64 in order to be usable in a bitfield");
-	static inline unsigned __int64 GetContextMenuBit(int i){ return ((unsigned __int64 )0x1)<<i ;}
+	static inline unsigned __int64 GetContextMenuBit(int i) { return unsigned __int64(0x1) << i; }
 	static CString GetRebaseActionName(int action);
 	void InsertGitColumn();
 	void CopySelectionToClipBoard(int toCopy = ID_COPYCLIPBOARDFULL);
@@ -471,31 +471,7 @@ protected:
 		m_superProjectHash.Empty();
 		if (CRegDWORD(L"Software\\TortoiseGit\\LogShowSuperProjectSubmodulePointer", TRUE) != TRUE)
 			return;
-		if (GitAdminDir::IsBareRepo(g_Git.m_CurrentDir))
-			return;
-		CString superprojectRoot;
-		GitAdminDir::HasAdminDir(g_Git.m_CurrentDir, false, &superprojectRoot);
-		if (superprojectRoot.IsEmpty())
-			return;
-
-		CAutoRepository repo(superprojectRoot);
-		if (!repo)
-			return;
-		CAutoIndex index;
-		if (git_repository_index(index.GetPointer(), repo))
-			return;
-
-		CString submodulePath;
-		if (superprojectRoot[superprojectRoot.GetLength() - 1] == L'\\')
-			submodulePath = g_Git.m_CurrentDir.Right(g_Git.m_CurrentDir.GetLength() - superprojectRoot.GetLength());
-		else
-			submodulePath = g_Git.m_CurrentDir.Right(g_Git.m_CurrentDir.GetLength() - superprojectRoot.GetLength() - 1);
-		submodulePath.Replace(L'\\', L'/');
-		const git_index_entry* entry = git_index_get_bypath(index, CUnicodeUtils::GetUTF8(submodulePath), 0);
-		if (!entry)
-			return;
-
-		m_superProjectHash = entry->id;
+		m_superProjectHash = g_Git.GetSubmodulePointer();
 	}
 	void ReloadHashMap()
 	{
@@ -633,7 +609,7 @@ protected:
 	/**
 	* Save column widths to the registry
 	*/
-	void SaveColumnWidths();	// save col widths to the registry
+	void SaveColumnWidths() override;	// save col widths to the registry
 
 	int GetHeadIndex();
 

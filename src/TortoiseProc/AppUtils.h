@@ -23,7 +23,7 @@
 
 class CTGitPath;
 struct git_cred;
-struct git_transfer_progress;
+struct git_indexer_progress;
 class CIgnoreFile;
 class ProjectProperties;
 
@@ -90,7 +90,7 @@ public:
 		const CString& file1, const CString& file2,
 		const CString& sName1, const CString& sName2,
 		const CString& originalFile1, const CString& originalFile2,
-		const CString& hash1, const CString& hash2, const DiffFlags& flags, int jumpToLine = 0);
+		const CGitHash& hash1, const CGitHash& hash2, const DiffFlags& flags, int jumpToLine = 0);
 
 	/**
 	 * Launches the standard text viewer/editor application which is associated
@@ -166,12 +166,12 @@ public:
 
 	static bool Export(HWND hWnd, const CString* BashHash = nullptr, const CTGitPath* orgPath = nullptr);
 	static bool UpdateBranchDescription(const CString& branch, CString description);
-	static bool CreateBranchTag(HWND hWnd, bool isTag = true, const CString* commitHash = nullptr, bool switchNewBranch = false, LPCTSTR name = nullptr);
+	static bool CreateBranchTag(HWND hWnd, bool isTag = true, const CString* ref = nullptr, bool switchNewBranch = false, LPCTSTR name = nullptr);
 	static bool Switch(HWND hWnd, const CString& initialRefName = CString());
 	static bool PerformSwitch(HWND hWnd, const CString& ref, bool bForce = false, const CString& sNewBranch = CString(), bool bBranchOverride = false, BOOL bTrack = 2, bool bMerge = false);
 
 	static bool IgnoreFile(HWND hWnd, const CTGitPathList& filelist, bool IsMask);
-	static bool GitReset(HWND hWnd, const CString* CommitHash, int type = 1);
+	static bool GitReset(HWND hWnd, const CString& ref, int type = 1);
 	static bool ConflictEdit(HWND hWnd, CTGitPath& file, bool bAlternativeTool = false, bool revertTheirMy = false, HWND resolveMsgHwnd = nullptr);
 	static void GetConflictTitles(CString* baseText, CString& mineText, CString& theirsText, bool rebaseActive);
 
@@ -210,7 +210,7 @@ public:
 	// rebase = 1: ask user what to do, rebase = 2: run autorebase
 	static bool RebaseAfterFetch(HWND hWnd, const CString& upstream = L"", int rebase = 0, bool preserveMerges = false);
 	static bool Fetch(HWND hWnd, const CString& remoteName = L"", bool allRemotes = false);
-	static bool DoPush(HWND hWnd, bool autoloadKey, bool pack, bool tags, bool allRemotes, bool allBranches, bool force, bool forceWithLease, const CString& localBranch, const CString& remote, const CString& remoteBranch, bool setUpstream, int recurseSubmodules);
+	static bool DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, bool allBranches, bool force, bool forceWithLease, const CString& localBranch, const CString& remote, const CString& remoteBranch, bool setUpstream, int recurseSubmodules);
 	static bool Push(HWND hWnd, const CString& selectLocalBranch = CString());
 	static bool RequestPull(HWND hWnd, const CString& endrevision = L"", const CString& repositoryUrl = L"");
 

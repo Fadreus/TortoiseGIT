@@ -1,5 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
+// Copyright (C) 2011, 2014-2016, 2019 - TortoiseGit
 // Copyright (C) 2010, 2012, 2014-2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -151,7 +152,7 @@ int CSetOverlayHandlers::GetInstalledOverlays()
 			if (rc == ERROR_SUCCESS)
 			{
 				for (int j = 0; value[j]; ++j)
-					value[j] = (wchar_t)towlower(value[j]);
+					value[j] = static_cast<wchar_t>(towlower(value[j]));
 				if (!wcsstr(&value[0], L"tortoise"))
 				{
 					// check if there's a 'default' entry with a guid
@@ -207,18 +208,17 @@ void CSetOverlayHandlers::UpdateInfoLabel()
 	if (!sInfo2.IsEmpty())
 	{
 		sInfo += L'\n';
-		sInfo.AppendFormat(IDS_SETTINGS_OVERLAYINFO2, (LPCTSTR)sInfo2);
+		sInfo.AppendFormat(IDS_SETTINGS_OVERLAYINFO2, static_cast<LPCTSTR>(sInfo2));
 	}
 	SetDlgItemText(IDC_HANDLERHINT, sInfo);
 }
 
 void CSetOverlayHandlers::OnBnClickedRegedt()
 {
-	PWSTR pszPath = nullptr;
+	CComHeapPtr<WCHAR> pszPath;
 	if (SHGetKnownFolderPath(FOLDERID_Windows, KF_FLAG_CREATE, nullptr, &pszPath) == S_OK)
 	{
 		CString path = pszPath;
-		CoTaskMemFree(pszPath);
 		path += L"\\regedit.exe";
 
 		// regedit stores the key it showed last in
