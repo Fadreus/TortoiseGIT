@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2003-2019 - TortoiseSVN
-// Copyright (C) 2011-2012, 2017-2019 Sven Strickroth <email@cs-ware.de>
+// Copyright (C) 2003-2020 - TortoiseSVN
+// Copyright (C) 2011-2012, 2017-2020 Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -47,7 +47,7 @@
 #define new DEBUG_NEW
 #endif
 
-#define HEADERHEIGHT 10
+#define HEADERHEIGHT (CDPIAware::Instance().ScaleY(10))
 
 #define IDT_SCROLLTIMER 101
 
@@ -118,8 +118,8 @@ CBaseView::CBaseView()
 	m_bViewLinenumbers = CRegDWORD(L"Software\\TortoiseGitMerge\\ViewLinenumbers", 1);
 	m_bShowInlineDiff = CRegDWORD(L"Software\\TortoiseGitMerge\\DisplayBinDiff", TRUE);
 	m_nInlineDiffMaxLineLength = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineDiffMaxLineLength", 3000);
-	m_InlineAddedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineAdded", INLINEADDED_COLOR);
-	m_InlineRemovedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineRemoved", INLINEREMOVED_COLOR);
+	m_InlineAddedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\InlineAdded", INLINEADDED_COLOR);
+	m_InlineRemovedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\InlineRemoved", INLINEREMOVED_COLOR);
 	m_ModifiedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\ColorModifiedB", MODIFIED_COLOR);
 	m_WhiteSpaceFg = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\Whitespace", GetSysColor(COLOR_3DSHADOW));
 	m_sWordSeparators = CRegString(L"Software\\TortoiseGitMerge\\WordSeparators", L"[]();:.,{}!@#$%^&*-+=|/\\<>'`~\"?");
@@ -174,18 +174,6 @@ CBaseView::~CBaseView()
 {
 	ReleaseBitmap();
 	DeleteFonts();
-	DestroyIcon(m_hAddedIcon);
-	DestroyIcon(m_hRemovedIcon);
-	DestroyIcon(m_hConflictedIcon);
-	DestroyIcon(m_hConflictedIgnoredIcon);
-	DestroyIcon(m_hWhitespaceBlockIcon);
-	DestroyIcon(m_hEqualIcon);
-	DestroyIcon(m_hLineEndingCR);
-	DestroyIcon(m_hLineEndingCRLF);
-	DestroyIcon(m_hLineEndingLF);
-	DestroyIcon(m_hEditedIcon);
-	DestroyIcon(m_hMovedIcon);
-	DestroyIcon(m_hMarkedIcon);
 	DestroyCursor(m_margincursor);
 }
 
@@ -254,8 +242,8 @@ void CBaseView::DocumentUpdated()
 	m_nTabSize = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4));
 	m_nTabMode = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabMode", TABMODE_NONE));
 	m_bViewLinenumbers = CRegDWORD(L"Software\\TortoiseGitMerge\\ViewLinenumbers", 1);
-	m_InlineAddedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineAdded", INLINEADDED_COLOR);
-	m_InlineRemovedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineRemoved", INLINEREMOVED_COLOR);
+	m_InlineAddedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\InlineAdded", INLINEADDED_COLOR);
+	m_InlineRemovedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\InlineRemoved", INLINEREMOVED_COLOR);
 	m_ModifiedBk = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\ColorModifiedB", MODIFIED_COLOR);
 	m_WhiteSpaceFg = CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\Whitespace", GetSysColor(COLOR_3DSHADOW));
 	m_bIconLFs = CRegDWORD(L"Software\\TortoiseGitMerge\\IconLFs", 0);
@@ -1341,7 +1329,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 		int iconHeight = GetSystemMetrics(SM_CYSMICON);
 		if (icon)
 		{
-			::DrawIconEx(pdc->m_hDC, rect.left + 2, rect.top + (rect.Height() - iconHeight) / 2, icon, iconWidth, iconHeight, 0, nullptr, DI_NORMAL);
+			::DrawIconEx(pdc->m_hDC, rect.left + CDPIAware::Instance().ScaleX(2), rect.top + (rect.Height() - iconHeight) / 2, icon, iconWidth, iconHeight, 0, nullptr, DI_NORMAL);
 		}
 		if ((m_bViewLinenumbers)&&(m_nDigits))
 		{
@@ -1375,7 +1363,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 					pdc->SetTextColor(::GetSysColor(COLOR_WINDOWTEXT));
 
 					pdc->SelectObject(GetFont());
-					pdc->ExtTextOut(rect.left + iconWidth + 2, rect.top, ETO_CLIPPED, &rect, sLinenumber, nullptr);
+					pdc->ExtTextOut(rect.left + iconWidth + CDPIAware::Instance().ScaleX(2), rect.top, ETO_CLIPPED, &rect, sLinenumber, nullptr);
 				}
 			}
 		}
@@ -1384,7 +1372,7 @@ void CBaseView::DrawMargin(CDC *pdc, const CRect &rect, int nLineIndex)
 
 int CBaseView::GetMarginWidth()
 {
-	int marginWidth = GetSystemMetrics(SM_CXSMICON) + 2 + 2;
+	int marginWidth = GetSystemMetrics(SM_CXSMICON) + CDPIAware::Instance().ScaleX(4);
 
 	if ((m_bViewLinenumbers)&&(m_pViewData)&&(m_pViewData->GetCount()))
 	{
@@ -1397,7 +1385,7 @@ int CBaseView::GetMarginWidth()
 			m_nDigits = sMax.GetLength();
 		}
 		int nWidth = GetCharWidth();
-		marginWidth += (m_nDigits * nWidth) + 2;
+		marginWidth += (m_nDigits * nWidth) + CDPIAware::Instance().ScaleX(2);
 	}
 
 	return marginWidth;
@@ -2962,10 +2950,10 @@ INT_PTR CBaseView::OnToolHitTest(CPoint point, TOOLINFO* pTI) const
 	GetClientRect(rcClient);
 	CRect textrect(rcClient.left, rcClient.top, rcClient.Width(), m_nLineHeight+HEADERHEIGHT);
 
-	int marginwidth = GetSystemMetrics(SM_CXSMICON) + 2 + 2;
+	int marginwidth = GetSystemMetrics(SM_CXSMICON) + CDPIAware::Instance().ScaleX(4);
 	if ((m_bViewLinenumbers)&&(m_pViewData)&&(m_pViewData->GetCount())&&(m_nDigits > 0))
 	{
-		marginwidth += (m_nDigits * m_nCharWidth) + 2;
+		marginwidth += (m_nDigits * m_nCharWidth) + CDPIAware::Instance().ScaleX(2);
 	}
 	CRect borderrect(rcClient.left, rcClient.top+m_nLineHeight+HEADERHEIGHT, marginwidth, rcClient.bottom);
 
@@ -3173,6 +3161,15 @@ void CBaseView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case VK_INSERT:
 		m_bInsertMode = !m_bInsertMode;
 		UpdateCaret();
+		break;
+	case 'M':
+		if (bControl && m_pwndRight)
+		{
+			int nFirstViewLine = 0;
+			int nLastViewLine = 0;
+			if (GetViewSelection(nFirstViewLine, nLastViewLine))
+				m_pwndRight->MarkBlock(!m_pwndRight->GetViewMarked(nFirstViewLine));
+		}
 		break;
 	}
 	CView::OnKeyDown(nChar, nRepCnt, nFlags);
@@ -3799,6 +3796,7 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	CView::OnChar(nChar, nRepCnt, nFlags);
 
+	bool bControl = !!(GetKeyState(VK_CONTROL) & 0x8000);
 	bool bShift = !!(GetKeyState(VK_SHIFT)&0x8000);
 	bool bSkipSelectionClear = false;
 
@@ -3935,7 +3933,7 @@ void CBaseView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_pViewData->SetState(nViewLine, DIFFSTATE_EDITED);
 		UpdateGoalPos();
 	}
-	else if (nChar == VK_RETURN)
+	else if ((nChar == VK_RETURN) && !bControl)
 	{
 		// insert a new, fresh and empty line below the cursor
 		RemoveSelectedText();
@@ -4892,27 +4890,27 @@ LineColors & CBaseView::GetLineColors(int nViewLine)
 		CString sLine = GetViewLineChars(nViewLine);
 		if (sLine.IsEmpty())
 			break;
-        CString sDiffLine;
-        if (!m_pOtherView)
-        {
-            switch (diffState)
-            {
-                case DIFFSTATE_ADDED:
-                {
-                    if ((nViewLine > 0) && (m_pViewData->GetState(nViewLine - 1) == DIFFSTATE_REMOVED))
-                        sDiffLine = GetViewLineChars(nViewLine - 1);
-                }
-                break;
-                case DIFFSTATE_REMOVED:
-                {
-                    if (((nViewLine + 1) < m_pViewData->GetCount()) && (m_pViewData->GetState(nViewLine + 1) == DIFFSTATE_ADDED))
-                        sDiffLine = GetViewLineChars(nViewLine + 1);
-                }
-                break;
-            }
-        }
-        else
-            sDiffLine = m_pOtherView->GetViewLineChars(nViewLine);
+		CString sDiffLine;
+		if (!m_pOtherView)
+		{
+			switch (diffState)
+			{
+				case DIFFSTATE_ADDED:
+				{
+					if ((nViewLine > 0) && (m_pViewData->GetState(nViewLine - 1) == DIFFSTATE_REMOVED))
+						sDiffLine = GetViewLineChars(nViewLine - 1);
+				}
+				break;
+				case DIFFSTATE_REMOVED:
+				{
+					if (((nViewLine + 1) < m_pViewData->GetCount()) && (m_pViewData->GetState(nViewLine + 1) == DIFFSTATE_ADDED))
+						sDiffLine = GetViewLineChars(nViewLine + 1);
+				}
+				break;
+			}
+		}
+		else
+			sDiffLine = m_pOtherView->GetViewLineChars(nViewLine);
 		if (sDiffLine.IsEmpty())
 			break;
 
@@ -5140,12 +5138,6 @@ int CBaseView::Screen2View::GetSubLineOffset( int screenLine )
 	if (size() <= screenLine)
 		return 0;
 	return m_Screen2View[screenLine].nViewSubLine;
-}
-
-CBaseView::TScreenLineInfo CBaseView::Screen2View::GetScreenLineInfo( int screenLine )
-{
-	RebuildIfNecessary();
-	return m_Screen2View[screenLine];
 }
 
 /**
@@ -5726,7 +5718,7 @@ CString CBaseView::GetSelectedText() const
 	}
 	// remove the non-selected chars from the first line, last line and last \r\n
 	int nLeftCut = start.x;
-	int nRightCut = GetViewLineChars(end.y).GetLength() - end.x + 2;
+	int nRightCut = GetViewLineChars(end.y).GetLength() - end.x + CDPIAware::Instance().ScaleX(2);
 	sSelectedText = sSelectedText.Mid(nLeftCut, sSelectedText.GetLength()-nLeftCut-nRightCut);
 	return sSelectedText;
 }
@@ -6146,6 +6138,23 @@ void CBaseView::UseViewFileExceptEdited(CBaseView *pwndView)
 	UseViewBlock(pwndView, 0, GetViewCount() - 1, fn);
 }
 
+int CBaseView::GetLargestSpaceStreak(const CString& line)
+{
+	int count = 0;
+	int maxstreak = 0;
+	for (int i = 0; i < line.GetLength(); ++i)
+	{
+		if (line[i] == ' ')
+			++count;
+		else
+		{
+			maxstreak = std::max(count, maxstreak);
+			count = 0;
+		}
+	}
+	return std::max(count, maxstreak);
+}
+
 int CBaseView::GetIndentCharsForLine(int x, int y)
 {
 	const int maxGuessLine = 100;
@@ -6158,30 +6167,31 @@ int CBaseView::GetIndentCharsForLine(int x, int y)
 		// spaces are used in a tabified file for alignment.
 		if (line.Find(L'\t') >= 0)
 			nTabMode = 0; // use tabs
-		else if (line.GetLength() > m_nTabSize)
+		else if (GetLargestSpaceStreak(line) > m_nTabSize)
 			nTabMode = 1; // use spaces
 
-		if (m_nTabMode & TABMODE_SMARTINDENT)
+		// detect lines nearby
+		for (int i = y - 1, j = y + 1; nTabMode == -1; --i, ++j)
 		{
-			// detect lines nearby
-			for (int i = y - 1, j = y + 1; nTabMode == -1; --i, ++j)
+			bool above = i >= 0 && i >= y - maxGuessLine;
+			bool below = j < GetViewCount() && j <= y + maxGuessLine;
+			if (!(above || below))
+				break;
+			auto ac = CString();
+			auto bc = CString();
+			if (above)
+				ac = GetViewLine(i);
+			if (below)
+				bc = GetViewLine(j);
+			if ((ac.Find(L'\t') >= 0) || (bc.Find(L'\t') >= 0))
 			{
-				bool above = i > 0 && i >= y - maxGuessLine;
-				bool below = j < GetViewCount() && j <= y + maxGuessLine;
-				if (!(above || below))
-					break;
-				auto ac = GetViewLine(i);
-				auto bc = GetViewLine(j);
-				if ((ac.Find(L'\t') >= 0) || (bc.Find(L'\t') >= 0))
-				{
-					nTabMode = 0;
-					break;
-				}
-				else if ((ac.GetLength() > m_nTabSize) && (bc.GetLength() > m_nTabSize))
-				{
-					nTabMode = 1;
-					break;
-				}
+				nTabMode = 0;
+				break;
+			}
+			else if ((GetLargestSpaceStreak(ac) > m_nTabSize) && (GetLargestSpaceStreak(bc) > m_nTabSize))
+			{
+				nTabMode = 1;
+				break;
 			}
 		}
 	}

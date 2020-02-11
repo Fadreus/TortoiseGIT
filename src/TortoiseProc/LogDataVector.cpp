@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2019 - TortoiseGit
+// Copyright (C) 2009-2020 - TortoiseGit
 // Copyright (C) 2007-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -52,6 +52,7 @@ void CLogDataVector::ClearAll()
 int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, CString* range)
 {
 	ATLASSERT(m_pLogCache);
+	ATLASSERT(!(infomask & CGit::LOG_INFO_FULL_DIFF));
 	// only enable --follow on files
 	if ((!path || path->IsDirectory()) && (infomask & CGit::LOG_INFO_FOLLOW))
 		infomask = infomask ^ CGit::LOG_INFO_FOLLOW;
@@ -74,7 +75,7 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 
 	try
 	{
-		[] { git_init(); } ();
+		g_Git.ForceReInitDll();
 	}
 	catch (const char* msg)
 	{
@@ -86,7 +87,7 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 	try
 	{
 		CAutoLocker lock(g_Git.m_critGitDllSec);
-		if (git_open_log(&handle, CUnicodeUtils::GetMulti(cmd, CP_UTF8)))
+		if (git_open_log(&handle, CUnicodeUtils::GetUTF8(cmd)))
 			return -1;
 	}
 	catch (char* msg)
@@ -105,6 +106,12 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 		MessageBox(nullptr, L"Could not get first commit.\nlibgit reports:\n" + CString(msg), L"TortoiseGit", MB_ICONERROR);
 		return -1;
 	}
+
+	if (CGitMailmap::ShouldLoadMailmap())
+		GitRevLoglist::s_Mailmap = std::make_shared<CGitMailmap>();
+	else if (GitRevLoglist::s_Mailmap)
+		GitRevLoglist::s_Mailmap = nullptr;
+	auto mailmap = GitRevLoglist::s_Mailmap;
 
 	int ret = 0;
 	while (ret == 0)
@@ -151,20 +158,8 @@ int CLogDataVector::ParserFromLog(CTGitPath* path, DWORD count, DWORD infomask, 
 			pNote = nullptr;
 		}
 
-		pRev->ParserFromCommit(&commit);
-		pRev->ParserParentFromCommit(&commit);
+		pRev->Parse(&commit, mailmap.get());
 		git_free_commit(&commit);
-		// Must call free commit before SafeFetchFullInfo, commit parent is rewrite by log.
-		// file list will wrong if parent rewrite.
-
-		if (!pRev->m_IsFull && (infomask & CGit::LOG_INFO_FULL_DIFF))
-		{
-			if (pRev->SafeFetchFullInfo(&g_Git))
-			{
-				MessageBox(nullptr, pRev->GetLastErr(), L"TortoiseGit", MB_ICONERROR);
-				return -1;
-			}
-		}
 
 		this->push_back(pRev->m_CommitHash);
 
@@ -198,7 +193,7 @@ int CLogDataVector::Fill(std::unordered_set<CGitHash>& hashes)
 	ATLASSERT(m_pLogCache);
 	try
 	{
-		[] { git_init(); } ();
+		g_Git.ForceReInitDll();
 	}
 	catch (const char* msg)
 	{
@@ -206,8 +201,13 @@ int CLogDataVector::Fill(std::unordered_set<CGitHash>& hashes)
 		return -1;
 	}
 
-	std::set<GitRevLoglist*, SortByParentDate> revs;
+	if (CGitMailmap::ShouldLoadMailmap())
+		GitRevLoglist::s_Mailmap = std::make_shared<CGitMailmap>();
+	else if (GitRevLoglist::s_Mailmap)
+		GitRevLoglist::s_Mailmap = nullptr;
+	auto mailmap = GitRevLoglist::s_Mailmap;
 
+	std::set<GitRevLoglist*, SortByParentDate> revs;
 	for (const auto& hash : hashes)
 	{
 		GIT_COMMIT commit;
@@ -228,8 +228,7 @@ int CLogDataVector::Fill(std::unordered_set<CGitHash>& hashes)
 		// right now this code is only used by TortoiseGitBlame,
 		// as such git notes are not needed to be loaded
 
-		pRev->ParserFromCommit(&commit);
-		pRev->ParserParentFromCommit(&commit);
+		pRev->Parse(&commit, mailmap.get());
 		git_free_commit(&commit);
 
 		revs.insert(pRev);
@@ -312,7 +311,7 @@ void CLogDataVector::updateLanes(GitRevLoglist& c, Lanes& lns, CGitHash& sha)
 		lns.changeActiveLane(sha); // uses previous isBoundary state
 
 	lns.setBoundary(c.IsBoundary() == TRUE, isInitial); // update must be here
-	TRACE(L"%s %d", static_cast<LPCTSTR>(c.m_CommitHash.ToString()), c.IsBoundary());
+	//TRACE(L"%s %d", static_cast<LPCTSTR>(c.m_CommitHash.ToString()), c.IsBoundary());
 
 	if (isFork)
 		lns.setFork(sha);

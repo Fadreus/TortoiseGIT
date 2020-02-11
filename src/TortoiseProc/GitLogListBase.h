@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -273,7 +273,7 @@ public:
 protected:
 	GitRevLoglist		m_wcRev;
 public:
-	volatile LONG 		m_bThreadRunning;
+	static volatile LONG s_bThreadRunning;
 protected:
 	CLogCache			m_LogCache;
 
@@ -412,7 +412,7 @@ public:
 	static inline unsigned __int64 GetContextMenuBit(int i) { return unsigned __int64(0x1) << i; }
 	static CString GetRebaseActionName(int action);
 	void InsertGitColumn();
-	void CopySelectionToClipBoard(int toCopy = ID_COPYCLIPBOARDFULL);
+	virtual void CopySelectionToClipBoard(int toCopy = ID_COPYCLIPBOARDFULL);
 	void DiffSelectedRevWithPrevious();
 	bool IsSelectionContinuous();
 protected:
@@ -505,9 +505,9 @@ public:
 		if (m_LoadingThread && InterlockedExchange(&m_bExitThread, TRUE) == FALSE)
 		{
 			DWORD ret = WAIT_TIMEOUT;
-			for (int i = 0; i < 200 && m_bThreadRunning; ++i)
+			for (int i = 0; i < 200 && s_bThreadRunning; ++i)
 				ret =::WaitForSingleObject(m_LoadingThread->m_hThread, 100);
-			if (ret == WAIT_TIMEOUT && m_bThreadRunning)
+			if (ret == WAIT_TIMEOUT && s_bThreadRunning)
 				::TerminateThread(m_LoadingThread, 0);
 			delete m_LoadingThread;
 			m_LoadingThread = nullptr;
@@ -595,7 +595,7 @@ protected:
 	void DrawTagBranchMessage(NMLVCUSTOMDRAW* pLVCD, CRect& rect, INT_PTR index, std::vector<REFLABEL>& refList);
 	void DrawTagBranch(HDC hdc, CDC& W_Dc, HTHEME hTheme, CRect& rect, CRect& rt, LVITEM& rItem, GitRevLoglist* data, std::vector<REFLABEL>& refList);
 	void DrawGraph(HDC,CRect &rect,INT_PTR index);
-	bool CGitLogListBase::DrawListItemWithMatchesIfEnabled(std::shared_ptr<CLogDlgFilter> filter, DWORD selectedFilter, NMLVCUSTOMDRAW* pLVCD, LRESULT* pResult);
+	bool DrawListItemWithMatchesIfEnabled(std::shared_ptr<CLogDlgFilter> filter, DWORD selectedFilter, NMLVCUSTOMDRAW* pLVCD, LRESULT* pResult);
 	static void DrawListItemWithMatchesRect(NMLVCUSTOMDRAW* pLVCD, const std::vector<CHARRANGE>& ranges, CRect rect, const CString& text, CColors& colors, HTHEME hTheme = nullptr, int txtState = 0);
 
 public:
@@ -620,36 +620,30 @@ protected:
 	CWinThread*			m_DiffingThread;
 	volatile LONG m_AsyncThreadRunning;
 
-	static int DiffAsync(GitRevLoglist* rev, IAsyncDiffCB* pdata)
+public:
+	bool IsCached(GitRevLoglist* rev)
 	{
-		auto data = static_cast<CGitLogListBase*>(pdata);
-		ULONGLONG offset = data->m_LogCache.GetOffset(rev->m_CommitHash);
-		if (!offset || data->m_LogCache.LoadOneItem(*rev, offset))
+		ULONGLONG offset = m_LogCache.GetOffset(rev->m_CommitHash);
+		if (offset && !m_LogCache.LoadOneItem(*rev, offset))
 		{
-			data->m_AsynDiffListLock.Lock();
-			data->m_AsynDiffList.push_back(rev);
-			data->m_AsynDiffListLock.Unlock();
-			::SetEvent(data->m_AsyncDiffEvent);
-			return 0;
+			InterlockedExchange(&rev->m_IsDiffFiles, TRUE);
+			return true;
 		}
 
-		InterlockedExchange(&rev->m_IsDiffFiles, TRUE);
-		if (!rev->m_IsCommitParsed)
-			return 0;
-		InterlockedExchange(&rev->m_IsFull, TRUE);
-		// we might need to signal that the changed files are now available
-		if (data->GetSelectedCount() == 1)
-		{
-			POSITION pos = data->GetFirstSelectedItemPosition();
-			int nItem = data->GetNextSelectedItem(pos);
-			if (nItem >= 0)
-			{
-				GitRevLoglist* data2 = data->m_arShownList.SafeGetAt(nItem);
-				if (data2 && data2->m_CommitHash == rev->m_CommitHash)
-					data->GetParent()->PostMessage(WM_COMMAND, MSG_FETCHED_DIFF, 0);
-			}
-		}
-		return 0;
+		return false;
+	}
+
+protected:
+	static void DiffAsync(GitRevLoglist* rev, IAsyncDiffCB* pdata)
+	{
+		auto data = static_cast<CGitLogListBase*>(pdata);
+		if (data->IsCached(rev))
+			return;
+
+		data->m_AsynDiffListLock.Lock();
+		data->m_AsynDiffList.push_back(rev);
+		data->m_AsynDiffListLock.Unlock();
+		::SetEvent(data->m_AsyncDiffEvent);
 	}
 
 	static UINT AsyncThread(LPVOID data)
@@ -683,12 +677,12 @@ public:
 protected:
 	CComAutoCriticalSection	m_critSec;
 
-	HICON				m_hModifiedIcon;
-	HICON				m_hReplacedIcon;
-	HICON				m_hConflictedIcon;
-	HICON				m_hAddedIcon;
-	HICON				m_hDeletedIcon;
-	HICON				m_hFetchIcon;
+	CAutoIcon m_hModifiedIcon;
+	CAutoIcon m_hReplacedIcon;
+	CAutoIcon m_hConflictedIcon;
+	CAutoIcon m_hAddedIcon;
+	CAutoIcon m_hDeletedIcon;
+	CAutoIcon m_hFetchIcon;
 
 	CFont				m_boldFont;
 	CFont				m_FontItalics;
@@ -720,8 +714,6 @@ protected:
 	char                m_szTip[8192];
 	std::map<CString, CRect> m_RefLabelPosMap; // ref name vs. label position
 	int					m_OldTopIndex;
-
-	GIT_MAILMAP			m_pMailmap;
 
 	bool				m_bDragndropEnabled;
 	BOOL				m_bDragging;

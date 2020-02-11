@@ -8,7 +8,7 @@
 // Generated from the TEXTINCLUDE 2 resource.
 //
 #ifndef APSTUDIO_INVOKED
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 #endif
 #include <afxres.h>
 #include "../TortoiseGitBlame/MenuEncode.h"
@@ -37,7 +37,7 @@ END
 2 TEXTINCLUDE 
 BEGIN
     "#ifndef APSTUDIO_INVOKED\r\n"
-    "#include ""../targetver.h""\r\n"
+    "#include <SDKDDKVer.h>\r\n"
     "#endif\r\n"
     "#include <afxres.h>\r\n"
     "#include ""../TortoiseGitBlame/MenuEncode.h""\r\n"
@@ -258,6 +258,7 @@ BEGIN
         END
         MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
         MENUITEM SEPARATOR
+        MENUITEM "Show log ID instead of SHA-1", ID_VIEW_SHOWLOGID
         MENUITEM "Show author",                 ID_VIEW_SHOWAUTHOR
         MENUITEM "Show date",                   ID_VIEW_SHOWDATE
         MENUITEM "Show file name",              ID_VIEW_SHOWFILENAME

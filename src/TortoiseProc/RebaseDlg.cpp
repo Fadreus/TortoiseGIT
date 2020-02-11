@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -116,6 +116,7 @@ BEGIN_MESSAGE_MAP(CRebaseDlg, CResizableStandAloneDialog)
 	ON_BN_CLICKED(IDHELP, OnHelp)
 	ON_BN_CLICKED(IDC_BUTTON_ADD, &CRebaseDlg::OnBnClickedButtonAdd)
 	ON_MESSAGE(MSG_COMMITS_REORDERED, OnCommitsReordered)
+	ON_COMMAND(MSG_FETCHED_DIFF, OnRefreshFilelist)
 END_MESSAGE_MAP()
 
 void CRebaseDlg::CleanUpRebaseActiveFolder()
@@ -158,8 +159,8 @@ void CRebaseDlg::AddRebaseAnchor()
 	AddAnchor(IDC_REBASE_STATIC_UPSTREAM, TOP_CENTER);
 	AddAnchor(IDC_REBASE_STATIC_BRANCH,TOP_LEFT);
 	AddAnchor(IDHELP, BOTTOM_RIGHT);
-	AddAnchor(IDC_REBASE_CHECK_FORCE, TOP_CENTER, TOP_RIGHT);
-	AddAnchor(IDC_REBASE_CHECK_PRESERVEMERGES, TOP_LEFT, TOP_CENTER);
+	AddAnchor(IDC_REBASE_CHECK_FORCE, TOP_CENTER);
+	AddAnchor(IDC_REBASE_CHECK_PRESERVEMERGES, TOP_LEFT);
 	AddAnchor(IDC_CHECK_CHERRYPICKED_FROM, TOP_RIGHT);
 	AddAnchor(IDC_REBASE_SPLIT_COMMIT, BOTTOM_RIGHT);
 	AddAnchor(IDC_REBASE_POST_BUTTON,BOTTOM_LEFT);
@@ -269,7 +270,7 @@ BOOL CRebaseDlg::OnInitDialog()
 
 	EnableSaveRestore(L"RebaseDlg");
 
-	DWORD yPos = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RebaseDlgSizer");
+	DWORD yPos = CDPIAware::Instance().ScaleY(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RebaseDlgSizer"));
 	RECT rcDlg, rcLogMsg, rcFileList;
 	GetClientRect(&rcDlg);
 	m_CommitList.GetWindowRect(&rcLogMsg);
@@ -282,7 +283,7 @@ BOOL CRebaseDlg::OnInitDialog()
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
 		int delta = yPos - rectSplitter.top;
-		if ((rcLogMsg.bottom + delta > rcLogMsg.top)&&(rcLogMsg.bottom + delta < rcFileList.bottom - 30))
+		if ((rcLogMsg.bottom + delta > rcLogMsg.top) && (rcLogMsg.bottom + delta < rcFileList.bottom - CDPIAware::Instance().ScaleY(30)))
 		{
 			m_wndSplitter.SetWindowPos(nullptr, 0, yPos, 0, 0, SWP_NOSIZE);
 			DoSize(delta);
@@ -475,7 +476,7 @@ void CRebaseDlg::SaveSplitterPos()
 		RECT rectSplitter;
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		regPos = rectSplitter.top;
+		regPos = CDPIAware::Instance().UnscaleY(rectSplitter.top);
 	}
 }
 
@@ -784,6 +785,7 @@ void CRebaseDlg::AddBranchToolTips(CHistoryCombo& pBranch)
 		MessageBox(L"Failed to get commit.\n" + rev.GetLastErr(), L"TortoiseGit", MB_ICONERROR);
 		return;
 	}
+	rev.ApplyMailmap();
 
 	CString tooltip;
 	tooltip.Format(L"%s: %s\n%s: %s <%s>\n%s: %s\n%s:\n%s\n%s",
@@ -2836,14 +2838,36 @@ void CRebaseDlg::FillLogMessageCtrl()
 		POSITION pos = m_CommitList.GetFirstSelectedItemPosition();
 		int selIndex = m_CommitList.GetNextSelectedItem(pos);
 		GitRevLoglist* pLogEntry = m_CommitList.m_arShownList.SafeGetAt(selIndex);
-		m_FileListCtrl.UpdateWithGitPathList(pLogEntry->GetFiles(&m_CommitList));
-		m_FileListCtrl.m_CurrentVersion = pLogEntry->m_CommitHash;
-		m_FileListCtrl.Show(GITSLC_SHOWVERSIONED);
+		OnRefreshFilelist();
 		m_LogMessageCtrl.Call(SCI_SETREADONLY, FALSE);
 		m_LogMessageCtrl.SetText(pLogEntry->GetSubject() + L'\n' + pLogEntry->GetBody());
 		m_LogMessageCtrl.Call(SCI_SETREADONLY, TRUE);
 	}
 }
+
+void CRebaseDlg::OnRefreshFilelist()
+{
+	int selCount = m_CommitList.GetSelectedCount();
+	if (selCount == 1 && (m_RebaseStage == CHOOSE_BRANCH || m_RebaseStage == CHOOSE_COMMIT_PICK_MODE))
+	{
+		POSITION pos = m_CommitList.GetFirstSelectedItemPosition();
+		int selIndex = m_CommitList.GetNextSelectedItem(pos);
+		auto pLogEntry = m_CommitList.m_arShownList.SafeGetAt(selIndex);
+		auto files = pLogEntry->GetFiles(&m_CommitList);
+		if (!pLogEntry->m_IsDiffFiles)
+		{
+			m_FileListCtrl.Clear();
+			m_FileListCtrl.SetBusyString(CString(MAKEINTRESOURCE(IDS_PROC_LOG_FETCHINGFILES)));
+			m_FileListCtrl.SetBusy(TRUE);
+			m_FileListCtrl.SetRedraw(TRUE);
+			return;
+		}
+		m_FileListCtrl.UpdateWithGitPathList(const_cast<CTGitPathList&>(files.m_files));
+		m_FileListCtrl.m_CurrentVersion = pLogEntry->m_CommitHash;
+		m_FileListCtrl.Show(GITSLC_SHOWVERSIONED);
+	}
+}
+
 void CRebaseDlg::OnBnClickedCheckCherryPickedFrom()
 {
 	UpdateData();
@@ -2914,7 +2938,7 @@ void CRebaseDlg::OnBnClickedButtonOnto()
 	m_Onto = CBrowseRefsDlg::PickRef(false, m_Onto);
 	if (!m_Onto.IsEmpty())
 	{
-		// make sure that the user did not select upstream, selected branch or HEAD
+		// make sure that the user did not select upstream or the selected branch
 		CGitHash hash;
 		if (g_Git.GetHash(hash, m_Onto))
 		{
@@ -2923,7 +2947,7 @@ void CRebaseDlg::OnBnClickedButtonOnto()
 			static_cast<CButton*>(GetDlgItem(IDC_BUTTON_ONTO))->SetCheck(m_Onto.IsEmpty() ? BST_UNCHECKED : BST_CHECKED);
 			return;
 		}
-		if (GetCompareHash(L"HEAD", hash) || GetCompareHash(m_UpstreamCtrl.GetString(), hash) || GetCompareHash(m_BranchCtrl.GetString(), hash))
+		if (GetCompareHash(m_UpstreamCtrl.GetString(), hash) || GetCompareHash(m_BranchCtrl.GetString(), hash))
 			m_Onto.Empty();
 	}
 	if (m_Onto.IsEmpty())
@@ -2982,7 +3006,10 @@ void CRebaseDlg::OnBnClickedButtonAdd()
 	// allow multi-select
 	dlg.SingleSelection(false);
 	if (dlg.DoModal() != IDOK || dlg.GetSelectedHash().empty())
+	{
+		BringWindowToTop(); /* cf. issue #3493 */
 		return;
+	}
 
 	auto selectedHashes = dlg.GetSelectedHash();
 	for (auto it = selectedHashes.crbegin(); it != selectedHashes.crend(); ++it)

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -231,9 +231,9 @@ UINT CProgressDlg::RunCmdList(CWnd* pWnd, STRING_VECTOR& cmdlist, STRING_VECTOR&
 		{
 			CStringA str;
 			if (gitList.empty() || gitList.size() == 1 && gitList[0]->m_CurrentDir == git->m_CurrentDir)
-				str = CUnicodeUtils::GetMulti(cmdlist[i].Trim() + L"\r\n\r\n", CP_UTF8);
+				str = CUnicodeUtils::GetUTF8((i > 0 ? L"\r\n" : L"") + cmdlist[i].Trim() + L"\r\n");
 			else
-				str = CUnicodeUtils::GetMulti((i > 0 ? L"\r\n" : L"") + gitList[i]->m_CurrentDir + L"\r\n" + cmdlist[i].Trim() + L"\r\n\r\n", CP_UTF8);
+				str = CUnicodeUtils::GetUTF8((i > 0 ? L"\r\n" : L"") + gitList[i]->m_CurrentDir + L"\r\n" + cmdlist[i].Trim() + L"\r\n");
 			for (int j = 0; j < str.GetLength(); ++j)
 			{
 				if (pdata)
@@ -367,7 +367,6 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 		m_Databuf.m_critSec.Unlock();
 
 		m_bDone = true;
-		m_Animate.Stop();
 		m_Progress.SetPos(100);
 		this->DialogEnableWindow(IDOK, TRUE);
 
@@ -401,8 +400,15 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 			text.Remove('\r');
 			CAppUtils::StyleURLs(text, &m_Log);
 		}
+
+		if (m_Animate.IsPlaying() && !m_GitStatus)
+			m_Animate.Play(28, 29, 1); // IDR_DOWNLOAD Frame No. Range 0 ~ 29 (Memo: -1 does not work for last frame, but 32767(WORD_MAX/2) does.)
+		else
+			m_Animate.Stop();
+
 		if (this->m_GitStatus)
 		{
+			m_Progress.SetState(PBST_ERROR);
 			if (m_pTaskbarList)
 			{
 				m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);

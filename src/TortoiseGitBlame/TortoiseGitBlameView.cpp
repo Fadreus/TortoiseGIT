@@ -1,6 +1,6 @@
 ﻿// TortoiseGitBlame - a Viewer for Git Blames
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2003-2008, 2014 - TortoiseSVN
 
 // Copyright (C)2003 Don HO <donho@altern.org>
@@ -62,6 +62,8 @@ BEGIN_MESSAGE_MAP(CTortoiseGitBlameView, CView)
 	ON_COMMAND(ID_VIEW_PREV,OnViewPrev)
 	ON_COMMAND(ID_FIND_NEXT, OnFindNext)
 	ON_COMMAND(ID_FIND_PREV, OnFindPrev)
+	ON_COMMAND(ID_VIEW_SHOWLOGID, OnViewToggleLogID)
+	ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWLOGID, OnUpdateViewToggleLogID)
 	ON_COMMAND(ID_VIEW_SHOWAUTHOR, OnViewToggleAuthor)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWAUTHOR, OnUpdateViewToggleAuthor)
 	ON_COMMAND(ID_VIEW_SHOWDATE, OnViewToggleDate)
@@ -129,6 +131,7 @@ CTortoiseGitBlameView::CTortoiseGitBlameView()
 	, wLocator(nullptr)
 	, m_blamewidth(0)
 	, m_revwidth(0)
+	, m_logidwidth(0)
 	, m_datewidth(0)
 	, m_authorwidth(0)
 	, m_filenameWidth(0)
@@ -155,6 +158,7 @@ CTortoiseGitBlameView::CTortoiseGitBlameView()
 	m_colorage = !!theApp.GetInt(L"ColorAge", !highContrastModeEnabled);
 	m_bLexer = !!theApp.GetInt(L"EnableLexer", !highContrastModeEnabled);
 
+	m_bShowLogID = (theApp.GetInt(L"ShowLogID", 0) == 1);
 	m_bShowAuthor = (theApp.GetInt(L"ShowAuthor", 1) == 1);
 	m_bShowDate = (theApp.GetInt(L"ShowDate", 0) == 1);
 	m_bShowFilename = (theApp.GetInt(L"ShowFilename", 0) == 1);
@@ -386,7 +390,7 @@ void CTortoiseGitBlameView::OnRButtonUp(UINT /*nFlags*/, CPoint point)
 		try
 		{
 			CTGitPath path(m_data.GetFilename(line));
-			const CTGitPathList& files = pRev->GetFiles(nullptr);
+			auto files = pRev->GetFiles(nullptr);
 			for (int j = 0, j_size = files.GetCount(); j < j_size; ++j)
 			{
 				const CTGitPath &file =  files[j];
@@ -755,17 +759,27 @@ void CTortoiseGitBlameView::CopyToClipboard()
 
 LONG CTortoiseGitBlameView::GetBlameWidth()
 {
-	LONG blamewidth = 0;
+	LONG blamewidth = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH) + CDPIAware::Instance().ScaleX(BLAMESPACE);
 	SIZE width;
 	CreateFont();
 	HDC hDC = this->GetDC()->m_hDC;
 	HFONT oldfont = static_cast<HFONT>(::SelectObject(hDC, m_font.GetSafeHandle()));
 
-	CString shortHash('f', g_Git.GetShortHASHLength() + 1);
-	::GetTextExtentPoint32(hDC, shortHash, g_Git.GetShortHASHLength() + 1, &width);
-	m_revwidth = width.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
-	blamewidth += m_revwidth;
-
+	if (!m_bShowLogID)
+	{
+		CString shortHash('f', g_Git.GetShortHASHLength());
+		::GetTextExtentPoint32(hDC, shortHash, g_Git.GetShortHASHLength(), &width);
+		m_revwidth = width.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		blamewidth += m_revwidth;
+	}
+	else
+	{
+		auto length = static_cast<int>(std::ceil(std::log10(GetLogList()->GetItemCount())));
+		m_sLogIDFormat.Format(L"%%%dd", length);
+		::GetTextExtentPoint32(hDC, CString(L'8', length), length, &width);
+		m_logidwidth = width.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
+		blamewidth += m_logidwidth;
+	}
 	if (m_bShowDate)
 	{
 		SIZE maxwidth = {0};
@@ -863,7 +877,6 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 	int Y = 0;
 	TCHAR buf[MAX_PATH] = {0};
 	std::fill_n(buf, _countof(buf) - 1, L' ');
-	RECT rc;
 	CGitHash oldHash;
 	CString oldFile;
 
@@ -902,45 +915,55 @@ void CTortoiseGitBlameView::DrawBlame(HDC hDC)
 		CString file = m_data.GetFilename(i);
 		if (oldHash != hash || (m_bShowFilename && oldFile != file) || m_bShowOriginalLineNumber)
 		{
+			RECT rc;
 			rc.top = static_cast<LONG>(Y);
-			rc.left = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH);
+			rc.left = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH) + CDPIAware::Instance().ScaleX(BLAMESPACE);
 			rc.bottom = static_cast<LONG>(Y + height);
-			rc.right = rc.left + m_blamewidth;
-			if (oldHash != hash)
-			{
-				CString shortHashStr = hash.ToString(g_Git.GetShortHASHLength());
-				::ExtTextOut(hDC, CDPIAware::Instance().ScaleX(LOCATOR_WIDTH), Y, ETO_CLIPPED, &rc, shortHashStr, shortHashStr.GetLength(), 0);
-			}
-			int Left = m_revwidth;
+			rc.right = m_blamewidth;
 
+			if (!m_bShowLogID)
+			{
+				if (oldHash != hash)
+				{
+					CString shortHashStr = hash.ToString(g_Git.GetShortHASHLength());
+					::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, shortHashStr, shortHashStr.GetLength(), 0);
+				}
+				rc.left += m_revwidth;
+			}
+			else
+			{
+				if (oldHash != hash)
+				{
+					CString str;
+					str.Format(m_sLogIDFormat, GetLogList()->GetItemCount() - m_lineToLogIndex[i]);
+					::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, str, str.GetLength(), 0);
+				}
+				rc.left += m_logidwidth;
+			}
 			if (m_bShowAuthor)
 			{
-				rc.right = rc.left + Left + m_authorwidth;
 				if (oldHash != hash)
-					::ExtTextOut(hDC, Left, Y, ETO_CLIPPED, &rc, m_data.GetAuthor(i), m_data.GetAuthor(i).GetLength(), 0);
-				Left += m_authorwidth;
+					::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, m_data.GetAuthor(i), m_data.GetAuthor(i).GetLength(), 0);
+				rc.left += m_authorwidth;
 			}
 			if (m_bShowDate)
 			{
-				rc.right = rc.left + Left + m_datewidth;
 				if (oldHash != hash)
-					::ExtTextOut(hDC, Left, Y, ETO_CLIPPED, &rc, m_data.GetDate(i), m_data.GetDate(i).GetLength(), 0);
-				Left += m_datewidth;
+					::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, m_data.GetDate(i), m_data.GetDate(i).GetLength(), 0);
+				rc.left += m_datewidth;
 			}
 			if (m_bShowFilename)
 			{
-				rc.right = rc.left + Left + m_filenameWidth;
 				if (oldFile != file)
-					::ExtTextOut(hDC, Left, Y, ETO_CLIPPED, &rc, m_data.GetFilename(i), m_data.GetFilename(i).GetLength(), 0);
-				Left += m_filenameWidth;
+					::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, m_data.GetFilename(i), m_data.GetFilename(i).GetLength(), 0);
+				rc.left += m_filenameWidth;
 			}
 			if (m_bShowOriginalLineNumber)
 			{
-				rc.right = rc.left + Left + m_originalLineNumberWidth;
 				CString str;
 				str.Format(L"%5d", m_data.GetOriginalLineNumber(i));
-				::ExtTextOut(hDC, Left, Y, ETO_CLIPPED, &rc, str, str.GetLength(), 0);
-				Left += m_originalLineNumberWidth;
+				::ExtTextOut(hDC, rc.left, rc.top, ETO_CLIPPED, &rc, str, str.GetLength(), 0);
+				rc.left += m_originalLineNumberWidth;
 			}
 			oldHash = hash;
 			oldFile = file;
@@ -1510,11 +1533,19 @@ void CTortoiseGitBlameView::UpdateInfo(int Encode)
 	int encoding = m_data.UpdateEncoding(Encode);
 
 	auto numberOfLines = static_cast<int>(m_data.GetNumberOfLines());
+	int longestLine = 0;
+	int longestLineLen = 0;
 	if (numberOfLines > 0)
 	{
 		CStringA text;
 		for (int i = 0; i < numberOfLines; ++i)
 		{
+			auto lineLen = m_data.GetUtf8Line(i).GetLength();
+			if (longestLineLen < lineLen)
+			{
+				longestLineLen = lineLen;
+				longestLine = i;
+			}
 			text += m_data.GetUtf8Line(i);
 			text += '\n';
 		}
@@ -1577,6 +1608,11 @@ void CTortoiseGitBlameView::UpdateInfo(int Encode)
 	SendEditor(EM_EMPTYUNDOBUFFER);
 	SendEditor(SCI_SETSAVEPOINT);
 	SendEditor(SCI_GOTOPOS, 0);
+	// set max scroll width, based on textwidth of longest line (heuristic, only works for monospace font)
+	if (longestLine > 0)
+		SendEditor(SCI_SETSCROLLWIDTH, static_cast<int>(SendEditor(SCI_TEXTWIDTH, STYLE_DEFAULT, reinterpret_cast<LPARAM>(static_cast<const char*>(m_data.GetUtf8Line(longestLine))))));
+	else
+		SendEditor(SCI_SETSCROLLWIDTH, 1);
 	SendEditor(SCI_SETSCROLLWIDTHTRACKING, TRUE);
 	SendEditor(SCI_SETREADONLY, TRUE);
 
@@ -1749,7 +1785,13 @@ void CTortoiseGitBlameView::OnMouseHover(UINT /*nFlags*/, CPoint point)
 																	static_cast<LPCTSTR>(m_sAuthor), static_cast<LPCTSTR>(pRev->GetAuthorName()), static_cast<LPCTSTR>(pRev->GetAuthorEmail()),
 																	static_cast<LPCTSTR>(m_sDate), static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(pRev->GetAuthorDate(), m_DateFormat, true, m_bRelativeTimes)),
 																	static_cast<LPCTSTR>(m_sMessage), static_cast<LPCTSTR>(pRev->GetSubject()),
-																	iline <= maxLine ? static_cast<LPCTSTR>(body) : (body.Left(pos) + L"\n...................."));
+																	iline <= maxLine ? static_cast<LPCTSTR>(body) : (body.Left(pos) + L"\n..."));
+
+			if (str.GetLength() > 8000)
+			{
+				str.Truncate(8000);
+				str += L"...";
+			}
 
 			m_ToolTip.Pop();
 			m_ToolTip.AddTool(this, str);
@@ -1794,13 +1836,12 @@ void CTortoiseGitBlameView::OnEditFind()
 	m_pFindDialog=new CFindReplaceDialog();
 
 	CString oneline = m_sFindText;
-	if (m_TextView.Call(SCI_GETSELECTIONSTART) != m_TextView.Call(SCI_GETSELECTIONEND))
+	if (auto selstart = m_TextView.Call(SCI_GETSELECTIONSTART), selend = m_TextView.Call(SCI_GETSELECTIONEND); selstart != selend)
 	{
-		LRESULT bufsize = m_TextView.Call(SCI_GETSELECTIONEND) - m_TextView.Call(SCI_GETSELECTIONSTART);
-		auto linebuf = std::make_unique<char[]>(bufsize + 1);
-		SecureZeroMemory(linebuf.get(), bufsize + 1);
-		SendEditor(SCI_GETSELTEXT, 0, reinterpret_cast<LPARAM>(linebuf.get()));
-		oneline = m_TextView.StringFromControl(linebuf.get());
+		auto linebuf = std::make_unique<char[]>(selend - selstart + 1);
+		Sci_TextRange range = { static_cast<Sci_PositionCR>(selstart), static_cast<Sci_PositionCR>(selend), linebuf.get() };
+		if (m_TextView.Call(SCI_GETTEXTRANGE, 0, reinterpret_cast<LPARAM>(&range)) > 0)
+			oneline = m_TextView.StringFromControl(linebuf.get());
 	}
 
 	DWORD flags = FR_DOWN | FR_HIDEWHOLEWORD;
@@ -1861,6 +1902,24 @@ void CTortoiseGitBlameView::OnViewPrev()
 	int line = m_data.FindNextLine(this->m_SelectedHash, static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE)), true);
 	if(line >= 0)
 		SendEditor(SCI_LINESCROLL, 0, line - startline - 2);
+}
+
+void CTortoiseGitBlameView::OnViewToggleLogID()
+{
+	m_bShowLogID = !m_bShowLogID;
+
+	theApp.WriteInt(L"ShowLogID", m_bShowLogID);
+
+	CRect rect;
+	this->GetClientRect(&rect);
+	rect.left = GetBlameWidth();
+
+	m_TextView.MoveWindow(&rect);
+}
+
+void CTortoiseGitBlameView::OnUpdateViewToggleLogID(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(m_bShowLogID);
 }
 
 void CTortoiseGitBlameView::OnViewToggleAuthor()

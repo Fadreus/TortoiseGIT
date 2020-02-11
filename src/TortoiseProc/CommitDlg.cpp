@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2014 - TortoiseSVN
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -103,7 +103,6 @@ void CCommitDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_SHOWUNVERSIONED, m_bShowUnversioned);
 	DDX_Check(pDX, IDC_COMMIT_SETDATETIME, m_bSetCommitDateTime);
 	DDX_Check(pDX, IDC_CHECK_NEWBRANCH, m_bCreateNewBranch);
-	DDX_Text(pDX, IDC_NEWBRANCH, m_sCreateNewBranch);
 	DDX_Text(pDX, IDC_BUGID, m_sBugID);
 	DDX_Text(pDX, IDC_COMMIT_AUTHORDATA, m_sAuthor);
 	DDX_Check(pDX, IDC_WHOLE_PROJECT, m_bWholeProject);
@@ -423,7 +422,7 @@ BOOL CCommitDlg::OnInitDialog()
 	if (GetExplorerHWND())
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"CommitDlg");
-	DWORD yPos = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\CommitDlgSizer");
+	DWORD yPos = CDPIAware::Instance().ScaleY(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\CommitDlgSizer"));
 	RECT rcDlg, rcLogMsg, rcFileList;
 	GetClientRect(&rcDlg);
 	m_cLogMessage.GetWindowRect(&rcLogMsg);
@@ -548,14 +547,14 @@ static bool UpdateIndex(CMassiveGitTask &mgt, CSysProgressDlg &sysProgressDlg, i
 	return mgt.Execute(cancel);
 }
 
-static void DoPush(HWND hWnd)
+static void DoPush(HWND hWnd, bool usePushDlg)
 {
 	CString head;
 	if (g_Git.GetCurrentBranchFromFile(g_Git.m_CurrentDir, head))
 		return;
 	CString remote, remotebranch;
 	g_Git.GetRemotePushBranch(head, remote, remotebranch);
-	if (remote.IsEmpty() || remotebranch.IsEmpty())
+	if (usePushDlg || remote.IsEmpty() || remotebranch.IsEmpty())
 	{
 		CAppUtils::Push(hWnd);
 		return;
@@ -597,14 +596,16 @@ void CCommitDlg::OnOK()
 		return;
 	}
 
+	CString newBranch;
 	if (m_bCreateNewBranch)
 	{
-		if (!g_Git.IsBranchNameValid(m_sCreateNewBranch))
+		GetDlgItemText(IDC_NEWBRANCH, newBranch);
+		if (!g_Git.IsBranchNameValid(newBranch))
 		{
 			ShowEditBalloon(IDC_NEWBRANCH, IDS_B_T_NOTEMPTY, IDS_ERR_ERROR, TTI_ERROR);
 			return;
 		}
-		if (g_Git.BranchTagExists(m_sCreateNewBranch))
+		if (g_Git.BranchTagExists(newBranch))
 		{
 			// branch already exists
 			CString msg;
@@ -613,7 +614,7 @@ void CCommitDlg::OnOK()
 			ShowEditBalloon(IDC_NEWBRANCH, msg, CString(MAKEINTRESOURCE(IDS_WARN_WARNING)));
 			return;
 		}
-		if (g_Git.BranchTagExists(m_sCreateNewBranch, false))
+		if (g_Git.BranchTagExists(newBranch, false))
 		{
 			// tag with the same name exists -> shortref is ambiguous
 			if (CMessageBox::Show(m_hWnd, IDS_B_SAMETAGNAMEEXISTS, IDS_APPNAME, 2, IDI_EXCLAMATION, IDS_CONTINUEBUTTON, IDS_ABORTBUTTON) == 2)
@@ -821,7 +822,7 @@ void CCommitDlg::OnOK()
 					}
 				}
 
-				CStringA filePathA = CUnicodeUtils::GetMulti(entry->GetGitPathString(), CP_UTF8).TrimRight(L'/');
+				CStringA filePathA = CUnicodeUtils::GetUTF8(entry->GetGitPathString()).TrimRight(L'/');
 
 				if (entry->m_Checked && !m_bCommitMessageOnly)
 				{
@@ -969,12 +970,12 @@ void CCommitDlg::OnOK()
 
 	if (bAddSuccess && m_bCreateNewBranch)
 	{
-		if (g_Git.Run(L"git.exe branch " + m_sCreateNewBranch, &out, CP_UTF8))
+		if (g_Git.Run(L"git.exe branch " + newBranch, &out, CP_UTF8))
 		{
 			MessageBox(L"Creating new branch failed:\n" + out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 			bAddSuccess = false;
 		}
-		if (g_Git.Run(L"git.exe checkout " + m_sCreateNewBranch + L" --", &out, CP_UTF8))
+		if (g_Git.Run(L"git.exe checkout " + newBranch + L" --", &out, CP_UTF8))
 		{
 			MessageBox(L"Switching to new branch failed:\n" + out, L"TortoiseGit", MB_OK | MB_ICONERROR);
 			bAddSuccess = false;
@@ -1170,7 +1171,12 @@ void CCommitDlg::OnOK()
 					bCloseCommitDlg = false;
 				}
 			}
-			m_ListCtrl.PruneChangelists();
+			CTGitPathList* pList;
+			if (m_bWholeProject || m_bWholeProject2)
+				pList = nullptr;
+			else
+				pList = &m_pathList;
+			m_ListCtrl.PruneChangelists(pList);
 			m_ListCtrl.SaveChangelists();
 		}
 
@@ -1243,7 +1249,7 @@ void CCommitDlg::OnOK()
 	if (bCloseCommitDlg)
 	{
 		if (m_ctrlOkButton.GetCurrentEntry() == 2)
-			DoPush(GetSafeHwnd());
+			DoPush(GetSafeHwnd(), !!m_bCommitAmend);
 		CResizableStandAloneDialog::OnOK();
 	}
 	else if (m_PostCmd == GIT_POSTCOMMIT_CMD_RECOMMIT)
@@ -1264,7 +1270,7 @@ void CCommitDlg::SaveSplitterPos()
 		RECT rectSplitter;
 		m_wndSplitter.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		regPos = rectSplitter.top;
+		regPos = CDPIAware::Instance().UnscaleY(rectSplitter.top);
 	}
 }
 
@@ -1706,16 +1712,7 @@ LRESULT CCommitDlg::OnFileDropped(WPARAM, LPARAM lParam)
 			// our just (maybe) added path is a child of one of those. If it is
 			// a child of a folder already in the list, we must not add it. Otherwise
 			// that path could show up twice in the list.
-			bool bHasParentInList = false;
-			for (int i=0; i<m_pathList.GetCount(); ++i)
-			{
-				if (m_pathList[i].IsAncestorOf(path))
-				{
-					bHasParentInList = true;
-					break;
-				}
-			}
-			if (!bHasParentInList)
+			if (!m_pathList.IsAnyAncestorOf(path))
 			{
 				m_pathList.AddPath(path);
 				m_pathList.RemoveDuplicates();
@@ -2059,6 +2056,11 @@ bool CCommitDlg::HandleMenuItemClick(int cmd, CSciEdit * pSciEdit)
 	{
 		// use the git log to allow selection of a version
 		CLogDlg dlg;
+		if (dlg.IsThreadRunning())
+		{
+			CMessageBox::Show(GetSafeHwnd(), IDS_PROC_LOG_ONLYONCE, IDS_APPNAME, MB_ICONEXCLAMATION);
+			return true;
+		}
 		// tell the dialog to use mode for selecting revisions
 		dlg.SetSelect(true);
 		// only one revision must be selected however
@@ -2066,6 +2068,7 @@ bool CCommitDlg::HandleMenuItemClick(int cmd, CSciEdit * pSciEdit)
 		dlg.ShowWorkingTreeChanges(false);
 		if (dlg.DoModal() == IDOK && !dlg.GetSelectedHash().empty())
 			pSciEdit->InsertText(dlg.GetSelectedHash().at(0).ToString());
+		BringWindowToTop(); /* cf. issue #3493 */
 		return true;
 	}
 
@@ -2073,6 +2076,11 @@ bool CCommitDlg::HandleMenuItemClick(int cmd, CSciEdit * pSciEdit)
 	{
 		// use the git log to allow selection of a version
 		CLogDlg dlg;
+		if (dlg.IsThreadRunning())
+		{
+			CMessageBox::Show(GetSafeHwnd(), IDS_PROC_LOG_ONLYONCE, IDS_APPNAME, MB_ICONEXCLAMATION);
+			return true;
+		}
 		// tell the dialog to use mode for selecting revisions
 		dlg.SetSelect(true);
 		// only one revision must be selected however
@@ -2089,6 +2097,7 @@ bool CCommitDlg::HandleMenuItemClick(int cmd, CSciEdit * pSciEdit)
 			CString message = rev.GetSubject() + L"\r\n" + rev.GetBody();
 			pSciEdit->InsertText(message);
 		}
+		BringWindowToTop(); /* cf. issue #3493 */
 		return true;
 	}
 
@@ -2670,14 +2679,7 @@ void CCommitDlg::OnStnClickedViewPatch()
 		if (viewPatchEnabled == FALSE)
 			g_Git.SetConfigValue(L"tgit.commitshowpatch", L"true");
 		m_patchViewdlg.Create(IDD_PATCH_VIEW,this);
-		m_patchViewdlg.m_ctrlPatchView.Call(SCI_SETSCROLLWIDTHTRACKING, TRUE);
-		CRect rect;
-		this->GetWindowRect(&rect);
-
-		m_patchViewdlg.ShowWindow(SW_SHOW);
-
-		m_patchViewdlg.SetWindowPos(nullptr, rect.right, rect.top, static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\TortoiseProc\\PatchDlgWidth", rect.Width())), rect.Height(),
-				SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+		m_patchViewdlg.ShowAndAlignToParent();
 
 		GetDlgItem(IDC_LOGMESSAGE)->SetFocus();
 
@@ -2698,44 +2700,14 @@ void CCommitDlg::OnMoving(UINT fwSide, LPRECT pRect)
 {
 	__super::OnMoving(fwSide, pRect);
 
-	if (::IsWindow(m_patchViewdlg.m_hWnd))
-	{
-		RECT patchrect;
-		m_patchViewdlg.GetWindowRect(&patchrect);
-		if (::IsWindow(m_hWnd))
-		{
-			RECT thisrect;
-			GetWindowRect(&thisrect);
-			if (patchrect.left == thisrect.right)
-			{
-				m_patchViewdlg.SetWindowPos(nullptr, patchrect.left - (thisrect.left - pRect->left), patchrect.top - (thisrect.top - pRect->top),
-					0, 0, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
-			}
-		}
-	}
+	m_patchViewdlg.ParentOnMoving(m_hWnd, pRect);
 }
 
 void CCommitDlg::OnSizing(UINT fwSide, LPRECT pRect)
 {
 	__super::OnSizing(fwSide, pRect);
 
-	if(::IsWindow(this->m_patchViewdlg.m_hWnd))
-	{
-		CRect thisrect, patchrect;
-		this->GetWindowRect(thisrect);
-		this->m_patchViewdlg.GetWindowRect(patchrect);
-		if(thisrect.right==patchrect.left)
-		{
-			patchrect.left -= (thisrect.right - pRect->right);
-			patchrect.right-= (thisrect.right - pRect->right);
-
-			if(	patchrect.bottom == thisrect.bottom)
-				patchrect.bottom -= (thisrect.bottom - pRect->bottom);
-			if(	patchrect.top == thisrect.top)
-				patchrect.top -=  thisrect.top-pRect->top;
-			m_patchViewdlg.MoveWindow(patchrect);
-		}
-	}
+	m_patchViewdlg.ParentOnSizing(m_hWnd, pRect);
 }
 
 void CCommitDlg::OnHdnItemchangedFilelist(NMHDR * /*pNMHDR*/, LRESULT *pResult)

@@ -24,6 +24,7 @@
 #include "Colors.h"
 #include "RevisionGraphWnd.h"
 #include "StandAloneDlg.h"
+#include "FindDlg.h"
 
 /**
  * \ingroup TortoiseProc
@@ -74,6 +75,8 @@ protected:
 	HACCEL			m_hAccel;
 
 	BOOL			InitializeToolbar();
+	bool			InitialSetMenu(const CString& settingName, bool defaultValue, int nId);
+	bool			ToggleSetMenu(const CString& settingName, int nId);
 
 	virtual void	DoDataExchange(CDataExchange* pDX) override;		// DDX/DDV support
 	virtual BOOL	OnInitDialog() override;
@@ -93,6 +96,8 @@ protected:
 	afx_msg void	OnViewUnifieddiff();
 	afx_msg void	OnViewUnifieddiffofheadrevisions();
 	afx_msg void	OnViewShowBranchingsMerges();
+	afx_msg void	OnViewShowAllTags();
+	afx_msg void	OnViewArrowPointToMerges();
 	afx_msg void	OnViewShowoverview();
 	afx_msg void	OnFileSavegraphas();
 	afx_msg void	OnMenuexit();
@@ -100,6 +105,12 @@ protected:
 	afx_msg void	OnChangeZoom();
 	afx_msg BOOL	OnToolTipNotify (UINT id, NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void	OnWindowPosChanging(WINDOWPOS* lpwndpos);
+
+	CFindDlg* m_pFindDialog;
+	static const UINT m_FindDialogMessage;
+	afx_msg void OnFind();
+	afx_msg LRESULT OnFindDialogMessage(WPARAM wParam, LPARAM lParam);
+	int m_nSearchIndex;
 
 	DECLARE_MESSAGE_MAP()
 

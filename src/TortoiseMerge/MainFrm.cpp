@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2004-2018 - TortoiseSVN
 // Copyright (C) 2012-2014 - Sven Strickroth <email@cs-ware.de>
 
@@ -35,6 +35,7 @@
 #include "FormatMessageWrapper.h"
 #include "TaskbarUUID.h"
 #include "RegexFiltersDlg.h"
+#include "DPIAware.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -1241,7 +1242,7 @@ void CMainFrame::DiffTwo(const CWorkingFile& file1, const CWorkingFile& file2)
 	if (!file2.GetWindowName().IsEmpty())
 		sCmd += L" /yourname:\"" + file2.GetWindowName() + L"\"";
 
-	CAppUtils::LaunchApplication(sCmd, 0, false);
+	CAppUtils::LaunchApplication(sCmd, CAppUtils::LaunchApplicationFlags());
 }
 
 void CMainFrame::ShowDiffBar(bool bShow)
@@ -1614,7 +1615,7 @@ bool CMainFrame::FileSave(bool bCheckResolved /*=true*/)
 				if (git_repository_index(index.GetPointer(), repository))
 					break;
 
-				CStringA path = CUnicodeUtils::GetMulti(subpath, CP_UTF8);
+				CStringA path = CUnicodeUtils::GetUTF8(subpath);
 				hasConflictInIndex = git_index_get_bypath(index, path, 1) || git_index_get_bypath(index, path, 2);
 			} while(0);
 
@@ -2039,6 +2040,8 @@ BOOL CMainFrame::ReadWindowPlacement(WINDOWPLACEMENT * pwp)
 		return FALSE;
 	pwp->length = sizeof(WINDOWPLACEMENT);
 
+	CDPIAware::Instance().ScaleWindowPlacement(pwp);
+
 	return TRUE;
 }
 
@@ -2046,6 +2049,8 @@ void CMainFrame::WriteWindowPlacement(WINDOWPLACEMENT * pwp)
 {
 	CRegString placement(L"Software\\TortoiseGitMerge\\WindowPos");
 	TCHAR szBuffer[_countof("-32767")*8 + sizeof("65535")*2];
+
+	CDPIAware::Instance().UnscaleWindowPlacement(pwp);
 
 	swprintf_s(szBuffer, L"%u,%u,%d,%d,%d,%d,%d,%d,%d,%d",
 			pwp->flags, pwp->showCmd,

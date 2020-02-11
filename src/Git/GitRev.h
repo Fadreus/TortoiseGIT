@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -22,6 +22,7 @@
 #include "AtlTime.h"
 #include "GitHash.h"
 #include "GitDll.h"
+#include "GitMailmap.h"
 
 typedef std::vector<CGitHash> GIT_REV_LIST;
 
@@ -114,6 +115,7 @@ public:
 	virtual void Clear();
 	inline int ParentsCount() {return static_cast<int>(m_ParentHash.size()); }
 
+protected:
 	int ParserFromCommit(GIT_COMMIT *commit);
 	int ParserParentFromCommit(GIT_COMMIT *commit);
 
@@ -122,13 +124,18 @@ public:
 	int GetCommitFromHash(git_repository* repo, const CGitHash& hash);
 	int GetCommit(git_repository* repo, const CString& Rev);
 
+public:
 	int GetParentFromHash(const CGitHash& hash);
 	int GetCommitFromHash(const CGitHash& hash);
 	int GetCommit(const CString& rev);
 
 	CString GetLastErr() const { return m_sErr; }
 
+	void ApplyMailmap(const CGitMailmap& mailmap = CGitMailmap());
+
+#if DEBUG
 	void DbgPrint();
+#endif
 
 private:
 	int GetCommitFromHash_withoutLock(const CGitHash& hash);

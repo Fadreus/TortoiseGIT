@@ -5,21 +5,19 @@
 
 #pragma once
 
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 
 #define NOMINMAX
 #include <algorithm>
 using std::max;
 using std::min;
 
-// Windows Header Files:
-#include <windows.h>
-
 // C RunTime Header Files
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include <string>
 
 #include <windows.h>
 #include <Commdlg.h>
@@ -29,6 +27,9 @@ using std::min;
 #define COMMITMONITOR_FINDMSGNEXT		(WM_APP+2)
 #define COMMITMONITOR_FINDEXIT			(WM_APP+3)
 #define COMMITMONITOR_FINDRESET			(WM_APP+4)
+
+#include "SmartHandle.h"
+#include "scope_exit_noexcept.h"
 
 #ifdef _WIN64
 #   define APP_X64_STRING "x64"

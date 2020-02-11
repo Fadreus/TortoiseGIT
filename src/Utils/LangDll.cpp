@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2017, 2019 - TortoiseGit
+// Copyright (C) 2016-2017, 2019-2020 - TortoiseGit
 // Copyright (C) 2003-2006, 2008, 2013-2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -21,9 +21,8 @@
 #include <assert.h>
 #include "LangDll.h"
 #include "../version.h"
-#include <memory>
-
-#pragma comment(lib, "Version.lib")
+#include "I18NHelper.h"
+#include "PathUtils.h"
 
 CLangDll::CLangDll()
 	: m_hInstance(nullptr)
@@ -32,6 +31,7 @@ CLangDll::CLangDll()
 
 CLangDll::~CLangDll()
 {
+	Close();
 }
 
 HINSTANCE CLangDll::Init(LPCTSTR appname, unsigned long langID)
@@ -90,38 +90,5 @@ void CLangDll::Close()
 
 bool CLangDll::DoVersionStringsMatch(LPCTSTR sVer, LPCTSTR langDll) const
 {
-	struct TRANSARRAY
-	{
-		WORD wLanguageID;
-		WORD wCharacterSet;
-	};
-
-	DWORD dwReserved = 0;
-	DWORD dwBufferSize = GetFileVersionInfoSize(langDll, &dwReserved);
-
-	if (dwBufferSize == 0)
-		return false;
-
-	auto pBuffer = std::make_unique<BYTE[]>(dwBufferSize);
-	if (!pBuffer)
-		return false;
-
-	if (!GetFileVersionInfo(langDll, dwReserved, dwBufferSize, pBuffer.get()))
-		return false;
-
-	VOID* lpFixedPointer;
-	UINT nFixedLength = 0;
-	VerQueryValue(pBuffer.get(), L"\\VarFileInfo\\Translation", &lpFixedPointer, &nFixedLength);
-	auto lpTransArray = static_cast<TRANSARRAY*>(lpFixedPointer);
-
-	TCHAR strLangProductVersion[MAX_PATH] = { 0 };
-	swprintf_s(strLangProductVersion, L"\\StringFileInfo\\%04x%04x\\ProductVersion", lpTransArray[0].wLanguageID, lpTransArray[0].wCharacterSet);
-
-	LPSTR lpVersion = nullptr;
-	UINT nInfoSize = 0;
-	VerQueryValue(pBuffer.get(), strLangProductVersion, reinterpret_cast<LPVOID*>(&lpVersion), &nInfoSize);
-	if (lpVersion && nInfoSize)
-		return (wcscmp(sVer, reinterpret_cast<LPCTSTR>(lpVersion)) == 0);
-
-	return false;
+	return CI18NHelper::DoVersionStringsMatch(CPathUtils::GetVersionFromFile(langDll), sVer);
 }

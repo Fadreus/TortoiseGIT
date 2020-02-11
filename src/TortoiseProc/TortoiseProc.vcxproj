@@ -55,6 +55,7 @@
     <ClCompile Include="..\Git\Git.cpp" />
     <ClCompile Include="..\Git\GitAdminDir.cpp" />
     <ClCompile Include="..\Git\GitDataObject.cpp" />
+    <ClCompile Include="..\Git\GitMailmap.cpp" />
     <ClCompile Include="..\Git\GitRev.cpp" />
     <ClCompile Include="..\Git\GitRevLoglist.cpp" />
     <ClCompile Include="..\Git\GitRevRefBrowser.cpp" />
@@ -76,7 +77,6 @@
     <ClCompile Include="..\Utils\HwSMTP.cpp" />
     <ClCompile Include="..\Utils\IconExtractor.cpp" />
     <ClCompile Include="..\Utils\JumpListHelpers.cpp" />
-    <ClCompile Include="..\Utils\LangDll.cpp" />
     <ClCompile Include="..\Utils\LoadIconEx.cpp" />
     <ClCompile Include="..\Utils\MailMsg.cpp" />
     <ClCompile Include="..\Utils\MiscUI\AnimationManager.cpp" />
@@ -152,6 +152,7 @@
     <ClCompile Include="ProgressCommands\ResolveProgressCommand.cpp" />
     <ClCompile Include="ProgressCommands\RevertProgressCommand.cpp" />
     <ClCompile Include="ProgressCommands\SendMailProgressCommand.cpp" />
+    <ClCompile Include="SelectRemoteRefDlg.cpp" />
     <ClCompile Include="SendMail.cpp" />
     <ClCompile Include="FindDlg.cpp" />
     <ClCompile Include="..\Utils\Libraries.cpp" />
@@ -332,6 +333,7 @@
     <ClInclude Include="..\Git\GitDataObject.h" />
     <ClInclude Include="..\Git\GitForWindows.h" />
     <ClInclude Include="..\Git\GitHash.h" />
+    <ClInclude Include="..\Git\GitMailmap.h" />
     <ClInclude Include="..\Git\GitRev.h" />
     <ClInclude Include="..\Git\GitRevLoglist.h" />
     <ClInclude Include="..\Git\GitRevRefBrowser.h" />
@@ -356,10 +358,10 @@
     <ClInclude Include="..\Utils\Graphviz.h" />
     <ClInclude Include="..\Utils\Hooks.h" />
     <ClInclude Include="..\Utils\HwSMTP.h" />
+    <ClInclude Include="..\Utils\I18NHelper.h" />
     <ClInclude Include="..\Utils\IconExtractor.h" />
     <ClInclude Include="..\Utils\IInputValidator.h" />
     <ClInclude Include="..\Utils\JumpListHelpers.h" />
-    <ClInclude Include="..\Utils\LangDll.h" />
     <ClInclude Include="..\Utils\Libraries.h" />
     <ClInclude Include="..\Utils\LoadIconEx.h" />
     <ClInclude Include="..\Utils\LruCache.h" />
@@ -449,6 +451,7 @@
     <ClInclude Include="ProgressCommands\RevertProgressCommand.h" />
     <ClInclude Include="ProgressCommands\SendMailProgressCommand.h" />
     <ClInclude Include="ResizableColumnsListCtrl.h" />
+    <ClInclude Include="SelectRemoteRefDlg.h" />
     <ClInclude Include="SendMail.h" />
     <ClInclude Include="FindDlg.h" />
     <ClInclude Include="GitProgressList.h" />

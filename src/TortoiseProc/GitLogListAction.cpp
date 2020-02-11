@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2005-2007 Marco Costalba
 
 // This program is free software; you can redistribute it and/or
@@ -57,6 +57,9 @@ int CGitLogList::RevertSelectedCommits(int parent)
 	CSysProgressDlg progress;
 	int ret = -1;
 
+	if (CMessageBox::Show(GetParentHWND(), IDS_REVERTCOMMITS, IDS_APPNAME, MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) == IDNO)
+		return -1;
+
 #if 0
 	if(!g_Git.CheckCleanWorkTree())
 		CMessageBox::Show(nullptr, IDS_PROC_NOCLEAN, IDS_APPNAME, MB_OK);
@@ -73,6 +76,9 @@ int CGitLogList::RevertSelectedCommits(int parent)
 
 	POSITION pos = GetFirstSelectedItemPosition();
 	int i=0;
+	CString mergeMsg;
+	CString dotGitPath;
+	GitAdminDir::GetWorktreeAdminDirPath(g_Git.m_CurrentDir, dotGitPath);
 	while(pos)
 	{
 		int index = GetNextSelectedItem(pos);
@@ -100,11 +106,18 @@ int CGitLogList::RevertSelectedCommits(int parent)
 				return ret;
 		}
 		else
-			ret =0;
+		{
+			if (!mergeMsg.IsEmpty())
+				mergeMsg += "\r\n";
+			CGit::LoadTextFile(dotGitPath + L"MERGE_MSG", mergeMsg);
+			ret = 0;
+		}
 
 		if (progress.HasUserCancelled())
 			break;
 	}
+	if (!mergeMsg.IsEmpty())
+		CStringUtils::WriteStringToTextFile(dotGitPath + L"MERGE_MSG", mergeMsg);
 	return ret;
 }
 int CGitLogList::CherryPickFrom(CString from, CString to)
@@ -246,7 +259,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 						for (int i = m_bShowWC ? 1 : 0; i < FirstSelect; ++i)
 						{
 							GitRevLoglist* first = m_arShownList.SafeGetAt(i);
-							CTGitPathList list = first->GetFiles(nullptr);
+							auto filesWrapper = first->GetFiles(nullptr);
+							auto& list = filesWrapper.m_files;
 							const CTGitPath* file = list.LookForGitPath(path);
 							if (file && !file->GetGitOldPathString().IsEmpty())
 								path = file->GetGitOldPathString();
@@ -272,7 +286,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					for (int i = m_bShowWC ? 1 : 0; i < FirstSelect; ++i)
 					{
 						GitRevLoglist* first = m_arShownList.SafeGetAt(i);
-						CTGitPathList list = first->GetFiles(nullptr);
+						auto filesWrapper = first->GetFiles(nullptr);
+						auto& list = filesWrapper.m_files;
 						const CTGitPath* file = list.LookForGitPath(path);
 						if (file && !file->GetGitOldPathString().IsEmpty())
 							path = file->GetGitOldPathString();
@@ -295,7 +310,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					for (int i = m_bShowWC ? 1 : 0; i < FirstSelect; ++i)
 					{
 						GitRevLoglist* first = m_arShownList.SafeGetAt(i);
-						CTGitPathList list = first->GetFiles(nullptr);
+						auto filesWrapper = first->GetFiles(nullptr);
+						auto& list = filesWrapper.m_files;
 						const CTGitPath* file = list.LookForGitPath(path1);
 						if (file && !file->GetGitOldPathString().IsEmpty())
 							path1 = file->GetGitOldPathString();
@@ -304,7 +320,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					for (int i = FirstSelect; i < LastSelect; ++i)
 					{
 						GitRevLoglist* first = m_arShownList.SafeGetAt(i);
-						CTGitPathList list = first->GetFiles(nullptr);
+						auto filesWrapper = first->GetFiles(nullptr);
+						auto& list = filesWrapper.m_files;
 						const CTGitPath* file = list.LookForGitPath(path2);
 						if (file && !file->GetGitOldPathString().IsEmpty())
 							path2 = file->GetGitOldPathString();
@@ -329,7 +346,8 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					for (int i = m_bShowWC ? 1 : 0; i < FirstSelect; ++i)
 					{
 						GitRevLoglist* first = m_arShownList.SafeGetAt(i);
-						CTGitPathList list = first->GetFiles(nullptr);
+						auto filesWrapper = first->GetFiles(nullptr);
+						auto& list = filesWrapper.m_files;
 						const CTGitPath* file = list.LookForGitPath(path1);
 						if (file && !file->GetGitOldPathString().IsEmpty())
 							path1 = file->GetGitOldPathString();
@@ -376,14 +394,16 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 						for (int i = m_bShowWC ? 1 : 0; i < indexNext; ++i)
 						{
 							GitRevLoglist* first = m_arShownList.SafeGetAt(i);
-							CTGitPathList list = first->GetFiles(nullptr);
+							auto filesWrapper = first->GetFiles(nullptr);
+							auto& list = filesWrapper.m_files;
 							const CTGitPath* file = list.LookForGitPath(path1);
 							if (file && !file->GetGitOldPathString().IsEmpty())
 								path1 = file->GetGitOldPathString();
 						}
 						CString path2 = path1;
 						GitRevLoglist* first = m_arShownList.SafeGetAt(indexNext);
-						CTGitPathList list = first->GetFiles(nullptr);
+						auto filesWrapper = first->GetFiles(nullptr);
+						auto& list = filesWrapper.m_files;
 						const CTGitPath* file = list.LookForGitPath(path2);
 						if (file && !file->GetGitOldPathString().IsEmpty())
 							path2 = file->GetGitOldPathString();
@@ -422,8 +442,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					MessageBox(L"Could not generate patch for commit " + pLastEntry->m_CommitHash.ToString() + L".\n" + err, L"TortoiseGit", MB_ICONERROR);
 					break;
 				}
-				CAppUtils::DiffFlags flags;
-				CAppUtils::StartExtDiff(patch1, patch2, pFirstEntry->m_CommitHash.ToString(), pLastEntry->m_CommitHash.ToString(), pFirstEntry->m_CommitHash.ToString() + L".patch", pLastEntry->m_CommitHash.ToString() + L".patch", pFirstEntry->m_CommitHash, pLastEntry->m_CommitHash, flags);
+				CAppUtils::StartExtDiff(patch1, patch2, pFirstEntry->m_CommitHash.ToString(), pLastEntry->m_CommitHash.ToString(), pFirstEntry->m_CommitHash.ToString() + L".patch", pLastEntry->m_CommitHash.ToString() + L".patch", pFirstEntry->m_CommitHash, pLastEntry->m_CommitHash, CAppUtils::DiffFlags());
 			}
 			break;
 		case ID_LOG_VIEWRANGE:
@@ -691,7 +710,7 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 
 		case ID_CHERRY_PICK:
 			{
-				if (m_bThreadRunning)
+				if (s_bThreadRunning)
 				{
 					CMessageBox::Show(GetParentHWND(), IDS_PROC_LOG_ONLYONCE, IDS_APPNAME, MB_ICONEXCLAMATION);
 					break;
@@ -708,15 +727,18 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					dlg.m_CommitList.m_logEntries.GetGitRevAt(dlg.m_CommitList.m_logEntries.size() - 1).GetRebaseAction() |= LOGACTIONS_REBASE_PICK;
 				}
 
+				SafeTerminateAsyncDiffThread();
 				if(dlg.DoModal() == IDOK)
 				{
 					Refresh();
 				}
+				else
+					StartAsyncDiffThread();
 			}
 			break;
 		case ID_REBASE_TO_VERSION:
 			{
-				if (m_bThreadRunning)
+				if (s_bThreadRunning)
 				{
 					CMessageBox::Show(GetParentHWND(), IDS_PROC_LOG_ONLYONCE, IDS_APPNAME, MB_ICONEXCLAMATION);
 					break;
@@ -736,10 +758,13 @@ void CGitLogList::ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CM
 					}
 				}
 
+				SafeTerminateAsyncDiffThread();
 				if(dlg.DoModal() == IDOK)
 				{
 					Refresh();
 				}
+				else
+					StartAsyncDiffThread();
 			}
 
 			break;

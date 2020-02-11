@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2008, 2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@
 #include "ColumnManager.h"
 #include "LoglistCommonResource.h"
 #include <iterator>
+#include "DPIAware.h"
 
 // registry version number of column-settings of both GitLogListBase and GitStatusListCtrl
 #define GITSLC_COL_VERSION 6
@@ -86,11 +87,13 @@ bool PropertyList::HasProperty(const CString& name) const
 #endif
 // registry access
 
-void ColumnManager::ReadSettings(DWORD defaultColumns, DWORD hideColumns, const CString& containerName, int maxsize, int* widthlist)
+void ColumnManager::ReadSettings(DWORD defaultColumns, DWORD hideColumns, const CString& containerName, DWORD version, int maxsize, int* widthlist)
 {
 	// defaults
 	DWORD selectedStandardColumns = defaultColumns & ~hideColumns;
 	m_dwDefaultColumns = defaultColumns & ~hideColumns;
+
+	m_dwVersion = version;
 
 	columns.resize(maxsize);
 	int power = 1;
@@ -112,8 +115,11 @@ void ColumnManager::ReadSettings(DWORD defaultColumns, DWORD hideColumns, const 
 	// where the settings are stored within the registry
 	registryPrefix = L"Software\\TortoiseGit\\StatusColumns\\" + containerName;
 
+	// version check works two fold, generally for the generic format and specifically for the listctrl
 	// we accept settings of current version only
-	bool valid = static_cast<DWORD>(CRegDWORD(registryPrefix + L"Version", 0xff)) == GITSLC_COL_VERSION;
+	bool valid = static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\StatusColumns\\Version", GITSLC_COL_VERSION)) == GITSLC_COL_VERSION;
+	// we accept settings of current version only
+	valid &= static_cast<DWORD>(CRegDWORD(registryPrefix + L"Version", 0xff)) == m_dwVersion;
 	if (valid)
 	{
 		// read (possibly different) column selection
@@ -156,8 +162,10 @@ void ColumnManager::ReadSettings(DWORD defaultColumns, DWORD hideColumns, const 
 
 void ColumnManager::WriteSettings() const
 {
+	CRegDWORD(L"Software\\TortoiseGit\\StatusColumns\\Version") = GITSLC_COL_VERSION;
+
 	CRegDWORD regVersion(registryPrefix + L"Version", 0, TRUE);
-	regVersion = GITSLC_COL_VERSION;
+	regVersion = m_dwVersion;
 
 	// write (possibly different) column selection
 	CRegDWORD regStandardColumns(registryPrefix, 0, TRUE);
@@ -424,7 +432,7 @@ void ColumnManager::ParseWidths(const CString& widths)
 			// a standard column
 			if (width != MAXLONG)
 			{
-				columns[i].width = width;
+				columns[i].width = CDPIAware::Instance().ScaleX(width);
 				columns[i].adjusted = true;
 			}
 		}
@@ -536,7 +544,7 @@ CString ColumnManager::GetWidthString() const
 	TCHAR buf[10] = { 0 };
 	for (size_t i = 0; i < itemName.size(); ++i)
 	{
-		_stprintf_s(buf, L"%08X", columns[i].adjusted ? columns[i].width : MAXLONG);
+		_stprintf_s(buf, L"%08X", columns[i].adjusted ? CDPIAware::Instance().UnscaleX(columns[i].width) : MAXLONG);
 		result += buf;
 	}
 

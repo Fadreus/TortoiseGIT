@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2003-2008, 2013-2015 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -350,7 +350,8 @@ void CGitStatusListCtrl::Init(DWORD dwColumns, const CString& sColumnInfoContain
 			};
 
 	m_ColumnManager.SetNames(standardColumnNames,GITSLC_NUMCOLUMNS);
-	m_ColumnManager.ReadSettings(m_dwDefaultColumns, 0xffffffff & ~(allowedColumns | m_dwDefaultColumns), sColumnInfoContainer, GITSLC_NUMCOLUMNS);
+	constexpr int columnVersion = 6; // adjust when changing number/names/etc. of columns
+	m_ColumnManager.ReadSettings(m_dwDefaultColumns, 0xffffffff & ~(allowedColumns | m_dwDefaultColumns), sColumnInfoContainer, columnVersion, GITSLC_NUMCOLUMNS);
 	m_ColumnManager.SetRightAlign(4);
 	m_ColumnManager.SetRightAlign(5);
 	m_ColumnManager.SetRightAlign(7);
@@ -1603,6 +1604,15 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 					if (!m_CurrentVersion.IsEmpty())
 					{
 						popup.AppendMenuIcon(IDGITLC_COMPAREWC, IDS_LOG_POPUP_COMPARE, IDI_DIFF);
+
+						CGitHash parentHash;
+						CString title;
+						if (GetParentCommitInfo(m_CurrentVersion, filepath->m_ParentNo & PARENT_MASK, parentHash, title))
+						{
+							CString str;
+							str.LoadString(IDS_LOG_POPUP_COMPARE_PARENT_WC);
+							popup.AppendMenuIcon(IDGITLC_COMPAREPARENTWC, str + L": " + title, IDI_DIFF);
+						}
 						bEntryAdded = true;
 					}
 				}
@@ -1676,25 +1686,14 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 
 				if ((m_dwContextMenus & GetContextMenuBit(IDGITLC_REVERTTOPARENT)) && !m_CurrentVersion.IsEmpty() && !(wcStatus & CTGitPath::LOGACTIONS_ADDED))
 				{
-					CString str;
-					str.LoadString(IDS_LOG_POPUP_REVERTTOPARENT);
-					CString revStr;
-					revStr.Format(L"%s^%d", static_cast<LPCTSTR>(m_CurrentVersion.ToString()), (filepath->m_ParentNo & PARENT_MASK) + 1);
-					GitRev rev;
 					CGitHash parentHash;
-					if (g_Git.GetHash(parentHash, revStr) == 0 && rev.GetCommit(parentHash.ToString()) == 0)
+					CString title;
+					if (GetParentCommitInfo(m_CurrentVersion, filepath->m_ParentNo & PARENT_MASK, parentHash, title))
 					{
-						CString commitTitle = rev.GetSubject();
-						if (commitTitle.GetLength() > 20)
-						{
-							commitTitle.Truncate(20);
-							commitTitle += L"...";
-						}
-						str.AppendFormat(L": \"%s\" (%s)", static_cast<LPCTSTR>(commitTitle), static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
+						CString str;
+						str.LoadString(IDS_LOG_POPUP_REVERTTOPARENT);
+						popup.AppendMenuIcon(IDGITLC_REVERTTOPARENT, str + L": " + title, IDI_REVERT);
 					}
-					else
-						str.AppendFormat(L" (%s)", static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
-					popup.AppendMenuIcon(IDGITLC_REVERTTOPARENT, str, IDI_REVERT);
 				}
 			}
 
@@ -2028,14 +2027,15 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 
 			// Compare current version and work copy.
 			case IDGITLC_COMPAREWC:
-				{
+			case IDGITLC_COMPAREPARENTWC:
+			{
 					if (!CheckMultipleDiffs())
 						break;
 					POSITION pos = GetFirstSelectedItemPosition();
 					while ( pos )
 					{
 						int index = GetNextSelectedItem(pos);
-						StartDiffWC(index);
+						StartDiffWC(index, cmd == IDGITLC_COMPAREPARENTWC);
 					}
 				}
 				break;
@@ -2162,10 +2162,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 					while ((index = GetNextSelectedItem(pos)) >= 0)
 						m_mapFilenameToChecked.erase(GetListEntry(index)->GetGitPathString());
 
-					if (GetLogicalParent() && GetLogicalParent()->GetSafeHwnd())
-						GetLogicalParent()->SendMessage(GITSLNM_NEEDSREFRESH);
-
-					SetRedraw(TRUE);
+					RefreshParent();
 				}
 				break;
 
@@ -2292,10 +2289,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 						sysProgressDlg.Stop();
 						if (needsFullRefresh && CRegDWORD(L"Software\\TortoiseGit\\RefreshFileListAfterResolvingConflict", TRUE) == TRUE)
 						{
-							CWnd* pParent = GetLogicalParent();
-							if (pParent && pParent->GetSafeHwnd())
-								pParent->SendMessage(GITSLNM_NEEDSREFRESH);
-							SetRedraw(TRUE);
+							RefreshParent();
 							break;
 						}
 						StoreScrollPos();
@@ -2314,12 +2308,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 						break;
 
 					SetRedraw(FALSE);
-					CWnd* pParent = GetLogicalParent();
-					if (pParent && pParent->GetSafeHwnd())
-					{
-						pParent->SendMessage(GITSLNM_NEEDSREFRESH);
-					}
-					SetRedraw(TRUE);
+					RefreshParent();
 				}
 				break;
 
@@ -2333,13 +2322,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 						break;
 
 					SetRedraw(FALSE);
-					CWnd* pParent = GetLogicalParent();
-					if (pParent && pParent->GetSafeHwnd())
-					{
-						pParent->SendMessage(GITSLNM_NEEDSREFRESH);
-					}
-
-					SetRedraw(TRUE);
+					RefreshParent();
 				}
 				break;
 
@@ -2352,11 +2335,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 						break;
 
 					SetRedraw(FALSE);
-					CWnd *pParent = GetLogicalParent();
-					if (pParent && pParent->GetSafeHwnd())
-						pParent->SendMessage(GITSLNM_NEEDSREFRESH);
-
-					SetRedraw(TRUE);
+					RefreshParent();
 				}
 				break;
 			case IDGITLC_COMMIT:
@@ -2655,7 +2634,7 @@ void CGitStatusListCtrl::SetGitIndexFlagsForSelectedFiles(UINT message, BOOL ass
 			continue;
 
 		size_t idx;
-		if (!git_index_find(&idx, gitindex, CUnicodeUtils::GetMulti(path->GetGitPathString(), CP_UTF8)))
+		if (!git_index_find(&idx, gitindex, CUnicodeUtils::GetUTF8(path->GetGitPathString())))
 		{
 			git_index_entry *e = const_cast<git_index_entry *>(git_index_get_byindex(gitindex, idx)); // HACK
 			if (assumevalid == BST_UNCHECKED)
@@ -2678,10 +2657,7 @@ void CGitStatusListCtrl::SetGitIndexFlagsForSelectedFiles(UINT message, BOOL ass
 		return;
 	}
 
-	if (nullptr != GetLogicalParent() && nullptr != GetLogicalParent()->GetSafeHwnd())
-		GetLogicalParent()->SendMessage(GITSLNM_NEEDSREFRESH);
-
-	SetRedraw(TRUE);
+	RefreshParent();
 }
 
 void CGitStatusListCtrl::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -2752,7 +2728,7 @@ void CGitStatusListCtrl::StartDiffTwo(int fileindex)
 		CGitDiff::Diff(GetParentHWND(), &file1, &file1, m_Rev1.ToString(), m_Rev2.ToString(), false, false, 0, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000));
 }
 
-void CGitStatusListCtrl::StartDiffWC(int fileindex)
+void CGitStatusListCtrl::StartDiffWC(int fileindex, bool parent)
 {
 	if(fileindex<0)
 		return;
@@ -2764,7 +2740,22 @@ void CGitStatusListCtrl::StartDiffWC(int fileindex)
 	CTGitPath file1 = *ptr;
 	file1.m_Action = 0; // reset action, so that diff is not started as added/deleted file; see issue #1757
 
-	CGitDiff::Diff(GetParentHWND(), &file1, &file1, GIT_REV_ZERO, m_CurrentVersion.ToString(), false, false, 0, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000));
+	CString version;
+	if (parent)
+	{
+		CGitHash parentHash;
+		CString title;
+		if (!GetParentCommitInfo(m_CurrentVersion, file1.m_ParentNo & PARENT_MASK, parentHash, title))
+		{
+			MessageBox(g_Git.GetGitLastErr(L"Could not get parent hash for \"" + m_CurrentVersion.ToString() + L"\"."), L"TortoiseGit", MB_ICONERROR);
+			return;
+		}
+		version = parentHash.ToString();
+	}
+	else
+		version = m_CurrentVersion.ToString();
+
+	CGitDiff::Diff(GetParentHWND(), &file1, &file1, GIT_REV_ZERO, version, false, false, 0, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000));
 }
 
 void CGitStatusListCtrl::StartDiff(int fileindex)
@@ -3876,7 +3867,7 @@ int CGitStatusListCtrl::UpdateWithGitPathList(CTGitPathList &list)
 	return 0;
 }
 
-int CGitStatusListCtrl::UpdateUnRevFileList(CTGitPathList &list)
+int CGitStatusListCtrl::InsertUnRevListFromPreCalculatedList(const CTGitPathList& list)
 {
 	CAutoWriteLock locker(m_guard);
 	m_UnRevFileList = list;
@@ -4213,6 +4204,34 @@ void CGitStatusListCtrl::FileSaveAs(CTGitPath *path)
 	}
 }
 
+bool CGitStatusListCtrl::GetParentCommitInfo(const CGitHash& hash, const int parentNo, CGitHash& parentHash, CString& title)
+{
+	if (hash.IsEmpty())
+		return false;
+
+	CString revStr;
+	revStr.Format(L"%s^%d", static_cast<LPCTSTR>(hash.ToString()), parentNo + 1);
+
+	if (g_Git.GetHash(parentHash, revStr) != 0)
+		return false;
+
+	GitRev rev;
+	if (rev.GetCommit(parentHash.ToString()) == 0)
+	{
+		CString commitTitle = rev.GetSubject();
+		if (commitTitle.GetLength() > 23) // 20 + length("...")
+		{
+			commitTitle.Truncate(20);
+			commitTitle += L"...";
+		}
+		title.Format(L"\"%s\" (%s)", static_cast<LPCTSTR>(commitTitle), static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
+	}
+	else
+		title.Format(L"(%s)", static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
+
+	return true;
+}
+
 int CGitStatusListCtrl::RevertSelectedItemToVersion(bool parent)
 {
 	CAutoReadLock locker(m_guard);
@@ -4228,17 +4247,15 @@ int CGitStatusListCtrl::RevertSelectedItemToVersion(bool parent)
 		CString version;
 		if (parent)
 		{
-			int parentNo = fentry->m_ParentNo & PARENT_MASK;
-			CString ref;
-			ref.Format(L"%s^%d", static_cast<LPCTSTR>(m_CurrentVersion.ToString()), parentNo + 1);
-			CGitHash hash;
-			if (g_Git.GetHash(hash, ref))
+			CGitHash parentHash;
+			CString title;
+			if (!GetParentCommitInfo(m_CurrentVersion, fentry->m_ParentNo & PARENT_MASK, parentHash, title))
 			{
-				MessageBox(g_Git.GetGitLastErr(L"Could not get hash of ref \"" + ref + L"\"."), L"TortoiseGit", MB_ICONERROR);
+				MessageBox(g_Git.GetGitLastErr(L"Could not get parent hash for \"" + m_CurrentVersion.ToString() + L"\"."), L"TortoiseGit", MB_ICONERROR);
 				continue;
 			}
 
-			version = hash.ToString();
+			version = parentHash.ToString();
 		}
 		else
 			version = m_CurrentVersion.ToString();
@@ -4367,10 +4384,7 @@ void CGitStatusListCtrl::DeleteSelectedFiles()
 
 		if (needWriteIndex)
 		{
-			CWnd* pParent = GetLogicalParent();
-			if (pParent && pParent->GetSafeHwnd())
-				pParent->SendMessage(GITSLNM_NEEDSREFRESH);
-			SetRedraw(TRUE);
+			RefreshParent();
 			return;
 		}
 
@@ -4673,9 +4687,23 @@ void CGitStatusListCtrl::SaveChangelists()
 	}
 }
 
-void CGitStatusListCtrl::PruneChangelists()
+void CGitStatusListCtrl::PruneChangelists(const CTGitPathList* root)
 {
 	CAutoReadLock locker(m_guard);
+
+	if (m_pathToChangelist.empty())
+		return;
+
+	CTGitPathList prefixList;
+	if (root)
+	{
+		if (!root->AreAllPathsDirectories())
+			return;
+
+		prefixList = *root;
+		prefixList.SortByPathname();
+	}
+
 	std::set<CString> unchecked;
 	int nListboxEntries = GetItemCount();
 	for (int nItem = 0; nItem < nListboxEntries; ++nItem)
@@ -4693,7 +4721,12 @@ void CGitStatusListCtrl::PruneChangelists()
 	while (it1 != unchecked.cend() && it2 != m_pathToChangelist.end())
 	{
 		if (*it1 > it2->first)
-			it2 = m_pathToChangelist.erase(it2);
+		{
+			if (prefixList.IsEmpty() || prefixList.IsAnyAncestorOf(it2->first))
+				it2 = m_pathToChangelist.erase(it2);
+			else
+				++it2;
+		}
 		else if (it2->first > *it1)
 			++it1;
 		else
@@ -4704,6 +4737,18 @@ void CGitStatusListCtrl::PruneChangelists()
 	}
 	while (it2 != m_pathToChangelist.end())
 	{
-		it2 = m_pathToChangelist.erase(it2);
+		if (prefixList.IsEmpty() || prefixList.IsAnyAncestorOf(it2->first))
+			it2 = m_pathToChangelist.erase(it2);
+		else
+			++it2;
 	}
 }
+
+void CGitStatusListCtrl::RefreshParent()
+{
+	auto pParent = GetLogicalParent();
+	if (pParent && pParent->GetSafeHwnd())
+		pParent->SendMessage(GITSLNM_NEEDSREFRESH);
+	SetRedraw(TRUE);
+}
+

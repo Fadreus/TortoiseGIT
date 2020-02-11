@@ -1317,7 +1317,7 @@
 #define IDS_FIRSTSTART_SSHHINT          1629
 #define IDC_GROUP_CLEAN_TYPE            1630
 #define IDS_FIRSTSTART_LANGUAGEHINT1    1630
-#define IDC_CHECK_AUTOCRLF              1631
+#define IDC_COMBO_AUTOCRLF              1631
 #define IDS_FIRSTSTART_LANGUAGEHINT2    1631
 #define IDC_CHECK_DIR_UNMANAGEDREPO     1631
 #define IDC_COMBO_SAFECRLF              1632
@@ -1387,18 +1387,29 @@
 #define IDS_STATUSLIST_CONTEXT_ADD_LINK 1664
 #define IDS_CHERRYPICK_EMPTY            1665
 #define IDS_NOGITREPO                   1666
+#define IDS_REVERTCOMMITS               1667
+#define IDS_COMMON_ANCESTOR             1668
 #define IDC_NOAUTOSELECTSUBMODULES      1669
+#define IDS_GITCHANGED_NEEDRESTART      1669
 #define IDC_COMMIT_DATEPICKER           1670
+#define IDS_CLONE_BARE_REPO_TT          1670
 #define IDC_COMMIT_TIMEPICKER           1671
 #define IDC_COMBOBOXEX_GOOD             1671
+#define IDS_CLONE_NO_CHECKOUT_TT        1671
 #define IDC_BUTTON_GOOD                 1672
+#define IDS_CLONE_RECURSIVE_TT          1672
 #define IDC_GROUP_STASHMESSAGE          1673
+#define IDS_CLONE_BRANCH_TT             1673
 #define IDC_STASHMESSAGE                1674
+#define IDS_CLONE_ORIGIN_NAME_TT        1674
 #define IDC_FOLLOWRENAMES               1675
+#define IDS_MERGESUCCESSFUL             1675
 #define IDC_TOGROUP                     1676
 #define IDC_IGNORE_WHITESPACE           1676
+#define IDS_PROC_SYNC_SWITCHTO          1676
 #define IDC_FROMHASH                    1677
 #define IDC_BLAME_ONLYFIRSTPARENT       1677
+#define IDS_CONFIGUREDEFAULT            1677
 #define IDC_FROMSUBJECT                 1678
 #define IDC_TOHASH                      1679
 #define IDC_TOSUBJECT                   1680
@@ -1611,8 +1622,11 @@
 #define IDS_LOG_FILTER_BY               1850
 #define IDC_STATICELEVATIONNEEDED       1850
 #define IDS_LOG_FILTER_PATHS            1851
+#define IDC_VIEWEFFECTIVEGITCONFIG      1851
 #define IDS_LOG_FILTER_AUTHORS          1852
+#define IDC_MERGEBLOCK                  1852
 #define IDS_LOG_FILTER_MESSAGES         1853
+#define IDC_TRUSTEXITCODE               1853
 #define IDS_LOG_FILTER_REVS             1854
 #define IDS_LOG_FILTER_REGEX            1855
 #define IDS_LOG_FILTER_BUGIDS           1856
@@ -1862,6 +1876,7 @@
 #define IDD_REVGRAPHFILTER              4584
 #define IDC_FROMREV                     4585
 #define IDD_USER_PASSWD                 4585
+#define ID_FIND                         4586
 #define IDC_TOREV                       4587
 #define IDD_SETTINGSCREDENTIAL          4591
 #define IDD_MERGEABORT                  4592
@@ -1873,6 +1888,7 @@
 #define IDD_FIRSTSTARTWIZARD_GIT        4598
 #define IDD_FIRSTSTARTWIZARD_AUTHENTICATION 4599
 #define IDD_FIRSTSTARTWIZARD_LANGUAGE   4600
+#define IDD_SELECTREMOTEREF             4601
 #define IDC_COMBOBOXEX_LOCAL_BRANCH     5000
 #define IDC_COMBOBOXEX_REMOTE_BRANCH    5001
 #define IDC_COMBOBOXEX_BAD              5001
@@ -2053,6 +2069,8 @@
 #define ID_SELECT_SEARCHFIELD           32873
 #define ID_EXITCLEARFILTER              32874
 #define ID_VIEW_SHOWBRANCHINGSANDMERGES 32874
+#define ID_VIEW_SHOWALLTAGS             32875
+#define ID_VIEW_ARROW_POINT_TO_MERGES   32876
 #define IDS_ERR_CHANGELIST_LOAD         32900
 #define IDS_ERR_CHANGELIST_SAVE         32901
 
@@ -2062,7 +2080,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        363
 #define _APS_NEXT_COMMAND_VALUE         32875
-#define _APS_NEXT_CONTROL_VALUE         1851
+#define _APS_NEXT_CONTROL_VALUE         1853
 #define _APS_NEXT_SYMED_VALUE           201
 #endif
 #endif

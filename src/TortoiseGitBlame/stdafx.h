@@ -13,7 +13,7 @@
 #define VC_EXTRALEAN            // Exclude rarely-used stuff from Windows headers
 #endif
 
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 
 #define NOMINMAX
 #include <algorithm>
@@ -34,6 +34,8 @@ using std::min;
 
 #include <afxdisp.h>        // MFC Automation classes
 #include <Commctrl.h>
+
+#include "SmartHandle.h"
 
 #include "git2.h"
 #include "SmartLibgit2Ref.h"

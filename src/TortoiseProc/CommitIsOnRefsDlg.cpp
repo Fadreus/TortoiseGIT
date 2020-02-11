@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2016-2019 - TortoiseGit
+// Copyright (C) 2016-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -214,9 +214,6 @@ void CCommitIsOnRefsDlg::OnBnClickedSelRevBtn()
 			if (str.IsEmpty())
 				return;
 
-			if (FillRevFromString(str))
-				return;
-
 			m_cRevEdit.SetWindowText(str);
 		}
 	}
@@ -224,40 +221,38 @@ void CCommitIsOnRefsDlg::OnBnClickedSelRevBtn()
 	if (entry == 1) /*Log*/
 	{
 		CLogDlg dlg;
+		if (dlg.IsThreadRunning())
+		{
+			CMessageBox::Show(GetSafeHwnd(), IDS_PROC_LOG_ONLYONCE, IDS_APPNAME, MB_ICONEXCLAMATION);
+			return;
+		}
 		CString revision;
 		m_cRevEdit.GetWindowText(revision);
 		dlg.SetParams(CTGitPath(), CTGitPath(), revision, revision, 0);
 		dlg.SetSelect(true);
-		if (dlg.DoModal() == IDOK)
+		if (dlg.DoModal() == IDOK && !dlg.GetSelectedHash().empty())
 		{
-			if (dlg.GetSelectedHash().empty())
-				return;
-
-			if (FillRevFromString(dlg.GetSelectedHash().at(0).ToString()))
-				return;
-
 			m_cRevEdit.SetWindowText(dlg.GetSelectedHash().at(0).ToString());
+			BringWindowToTop(); /* cf. issue #3493 */
 		}
 		else
+		{
+			BringWindowToTop(); /* cf. issue #3493 */
 			return;
+		}
 	}
 
 	if (entry == 2) /*RefLog*/
 	{
 		CRefLogDlg dlg;
 		if (dlg.DoModal() == IDOK)
-		{
-			if (FillRevFromString(dlg.m_SelectedHash.ToString()))
-				return;
-
 			m_cRevEdit.SetWindowText(dlg.m_SelectedHash.ToString());
-		}
 		else
 			return;
 	}
 
+	m_cRevEdit.SetFocus();
 	StartGetRefsThread();
-	KillTimer(IDT_INPUT);
 }
 
 LRESULT CCommitIsOnRefsDlg::OnEnChangeCommit(WPARAM, LPARAM)
@@ -463,6 +458,7 @@ UINT CCommitIsOnRefsDlg::GetRefsThread()
 		InterlockedExchange(&m_bThreadRunning, FALSE);
 		return 0;
 	}
+	m_gitrev.ApplyMailmap();
 
 	if (g_Git.GetRefsCommitIsOn(m_RefList, m_gitrev.m_CommitHash, true, true, CGit::BRANCH_ALL))
 	{
@@ -492,9 +488,7 @@ BOOL CCommitIsOnRefsDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 
 LRESULT CCommitIsOnRefsDlg::OnGettingRefsFinished(WPARAM, LPARAM)
 {
-	DialogEnableWindow(IDC_LOG, TRUE);
 	DialogEnableWindow(IDC_SELREF, TRUE);
-	DialogEnableWindow(IDC_FILTER, TRUE);
 
 	if (m_Rev.IsEmpty())
 	{
@@ -515,6 +509,8 @@ LRESULT CCommitIsOnRefsDlg::OnGettingRefsFinished(WPARAM, LPARAM)
 		return 0;
 	}
 
+	DialogEnableWindow(IDC_LOG, TRUE);
+	DialogEnableWindow(IDC_FILTER, TRUE);
 	SetDlgItemText(IDC_STATIC_SUBJECT, m_gitrev.m_CommitHash.ToString(g_Git.GetShortHASHLength()) + L": " + m_gitrev.GetSubject());
 	if (!m_gitrev.m_CommitHash.IsEmpty())
 		m_tooltips.AddTool(IDC_STATIC_SUBJECT, CLoglistUtils::FormatDateAndTime(m_gitrev.GetAuthorDate(), DATE_SHORTDATE) + L"  " + m_gitrev.GetAuthorName());

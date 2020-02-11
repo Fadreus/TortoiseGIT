@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2003-2008 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -24,16 +24,19 @@
 #include "PathUtils.h"
 #include "DirFileEnum.h"
 #include "../version.h"
+#include "I18NHelper.h"
 #include "Git.h"
 #include "MessageBox.h"
 #include "GitForWindows.h"
 #include "Libraries.h"
+#include "../../TGitCache/CacheInterface.h"
 
 IMPLEMENT_DYNAMIC(CSetMainPage, ISettingsPropPage)
 CSetMainPage::CSetMainPage()
 	: ISettingsPropPage(CSetMainPage::IDD)
 	, m_bCheckNewer(TRUE)
 	, m_dwLanguage(0)
+	, m_dwMsysGitVersion(CRegDWORD(L"Software\\TortoiseGit\\git_cached_version", 0))
 {
 	m_regLanguage = CRegDWORD(L"Software\\TortoiseGit\\LanguageID", 1033);
 
@@ -107,11 +110,7 @@ BOOL CSetMainPage::OnInitDialog()
 		CString filename = finder.GetFileName();
 		if (CStringUtils::StartsWithI(filename, L"TortoiseProc"))
 		{
-			CString sVer = _T(STRPRODUCTVER);
-			sVer = sVer.Left(sVer.ReverseFind('.'));
-			CString sFileVer = CPathUtils::GetVersionFromFile(file);
-			sFileVer = sFileVer.Left(sFileVer.ReverseFind('.'));
-			if (sFileVer.Compare(sVer)!=0)
+			if (!CI18NHelper::DoVersionStringsMatch(CPathUtils::GetVersionFromFile(file), _T(STRPRODUCTVER)))
 				continue;
 			CString sLoc = filename.Mid(static_cast<int>(wcslen(L"TortoiseProc")));
 			sLoc = sLoc.Left(sLoc.GetLength() - static_cast<int>(wcslen(L".dll"))); // cut off ".dll"
@@ -176,18 +175,26 @@ BOOL CSetMainPage::OnApply()
 	UpdateData(FALSE);
 
 	Store(m_dwLanguage, m_regLanguage);
+	bool gitChanged = false;
 	if (m_sMsysGitPath.Compare(CString(m_regMsysGitPath)) ||
 		this->m_sMsysGitExtranPath.Compare(CString(m_regMsysGitExtranPath)))
 	{
 		Store(m_sMsysGitPath, m_regMsysGitPath);
 		Store(m_sMsysGitExtranPath, m_regMsysGitExtranPath);
-		m_restart = Restart_Cache;
+		gitChanged = true;
 	}
 	Store(m_bCheckNewer, m_regCheckNewer);
 
 	// only complete if the msysgit directory is ok
 	if (!CheckGitExe(GetSafeHwnd(), m_sMsysGitPath, m_sMsysGitExtranPath, IDC_MSYSGIT_VER, [&](UINT helpid) { HtmlHelp(0x20000 + helpid); }))
 		return 0;
+
+	if (gitChanged || g_Git.ms_LastMsysGitVersion != static_cast<int>(m_dwMsysGitVersion))
+	{
+		if (HWND hWnd = ::FindWindow(TGIT_CACHE_WINDOW_NAME, TGIT_CACHE_WINDOW_NAME); hWnd)
+			::PostMessage(hWnd, WM_CLOSE, reinterpret_cast<WPARAM>(nullptr), reinterpret_cast<LPARAM>(nullptr));
+		CMessageBox::Show(GetSafeHwnd(), IDS_GITCHANGED_NEEDRESTART, IDS_APPNAME, MB_ICONINFORMATION);
+	}
 
 	SetModified(FALSE);
 	return ISettingsPropPage::OnApply();

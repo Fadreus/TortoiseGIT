@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005 - 2006,2010 - Will Dean, Stefan Kueng
-// Copyright (C) 2008-2014, 2016-2019 - TortoiseGit
+// Copyright (C) 2008-2014, 2016-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -265,7 +265,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				HMENU hMenu = CreatePopupMenu();
 				if(hMenu)
 				{
-					bool enabled = static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\CacheType", GetSystemMetrics(SM_REMOTESESSION)) ? ShellCache::dll : ShellCache::exe) != ShellCache::none;
+					bool enabled = static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\CacheType", GetSystemMetrics(SM_REMOTESESSION) ? ShellCache::dll : ShellCache::exe)) != ShellCache::none;
 					InsertMenu(hMenu, static_cast<UINT>(-1), MF_BYPOSITION, TRAYPOP_ENABLE, enabled ? L"Disable Status Cache" : L"Enable Status Cache");
 					InsertMenu(hMenu, static_cast<UINT>(-1), MF_BYPOSITION, TRAYPOP_EXIT, L"Exit");
 					SetForegroundWindow(hWnd);
@@ -638,6 +638,10 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 			return 1;
 		}
 
+		// sanitize request
+		request.path[_countof(request.path) - 1] = L'\0';
+		request.flags &= TGITCACHE_FLAGS_MASK;
+
 		DWORD responseLength;
 		GetAnswerToRequest(&request, &response, &responseLength);
 
@@ -697,6 +701,7 @@ DWORD WINAPI CommandThread(LPVOID lpvParam)
 			return 1;
 		}
 
+		command.path[_countof(command.path) - 1] = L'\0';
 		switch (command.command)
 		{
 			case TGITCACHECOMMAND_END:

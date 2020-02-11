@@ -656,8 +656,12 @@ BEGIN
     CONTROL         "&External",IDC_EXTMERGE_ON,"Button",BS_AUTORADIOBUTTON,89,23,76,10
     EDITTEXT        IDC_EXTMERGE,7,41,263,14,ES_AUTOHSCROLL | WS_GROUP
     PUSHBUTTON      "...",IDC_EXTMERGEBROWSE,279,41,14,14
-    LTEXT           "Click on ""Advanced"" to specify alternate merge programs based on file extension",IDC_STATIC,7,70,160,33
-    PUSHBUTTON      "&Advanced...",IDC_EXTMERGEADVANCED,206,73,87,14
+    CONTROL         "Block TortoiseGit while executing the external merge tool",IDC_MERGEBLOCK,
+                    "Button",BS_AUTOCHECKBOX | BS_TOP | BS_MULTILINE | WS_TABSTOP,7,61,286,22
+    CONTROL         "Trust the exitcode of the external mege tool for auto resolving",IDC_TRUSTEXITCODE,
+                    "Button",BS_AUTOCHECKBOX | BS_TOP | BS_MULTILINE | WS_TABSTOP,7,85,286,22
+    LTEXT           "Click on ""Advanced"" to specify alternate merge programs based on file extension",IDC_STATIC,7,108,160,33
+    PUSHBUTTON      "&Advanced...",IDC_EXTMERGEADVANCED,206,111,87,14
 END
 
 IDD_SETTINGSLOOKANDFEEL DIALOGEX 0, 0, 301, 238
@@ -677,12 +681,12 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,220,100,10
 END
 
-IDD_SETTINGSDIALOGS DIALOGEX 0, 0, 301, 290
+IDD_SETTINGSDIALOGS DIALOGEX 0, 0, 301, 274
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General::Dialogs 1"
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
 BEGIN
-    GROUPBOX        "Log messages",IDC_STATIC,7,7,287,275
+    GROUPBOX        "Log messages",IDC_STATIC,7,7,287,259
     LTEXT           "Default limitation of log messages:",IDC_STATIC,14,20,140,8,SS_CENTERIMAGE
     EDITTEXT        IDC_DEFAULT_NUMBER_OF,253,18,31,13,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
     COMBOBOX        IDC_DEFAULT_SCALE,156,18,92,47,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -708,24 +712,23 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,156,270,10
     CONTROL         "Display branch revision number",IDC_SHOWREVCOUNTER,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,169,270,10
-    CONTROL         "Use .mailmap",IDC_USEMAILMAP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,183,270,10
-    GROUPBOX        "Describe",IDC_STATIC,14,197,272,76
-    CONTROL         "Show describe in log",IDC_SHOWDESCRIBE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,210,253,10
-    LTEXT           "Describe Strategy",IDC_STATIC,19,225,84,8
-    COMBOBOX        IDC_DESCRIBESTRATEGY,107,223,115,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Abbreviated size",IDC_STATIC,19,242,84,8
-    EDITTEXT        IDC_DESCRIBEABBREVIATEDSIZE,107,239,40,14,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
-    CONTROL         "Always show long format",IDC_DESCRIBEALWAYSLONG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,164,241,120,10
+    GROUPBOX        "Describe",IDC_STATIC,14,183,272,76
+    CONTROL         "Show describe in log",IDC_SHOWDESCRIBE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,196,253,10
+    LTEXT           "Describe Strategy",IDC_STATIC,19,211,84,8
+    COMBOBOX        IDC_DESCRIBESTRATEGY,107,209,115,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Abbreviated size",IDC_STATIC,19,228,84,8
+    EDITTEXT        IDC_DESCRIBEABBREVIATEDSIZE,107,225,40,14,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
+    CONTROL         "Always show long format",IDC_DESCRIBEALWAYSLONG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,164,227,120,10
     CONTROL         "Only follow first parent",IDC_DESCRIBEONLYFIRSTPARENT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,258,253,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,244,253,10
 END
 
-IDD_SETTINGSDIALOGS2 DIALOGEX 0, 0, 301, 266
+IDD_SETTINGSDIALOGS2 DIALOGEX 0, 0, 301, 277
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General::Dialogs 2"
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
 BEGIN
-    GROUPBOX        "Misc",IDC_STATIC,7,8,287,136
+    GROUPBOX        "Misc",IDC_STATIC,7,8,287,149
     LTEXT           "&Autoclose Git.exe dialog:",IDC_STATIC,14,16,85,16,SS_CENTERIMAGE
     COMBOBOX        IDC_AUTOCLOSECOMBO,107,18,177,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Use recycle bin when reverting",IDC_USERECYCLEBIN,
@@ -743,20 +746,21 @@ BEGIN
     CONTROL         "Disable sounds",IDC_NOSOUNDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,115,270,10
     CONTROL         "Include FETCH_HEAD in branch selection boxes",IDC_BRANCHESINCLUDEFETCHHEAD,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,129,270,10
-    GROUPBOX        "Commit",IDC_COMMITGROUP,7,145,287,114
+    CONTROL         "Use .mailmap",IDC_USEMAILMAP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,143,270,10
+    GROUPBOX        "Commit",IDC_COMMITGROUP,7,159,286,112
     CONTROL         "&Use auto-completion of file paths and keywords",IDC_AUTOCOMPLETION,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,159,271,10
-    LTEXT           "&Timeout in seconds to stop the auto-completion parsing",IDC_AUTOCOMPLETIONTIMEOUTLABEL,14,175,231,8,SS_NOTIFY
-    EDITTEXT        IDC_AUTOCOMPLETIONTIMEOUT,252,175,31,12,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
-    LTEXT           "Max. items to keep in the log message history",IDC_MAXHISTORYLABEL,14,193,226,8,SS_NOTIFY
-    EDITTEXT        IDC_MAXHISTORY,252,190,31,14,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,170,271,10
+    LTEXT           "&Timeout in seconds to stop the auto-completion parsing",IDC_AUTOCOMPLETIONTIMEOUTLABEL,14,185,231,8,SS_NOTIFY
+    EDITTEXT        IDC_AUTOCOMPLETIONTIMEOUT,252,185,31,12,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
+    LTEXT           "Max. items to keep in the log message history",IDC_MAXHISTORYLABEL,14,203,226,8,SS_NOTIFY
+    EDITTEXT        IDC_MAXHISTORY,252,203,31,12,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
     CONTROL         "Select items automatically",IDC_SELECTFILESONCOMMIT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,207,270,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,217,270,10
     CONTROL         "Do not auto-select ""missing"" files (deleted, but unstaged)",IDC_NOAUTOSELECTMISSING,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,220,270,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,230,270,10
     CONTROL         "Strip lines starting with ""#"" in commit message",IDC_STRIPCOMMENTEDLINES,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,234,270,10
-    LTEXT           "Further options for the commit dialog are on Dialogs 3 page.",IDC_STATIC,14,247,270,9
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,244,270,10
+    LTEXT           "Further options for the commit dialog are on Dialogs 3 page.",IDC_STATIC,14,257,270,9
 END
 
 IDD_RESOLVE DIALOGEX 0, 0, 289, 154
@@ -772,15 +776,15 @@ BEGIN
     LTEXT           "Reminder: Commit your change after resolve",IDC_STATIC_REMINDER,133,119,149,8
 END
 
-IDD_DIFFFILES DIALOGEX 0, 0, 301, 270
+IDD_DIFFFILES DIALOGEX 0, 0, 301, 280
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 CAPTION "Changed Files"
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
 BEGIN
     LTEXT           "Difference between",IDC_DIFFSTATIC1,7,7,125,8
-    PUSHBUTTON      "Diff Options",IDC_DIFFOPTION,127,4,73,14,BS_CHECKBOX
-    PUSHBUTTON      "",IDC_SWITCHLEFTRIGHT,262,4,21,14,BS_ICON
-    PUSHBUTTON      "Show log",IDC_LOG,203,4,52,14
+    CHECKBOX        "Diff Options",IDC_DIFFOPTION,140,4,73,14,BS_PUSHLIKE
+    PUSHBUTTON      "",IDC_SWITCHLEFTRIGHT,273,4,21,14,BS_ICON
+    PUSHBUTTON      "Show log",IDC_LOG,217,4,52,14
     GROUPBOX        "Version 1 (Base)",IDC_REV1GROUP,6,16,288,45
     EDITTEXT        IDC_REV1EDIT,11,28,213,14,ES_AUTOHSCROLL | ES_WANTRETURN
     PUSHBUTTON      "HEAD",IDC_REV1BTN,230,27,57,14
@@ -791,6 +795,7 @@ BEGIN
     EDITTEXT        IDC_SECONDURL,11,94,276,15,ES_MULTILINE | ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER
     EDITTEXT        IDC_FILTER,7,115,287,14,ES_MULTILINE | ES_AUTOHSCROLL
     CONTROL         "",IDC_FILELIST,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,137,287,126
+    RTEXT           "View Patch>>",IDC_VIEW_PATCH,218,265,76,8
 END
 
 IDD_SETTINGSCOLORS_2 DIALOGEX 0, 0, 300, 217
@@ -1409,18 +1414,18 @@ BEGIN
     PUSHBUTTON      "",IDC_COLOR_LINE3,158,54,101,14
     LTEXT           "LINE4",IDC_STATIC,14,74,137,8
     PUSHBUTTON      "",IDC_COLOR_LINE4,158,71,101,14
-    LTEXT           "LINE5",IDC_STATIC,14,90,137,8
+    LTEXT           "LINE5",IDC_STATIC,14,91,137,8
     PUSHBUTTON      "",IDC_COLOR_LINE5,158,88,101,14
-    LTEXT           "LINE6",IDC_STATIC,14,107,135,8
-    PUSHBUTTON      "",IDC_COLOR_LINE6,158,104,101,14
+    LTEXT           "LINE6",IDC_STATIC,14,108,135,8
+    PUSHBUTTON      "",IDC_COLOR_LINE6,158,105,101,14
     LTEXT           "LINE7",IDC_STATIC,14,125,137,8
     PUSHBUTTON      "",IDC_COLOR_LINE7,158,122,101,14
-    LTEXT           "LINE8",IDC_STATIC,14,141,137,8
-    PUSHBUTTON      "",IDC_COLOR_LINE8,158,138,101,14
-    LTEXT           "Line width",IDC_STATIC,14,157,33,8
+    LTEXT           "LINE8",IDC_STATIC,14,142,137,8
+    PUSHBUTTON      "",IDC_COLOR_LINE8,158,139,101,14
+    LTEXT           "Line width",IDC_STATIC,14,159,33,8
     COMBOBOX        IDC_LOGGRAPHLINEWIDTH,158,156,48,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Node size",IDC_STATIC,14,176,32,8
-    COMBOBOX        IDC_LOGGRAPHNODESIZE,158,174,48,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_LOGGRAPHNODESIZE,158,173,48,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Restore Default",IDC_RESTORE,211,196,82,14
 END
 
@@ -1507,7 +1512,7 @@ BEGIN
 END
 
 IDD_REFLOG DIALOGEX 0, 0, 356, 196
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 CAPTION "RefLog"
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
 BEGIN
@@ -1568,14 +1573,16 @@ BEGIN
     EDITTEXT        IDC_GIT_USERESINGNINGKEY,68,82,150,12,ES_AUTOHSCROLL
     CONTROL         "inherit",IDC_CHECK_INHERIT_KEYID,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,224,82,60,10
     GROUPBOX        "Auto CrLf convert",IDC_STATIC,7,106,286,29
-    CONTROL         "Auto&Crlf",IDC_CHECK_AUTOCRLF,"Button",BS_AUTO3STATE | WS_TABSTOP,14,119,81,10
-    LTEXT           "Sa&feCrLf:",IDC_STATIC,104,119,32,8
-    COMBOBOX        IDC_COMBO_SAFECRLF,141,117,44,12,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Auto&CrLf:",IDC_STATIC,14,119,37,8
+    COMBOBOX        IDC_COMBO_AUTOCRLF,54,117,44,12,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Sa&feCrLf:",IDC_STATIC,112,119,32,8
+    COMBOBOX        IDC_COMBO_SAFECRLF,149,117,44,12,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "QuotePath",IDC_CHECK_QUOTEPATH,"Button",BS_AUTO3STATE | WS_TABSTOP,14,140,279,10
     LTEXT           "Save to:",IDC_STATIC,14,157,98,11
     COMBOBOX        IDC_COMBO_SETTINGS_SAFETO,113,156,105,15,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Edit &local .git/config",IDC_EDITLOCALGITCONFIG,14,178,90,14
     PUSHBUTTON      "Edit .tgitconfig",IDC_EDITTGITCONFIG,14,196,90,14
+    PUSHBUTTON      "&View effective config",IDC_VIEWEFFECTIVEGITCONFIG,14,214,90,14
     PUSHBUTTON      "Edit gl&obal .gitconfig",IDC_EDITGLOBALGITCONFIG,109,178,90,14
     PUSHBUTTON      "Edit global &XDG git/config",IDC_EDITGLOBALXDGGITCONFIG,109,196,90,14,NOT WS_VISIBLE
     PUSHBUTTON      "Edit s&ystemwide gitconfig",IDC_EDITSYSTEMGITCONFIG,203,178,90,14
@@ -1866,7 +1873,7 @@ BEGIN
 END
 
 IDD_BROWSE_REFS DIALOGEX 0, 0, 465, 255
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_APPWINDOW
 CAPTION "Browse references"
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
@@ -2138,7 +2145,7 @@ IDD_FINDBAR DIALOGEX 0, 0, 377, 21
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
 BEGIN
-    PUSHBUTTON      "",IDC_FINDEXIT,0,3,15,14,BS_ICON | NOT WS_TABSTOP
+    PUSHBUTTON      "",IDC_FINDEXIT,0,2,15,14,BS_ICON | NOT WS_TABSTOP
     LTEXT           "Find:",IDC_STATIC,19,5,41,8
     EDITTEXT        IDC_FINDTEXT,65,2,55,14,ES_AUTOHSCROLL
     PUSHBUTTON      "< &Previous",IDC_FINDPREV,125,2,80,14
@@ -2225,6 +2232,19 @@ BEGIN
     LTEXT           "",IDC_LINK,17,110,289,10
     PUSHBUTTON      "Refresh",IDC_REFRESH,245,80,61,13
     LTEXT           "Download language packs:",IDC_STATIC,17,100,289,8
+END
+
+IDD_SELECTREMOTEREF DIALOGEX 0, 0, 293, 66
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Select remote ref - TortoiseGit"
+FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
+BEGIN
+    LTEXT           "Remote:",IDC_STATIC,7,7,28,8
+    EDITTEXT        IDC_EDIT_REMOTE,104,7,182,14,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Remote &Branch:",IDC_STATIC,7,26,97,8
+    CONTROL         "",IDC_REMOTE_BRANCH,"ComboBoxEx32",CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP,104,25,182,140
+    DEFPUSHBUTTON   "OK",IDOK,159,45,59,14,WS_DISABLED
+    PUSHBUTTON      "Cancel",IDCANCEL,227,45,59,14
 END
 
 
@@ -2504,7 +2524,7 @@ BEGIN
         VERTGUIDE, 272
         VERTGUIDE, 284
         TOPMARGIN, 7
-        BOTTOMMARGIN, 282
+        BOTTOMMARGIN, 266
     END
 
     IDD_SETTINGSDIALOGS2, DIALOG
@@ -2518,7 +2538,7 @@ BEGIN
         VERTGUIDE, 272
         VERTGUIDE, 284
         TOPMARGIN, 7
-        BOTTOMMARGIN, 259
+        BOTTOMMARGIN, 270
     END
 
     IDD_RESOLVE, DIALOG
@@ -2535,7 +2555,7 @@ BEGIN
         RIGHTMARGIN, 294
         VERTGUIDE, 193
         TOPMARGIN, 7
-        BOTTOMMARGIN, 263
+        BOTTOMMARGIN, 273
     END
 
     IDD_SETTINGSCOLORS_2, DIALOG
@@ -3194,6 +3214,15 @@ BEGIN
         BOTTOMMARGIN, 184
         HORZGUIDE, 176
     END
+
+    IDD_SELECTREMOTEREF, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 286
+        VERTGUIDE, 104
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 59
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -3217,6 +3246,8 @@ BEGIN
     BUTTON      ID_VIEW_FILTER
     SEPARATOR
     BUTTON      ID_VIEW_SHOWOVERVIEW
+    SEPARATOR
+    BUTTON      ID_FIND
 END
 
 
@@ -3246,6 +3277,8 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Show Ove&rview",              ID_VIEW_SHOWOVERVIEW
         MENUITEM "Show branchings and &merges", ID_VIEW_SHOWBRANCHINGSANDMERGES
+        MENUITEM "Show all tags",               ID_VIEW_SHOWALLTAGS
+        MENUITEM "Arrows point towards merges", ID_VIEW_ARROW_POINT_TO_MERGES
     END
     POPUP "&Git"
     BEGIN
@@ -3795,6 +3828,20 @@ BEGIN
     IDS_STATUSLIST_CONTEXT_ADD_LINK "Add as Symlink"
     IDS_CHERRYPICK_EMPTY    "The current commit will be empty (e.g., due to conflict resolution). Skip the commit or keep the message only commit?"
     IDS_NOGITREPO           "No valid git repository found."
+    IDS_REVERTCOMMITS       "Revert the selected commit(s)?"
+    IDS_COMMON_ANCESTOR     "Use common ancestor (A...B diff)"
+    IDS_GITCHANGED_NEEDRESTART 
+                            "Please restart TortoiseGit for the changes of git.exe to take effect."
+    IDS_CLONE_BARE_REPO_TT  "Clone into a git repository without the working tree."
+    IDS_CLONE_NO_CHECKOUT_TT 
+                            "No checkout of HEAD is performed after the clone is complete.\nThis makes the working tree empty."
+    IDS_CLONE_RECURSIVE_TT  "Submodules are initialized and cloned using their default settings."
+    IDS_CLONE_BRANCH_TT     "Instead of pointing the newly created HEAD to the branch pointed to by the cloned repository’s HEAD, point to specific branch instead."
+    IDS_CLONE_ORIGIN_NAME_TT 
+                            "Instead of using the remote name ""origin"" to keep track of the upstream repository, use the specific name."
+    IDS_MERGESUCCESSFUL     "Was the merge of\n%s\nsuccessful?"
+    IDS_PROC_SYNC_SWITCHTO  "Switch to ""%s"""
+    IDS_CONFIGUREDEFAULT    "Configure default"
 END
 
 STRINGTABLE
@@ -4635,7 +4682,7 @@ BEGIN
     IDS_PROC_FASTFORWARD    "Fast Forward"
     IDS_PROC_EVERYTHINGUPDATED "Everything updated."
     IDS_PROC_SYNC_PULLWRONGBRANCH 
-                            "Pull requires the selected local branch to be the current branch."
+                            "Pull requires the selected local branch to be the current branch.\nDo you want to switch to the selected branch?"
     IDS_PROC_SYNC_REFRESHING "Refreshing..."
     IDS_PROC_SYNC_COMMITSAHEAD "%1!d! commits ahead ""%2!s!"""
     IDS_PROC_SYNC_WAINTINPUT "Waiting for input"

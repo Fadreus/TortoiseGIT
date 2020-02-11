@@ -5,7 +5,7 @@
 #pragma once
 #define XMESSAGEBOX_APPREGPATH "Software\\TortoiseGit\\"
 
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 
 #define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS	// some CString constructors will be explicit
 
@@ -36,6 +36,8 @@ using std::min;
 #include <afxtaskdialog.h>
 
 #include <atlbase.h>
+
+#include "SmartHandle.h"
 
 #include "git2.h"
 #include "SmartLibgit2Ref.h"

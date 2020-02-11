@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 // Copyright (C) 2003-2008, 2012-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -34,18 +34,19 @@
 #include "SmartHandle.h"
 #include "Commands\Command.h"
 #include "../version.h"
+#include "I18NHelper.h"
 #include "JumpListHelpers.h"
 #include "ConfigureGitExe.h"
 #include "Libraries.h"
 #include "TaskbarUUID.h"
 #include "ProjectProperties.h"
 #include "HistoryCombo.h"
-#include <math.h>
 #include <random>
 #include "SendMail.h"
 #include "WindowsCredentialsStore.h"
 #include "FirstStartWizard.h"
 #include "AnimationManager.h"
+#include "../TGitCache/CacheInterface.h"
 
 #define STRUCT_IOVEC_DEFINED
 
@@ -76,9 +77,6 @@ CTortoiseProcApp::CTortoiseProcApp()
 	m_bSaveState = FALSE;
 	retSuccess = false;
 	m_gdiplusToken = NULL;
-#if defined (_WIN64) && _MSC_VER == 1800
-	_set_FMA3_enable(0);
-#endif
 }
 
 CTortoiseProcApp::~CTortoiseProcApp()
@@ -124,9 +122,7 @@ BOOL CTortoiseProcApp::InitInstance()
 	{
 		langDll.Format(L"%sLanguages\\TortoiseProc%ld.dll", static_cast<LPCTSTR>(CPathUtils::GetAppParentDirectory()), langId);
 
-		CString sVer = _T(STRPRODUCTVER);
-		CString sFileVer = CPathUtils::GetVersionFromFile(langDll);
-		if (sFileVer == sVer)
+		if (CI18NHelper::DoVersionStringsMatch(CPathUtils::GetVersionFromFile(langDll), _T(STRPRODUCTVER)))
 		{
 			HINSTANCE hInst = LoadLibrary(langDll);
 			if (hInst)
@@ -150,52 +146,8 @@ BOOL CTortoiseProcApp::InitInstance()
 		langStr.Format(L"%ld", langId);
 		CCrashReport::Instance().AddUserInfoToReport(L"LanguageID", langStr);
 	}
-	TCHAR buf[6] = { 0 };
-	wcscpy_s(buf, L"en");
-	langId = loc;
-	// MFC uses a help file with the same name as the application by default,
-	// which means we have to change that default to our language specific help files
-	CString sHelppath = CPathUtils::GetAppDirectory() + L"TortoiseGit_en.chm";
 	free((void*)m_pszHelpFilePath);
-	m_pszHelpFilePath=_wcsdup(sHelppath);
-	sHelppath = CPathUtils::GetAppParentDirectory() + L"Languages\\TortoiseGit_en.chm";
-	do
-	{
-		CString sLang = L"_";
-		if (GetLocaleInfo(MAKELCID(langId, SORT_DEFAULT), LOCALE_SISO639LANGNAME, buf, _countof(buf)))
-		{
-			sLang += buf;
-			sHelppath.Replace(L"_en", sLang);
-			if (PathFileExists(sHelppath))
-			{
-				free((void*)m_pszHelpFilePath);
-				m_pszHelpFilePath=_wcsdup(sHelppath);
-				break;
-			}
-		}
-		sHelppath.Replace(sLang, L"_en");
-		if (GetLocaleInfo(MAKELCID(langId, SORT_DEFAULT), LOCALE_SISO3166CTRYNAME, buf, _countof(buf)))
-		{
-			sLang += L'_';
-			sLang += buf;
-			sHelppath.Replace(L"_en", sLang);
-			if (PathFileExists(sHelppath))
-			{
-				free((void*)m_pszHelpFilePath);
-				m_pszHelpFilePath=_wcsdup(sHelppath);
-				break;
-			}
-		}
-		sHelppath.Replace(sLang, L"_en");
-
-		DWORD lid = SUBLANGID(langId);
-		lid--;
-		if (lid > 0)
-			langId = MAKELANGID(PRIMARYLANGID(langId), lid);
-		else
-			langId = 0;
-	} while (langId);
-	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Set Help Filename %s\n", m_pszHelpFilePath);
+	m_pszHelpFilePath = _wcsdup(CPathUtils::GetAppDirectory() + L"TortoiseGit_en.chm");
 	setlocale(LC_ALL, "");
 
 	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Initializing UI components ...\n");
@@ -269,8 +221,17 @@ BOOL CTortoiseProcApp::InitInstance()
 		}
 		return FALSE;
 	}
+	auto oldGitVersion = static_cast<int>(CRegDWORD(L"Software\\TortoiseGit\\git_cached_version", 0));
 	if (!CConfigureGitExe::CheckGitVersion(hWndExplorer))
 		return FALSE;
+	// Git >= 2.24 has new config file locations
+	if (CGit::ms_LastMsysGitVersion != oldGitVersion && (oldGitVersion == 0 || oldGitVersion < ConvertVersionToInt(2, 24, 0) && CGit::ms_LastMsysGitVersion >= ConvertVersionToInt(2, 24, 0)))
+	{
+		if (HWND hWnd = ::FindWindow(TGIT_CACHE_WINDOW_NAME, TGIT_CACHE_WINDOW_NAME); hWnd)
+			::PostMessage(hWnd, WM_CLOSE, reinterpret_cast<WPARAM>(nullptr), reinterpret_cast<LPARAM>(nullptr));
+		CMessageBox::Show(hWndExplorer, IDS_GITCHANGED_NEEDRESTART, IDS_APPNAME, MB_ICONINFORMATION);
+		return FALSE;
+	}
 
 	{
 		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Registering Crash Report ...\n");
@@ -617,6 +578,23 @@ void CTortoiseProcApp::CheckUpgrade()
 	}
 
 	// version specific updates
+	if (lVersion <= ConvertVersionToInt(2, 9, 2))
+	{
+		if (auto inlineAdded = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineAdded"); inlineAdded.exists())
+		{
+			CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\InlineAdded") = static_cast<DWORD>(inlineAdded);
+			inlineAdded.removeValue();
+		}
+		if (auto inlineRemoved = CRegDWORD(L"Software\\TortoiseGitMerge\\InlineRemoved"); inlineRemoved.exists())
+		{
+			CRegDWORD(L"Software\\TortoiseGitMerge\\Colors\\InlineRemoved") = static_cast<DWORD>(inlineRemoved);
+			inlineRemoved.removeValue();
+		}
+	}
+
+	if (lVersion <= ConvertVersionToInt(2, 9, 1))
+		CRegStdDWORD(L"Software\\TortoiseGit\\TortoiseProc\\PatchDlgWidth").removeValue();
+
 	if (lVersion <= ConvertVersionToInt(2, 4, 1))
 	{
 		CRegStdDWORD(L"Software\\TortoiseGit\\CommitAskBeforeCancel").removeValue();

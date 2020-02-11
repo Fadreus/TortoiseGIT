@@ -22,6 +22,7 @@
 #include "TreePropSheet.h"
 #include "PropPageFrameDefault.h"
 #include "HighColorTab.hpp"
+#include "DPIAware.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -332,29 +333,22 @@ void CTreePropSheet::RefillPageTree()
 		{
 			for (int nImage = 0; nImage < pPageImages->GetImageCount(); ++nImage)
 			{
-				HICON	hIcon = pPageImages->ExtractIcon(nImage);
+				CAutoIcon hIcon = pPageImages->ExtractIcon(nImage);
 				m_Images.Add(hIcon);
-				DestroyIcon(hIcon);
 			}
 		}
 
 		// add default images
 		if (m_DefaultImages.GetSafeHandle())
 		{
-			HICON	hIcon;
-
 			// add default images
-			hIcon = m_DefaultImages.ExtractIcon(0);
+			CAutoIcon hIcon = m_DefaultImages.ExtractIcon(0);
 			if (hIcon)
 			{
 				m_Images.Add(hIcon);
-				DestroyIcon(hIcon);
 			}
 			hIcon = m_DefaultImages.ExtractIcon(1);
-			{
-				m_Images.Add(hIcon);
-				DestroyIcon(hIcon);
-			}
+			m_Images.Add(hIcon);
 		}
 	}
 
@@ -440,8 +434,6 @@ HTREEITEM CTreePropSheet::CreatePageTreeItem(LPCTSTR lpszPath, HTREEITEM hParent
 CString CTreePropSheet::SplitPageTreePath(CString &strRest)
 {
 	int	nSeparatorPos = 0;
-#pragma warning(push)
-#pragma warning(disable: 4127)	// conditional expression constant
 	while (TRUE)
 	{
 		nSeparatorPos = strRest.Find(L"::", nSeparatorPos);
@@ -463,7 +455,6 @@ CString CTreePropSheet::SplitPageTreePath(CString &strRest)
 				++nSeparatorPos;
 		}
 	}
-#pragma warning(pop)
 
 	CString	strItem(strRest.Left(nSeparatorPos));
 	strItem.Replace(L"\\::", L"::");
@@ -596,10 +587,8 @@ void CTreePropSheet::UpdateCaption()
 		// get image from tree
 		int	nImage;
 		m_pwndPageTree->GetItemImage(hItem, nImage, nImage);
-		HICON	hIcon = m_Images.ExtractIcon(nImage);
+		CAutoIcon hIcon = m_Images.ExtractIcon(nImage);
 		m_pFrame->SetCaption(strCaption, hIcon);
-		if (hIcon)
-			DestroyIcon(hIcon);
 	}
 	else if (bRealPage)
 	{
@@ -611,13 +600,11 @@ void CTreePropSheet::UpdateCaption()
 			TCITEM ti = { 0 };
 			ti.mask = TCIF_IMAGE;
 
-			HICON	hIcon = nullptr;
+			CAutoIcon hIcon;
 			if (pTabCtrl->GetItem(static_cast<int>(m_pwndPageTree->GetItemData(hItem)), &ti))
 				hIcon = pImages->ExtractIcon(ti.iImage);
 
 			m_pFrame->SetCaption(strCaption, hIcon);
-			if (hIcon)
-				DestroyIcon(hIcon);
 		}
 		else
 			m_pFrame->SetCaption(strCaption);
@@ -671,8 +658,6 @@ void CTreePropSheet::ActivatePreviousPage()
 			// no prev item, so cycle to the last item
 			hPrevItem = m_pwndPageTree->GetRootItem();
 
-#pragma warning(push)
-#pragma warning(disable: 4127)	// conditional expression constant
 			while (TRUE)
 			{
 				while (m_pwndPageTree->GetNextSiblingItem(hPrevItem))
@@ -683,7 +668,6 @@ void CTreePropSheet::ActivatePreviousPage()
 				else
 					break;
 			}
-#pragma warning(pop)
 		}
 
 		if (hPrevItem)
@@ -806,11 +790,8 @@ BOOL CTreePropSheet::OnInitDialog()
 	m_pFrame->ShowCaption(m_bPageCaption);
 
 	// Lets make place for the tree ctrl
-	HDC hdc = ::GetDC(nullptr);
-	int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-	::ReleaseDC(nullptr, hdc);
-	const int	nTreeWidth = m_nPageTreeWidth * dpiX / 96;
-	const int	nTreeSpace = 5;
+	const int nTreeWidth = static_cast<int>(m_nPageTreeWidth * CDPIAware::Instance().ScaleFactorX());
+	const int nTreeSpace = CDPIAware::Instance().ScaleX(5);
 
 	CRect	rectSheet;
 	GetWindowRect(rectSheet);

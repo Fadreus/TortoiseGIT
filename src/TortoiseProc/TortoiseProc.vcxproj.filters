@@ -722,9 +722,6 @@
     <ClCompile Include="..\Utils\JumpListHelpers.cpp">
       <Filter>Utils\General</Filter>
     </ClCompile>
-    <ClCompile Include="..\Utils\LangDll.cpp">
-      <Filter>Utils\General</Filter>
-    </ClCompile>
     <ClCompile Include="..\Utils\MailMsg.cpp">
       <Filter>Utils\General</Filter>
     </ClCompile>
@@ -988,6 +985,12 @@
     </ClCompile>
     <ClCompile Include="LogDlgFileFilter.cpp">
       <Filter>Commands\Log</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Git\GitMailmap.cpp">
+      <Filter>Git</Filter>
+    </ClCompile>
+    <ClCompile Include="SelectRemoteRefDlg.cpp">
+      <Filter>Utility Dialogs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1540,9 +1543,6 @@
     <ClInclude Include="..\Utils\JumpListHelpers.h">
       <Filter>Utils\General</Filter>
     </ClInclude>
-    <ClInclude Include="..\Utils\LangDll.h">
-      <Filter>Utils\General</Filter>
-    </ClInclude>
     <ClInclude Include="..\Utils\Libraries.h">
       <Filter>Utils\General</Filter>
     </ClInclude>
@@ -1863,6 +1863,15 @@
     </ClInclude>
     <ClInclude Include="LogDlgFileFilter.h">
       <Filter>Commands\Log</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Git\GitMailmap.h">
+      <Filter>Git</Filter>
+    </ClInclude>
+    <ClInclude Include="SelectRemoteRefDlg.h">
+      <Filter>Utility Dialogs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Utils\I18NHelper.h">
+      <Filter>Utils\General</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -10,7 +10,7 @@
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 
 #define NOMINMAX
 #include <algorithm>
@@ -62,6 +62,8 @@ using std::min;
 #pragma warning(pop)
 
 #include "DebugOutput.h"
+
+#include "SmartHandle.h"
 
 #include "git2.h"
 #include "SmartLibgit2Ref.h"

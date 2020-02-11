@@ -207,7 +207,7 @@ bool CRevisionGraphWnd::FetchRevisionData
 		m_superProjectHash = g_Git.GetSubmodulePointer();
 
 	// build child graph
-	if (m_bShowBranchingsMerges)
+	if (!m_bShowAllTags || m_bShowBranchingsMerges)
 	{
 		std::unordered_map<CGitHash, std::vector<CGitHash>> childMap;
 		for (size_t i = 0; i < m_logEntries.size(); ++i)
@@ -223,8 +223,27 @@ bool CRevisionGraphWnd::FetchRevisionData
 			auto& rev = m_logEntries.GetGitRevAt(i);
 
 			// keep labeled commits
-			if (m_HashMap.find(rev.m_CommitHash) != m_HashMap.cend() || rev.m_CommitHash == m_superProjectHash)
-				continue;
+			if (auto foundNames = m_HashMap.find(rev.m_CommitHash); foundNames != m_HashMap.cend() || rev.m_CommitHash == m_superProjectHash)
+			{
+				// by default any label is enough to keep this commit visible
+				if (m_bShowAllTags || rev.m_CommitHash == m_superProjectHash)
+					continue;
+
+				// if hiding tags, check if there are any branch names for this commit
+				bool haveNonTagNames = false;
+				for (auto name : foundNames->second)
+				{
+					CGit::REF_TYPE refType;
+					CGit::GetShortName(name, &refType);
+					if (refType != CGit::REF_TYPE::ANNOTATED_TAG && refType != CGit::REF_TYPE::TAG)
+					{
+						haveNonTagNames = true;
+						break;
+					}
+				}
+				if (haveNonTagNames)
+					continue;
+			}
 
 			if (rev.m_ParentHash.size() != 1)
 				continue;
@@ -273,8 +292,6 @@ bool CRevisionGraphWnd::FetchRevisionData
 	{
 		auto nd = m_Graph.newNode();
 		nodes.Add(nd);
-		m_GraphAttr.width(nd)=100;
-		m_GraphAttr.height(nd)=20;
 		SetNodeRect(dev, font, commitString, &nd, hash);
 		if (hash == m_HeadHash)
 			m_HeadNode = nd;
@@ -347,45 +364,7 @@ void CRevisionGraphWnd::SetShowOverview (bool value)
 	if (m_bShowOverview)
 		BuildPreview();
 }
-#if 0
-void CRevisionGraphWnd::GetSelected
-	( const CVisibleGraphNode* node
-	, bool head
-	, CTGitPath& path
-	, GitRev& rev
-	, GitRev& peg)
-{
-	CString repoRoot = m_state.GetRepositoryRoot();
-
-	// get path and revision
-
-	path.SetFromSVN (repoRoot + CUnicodeUtils::GetUnicode (node->GetPath().GetPath().c_str()));
-	rev = head ? GitRev::REV_HEAD : node->GetRevision();
-
-	// handle 'modified WC' node
-
-	if (node->GetClassification().Is (CNodeClassification::IS_MODIFIED_WC))
-	{
-		path.SetFromUnknown (m_sPath);
-		rev = GitRev::REV_WC;
-
-		// don't set peg, if we aren't the first node
-		// (i.e. would not be valid for node1)
-
-		if (node == m_SelectedEntry1)
-			peg = GitRev::REV_WC;
-	}
-	else
-	{
-		// set head, if still necessary
-
-		if (head && !peg.IsValid())
-			peg = node->GetRevision();
-	}
-}
-#endif
-
-CString	CRevisionGraphWnd::GetFriendRefName(ogdf::node v)
+CString	CRevisionGraphWnd::GetFriendRefName(ogdf::node v) const
 {
 	if (!v)
 		return CString();
@@ -396,7 +375,7 @@ CString	CRevisionGraphWnd::GetFriendRefName(ogdf::node v)
 		return refsIt->second[0];
 }
 
-STRING_VECTOR CRevisionGraphWnd::GetFriendRefNames(ogdf::node v, const CString* exclude, CGit::REF_TYPE* onlyRefType)
+STRING_VECTOR CRevisionGraphWnd::GetFriendRefNames(ogdf::node v, const CString* exclude, CGit::REF_TYPE* onlyRefType) const
 {
 	if (!v)
 		return STRING_VECTOR();

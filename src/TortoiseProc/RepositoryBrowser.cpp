@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2019 - TortoiseGit
+// Copyright (C) 2009-2020 - TortoiseGit
 // Copyright (C) 2003-2013 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -37,6 +37,7 @@
 #include "GitDataObject.h"
 #include "TempFile.h"
 #include "DPIAware.h"
+#include "MessageBox.h"
 
 #define OVERLAY_EXTERNAL	1
 #define OVERLAY_EXECUTABLE	2
@@ -209,10 +210,11 @@ BOOL CRepositoryBrowser::OnInitDialog()
 		CRepositoryBrowser::s_bSortLogical = !CRegDWORD(L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoStrCmpLogical", 0, false, HKEY_LOCAL_MACHINE);
 
 	static UINT columnNames[] = { IDS_STATUSLIST_COLFILENAME, IDS_STATUSLIST_COLEXT, IDS_LOG_SIZE };
-	static int columnWidths[] = { 150, 100, 100 };
+	static int columnWidths[] = { CDPIAware::Instance().ScaleX(150), CDPIAware::Instance().ScaleX(100), CDPIAware::Instance().ScaleX(100) };
 	DWORD dwDefaultColumns = (1 << eCol_Name) | (1 << eCol_Extension) | (1 << eCol_FileSize);
 	m_ColumnManager.SetNames(columnNames, _countof(columnNames));
-	m_ColumnManager.ReadSettings(dwDefaultColumns, 0, L"RepoBrowser", _countof(columnNames), columnWidths);
+	constexpr int columnVersion = 6; // adjust when changing number/names/etc. of columns
+	m_ColumnManager.ReadSettings(dwDefaultColumns, 0, L"RepoBrowser", columnVersion, _countof(columnNames), columnWidths);
 	m_ColumnManager.SetRightAlign(2);
 
 	// set up the list control
@@ -261,7 +263,7 @@ BOOL CRepositoryBrowser::OnInitDialog()
 		GetDlgItem(IDC_REPOTREE)->GetClientRect(&rc);
 		xPos = rc.right - rc.left;
 	}
-	HandleDividerMove(CPoint(xPos + CDPIAware::Instance().ScaleX(20), CDPIAware::Instance().ScaleY(10)), false);
+	HandleDividerMove(CPoint(CDPIAware::Instance().ScaleX(xPos + 20), CDPIAware::Instance().ScaleY(10)), false);
 
 	CString sWindowTitle;
 	GetWindowText(sWindowTitle);
@@ -391,7 +393,7 @@ int CRepositoryBrowser::ReadTreeRecursive(git_repository& repo, const git_tree* 
 
 		const int mode = git_tree_entry_filemode(entry);
 
-		CString base = CUnicodeUtils::GetUnicode(git_tree_entry_name(entry), CP_UTF8);
+		CString base = CUnicodeUtils::GetUnicode(git_tree_entry_name(entry));
 
 		const git_oid *oid = git_tree_entry_id(entry);
 		CShadowFilesTree * pNextTree = &treeroot->m_ShadowTree[base];
@@ -956,6 +958,11 @@ void CRepositoryBrowser::OnBnClickedButtonRevision()
 {
 		// use the git log to allow selection of a version
 		CLogDlg dlg;
+		if (dlg.IsThreadRunning())
+		{
+			CMessageBox::Show(GetSafeHwnd(), IDS_PROC_LOG_ONLYONCE, IDS_APPNAME, MB_ICONEXCLAMATION);
+			return;
+		}
 		dlg.SetParams(CTGitPath(), CTGitPath(), m_sRevision, m_sRevision, 0);
 		// tell the dialog to use mode for selecting revisions
 		dlg.SetSelect(true);
@@ -967,6 +974,7 @@ void CRepositoryBrowser::OnBnClickedButtonRevision()
 			m_sRevision = dlg.GetSelectedHash().at(0).ToString();
 			Refresh();
 		}
+		BringWindowToTop(); /* cf. issue #3493 */
 }
 
 void CRepositoryBrowser::SaveDividerPosition()
@@ -974,7 +982,7 @@ void CRepositoryBrowser::SaveDividerPosition()
 	RECT rc;
 	GetDlgItem(IDC_REPOTREE)->GetClientRect(&rc);
 	CRegDWORD xPos(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\RepobrowserDivider");
-	xPos = rc.right - rc.left;
+	xPos = CDPIAware::Instance().UnscaleX(rc.right - rc.left);
 }
 
 void CRepositoryBrowser::HandleDividerMove(CPoint point, bool bDraw)

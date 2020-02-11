@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2017-2019 - TortoiseGit
+// Copyright (C) 2017-2020 - TortoiseGit
 // Copyright (C) 2003-2016 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -93,6 +93,10 @@ static std::wstring GetProgramDataConfig()
 
 	// do not use shared windows-wide system config when cygwin hack is active
 	if (is_cygwin_msys2_hack_active())
+		return {};
+
+	// Git >= 2.24 doesn't use ProgramData any more
+	if (CRegStdDWORD(L"Software\\TortoiseGit\\git_cached_version", 0) >= (2 << 24 | 24 << 16))
 		return {};
 
 	if (SHGetFolderPathW(nullptr, CSIDL_COMMON_APPDATA, nullptr, SHGFP_TYPE_CURRENT, wbuffer) != S_OK || wcslen(wbuffer) >= MAX_PATH - wcslen(L"\\Git\\config"))
@@ -222,6 +226,21 @@ int GetStatusUnCleanPath(const TCHAR* wcPath, GitWCRev_t& GitStat)
 
 int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 {
+	// Configure libgit2 search paths
+	std::wstring systemConfig = GetSystemGitConfig();
+	if (!systemConfig.empty())
+		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_SYSTEM, CUnicodeUtils::StdGetUTF8(systemConfig).c_str());
+	else
+		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_SYSTEM, "");
+	std::string home(CUnicodeUtils::StdGetUTF8(GetHomePath()));
+	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, (home + "\\.gitconfig").c_str());
+	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_XDG, (home + "\\.config\\git\\config").c_str());
+	std::wstring programDataConfig = GetProgramDataConfig();
+	if (!programDataConfig.empty())
+		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_PROGRAMDATA, CUnicodeUtils::StdGetUTF8(programDataConfig).c_str());
+	else
+		git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_PROGRAMDATA, "");
+
 	std::string pathA = CUnicodeUtils::StdGetUTF8(path);
 	CAutoBuf dotgitdir;
 	if (git_repository_discover(dotgitdir, pathA.c_str(), 0, nullptr) < 0)
@@ -233,20 +252,6 @@ int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 
 	if (git_repository_is_bare(repo))
 		return ERR_NOWC;
-
-	CAutoConfig config(true);
-	std::string gitdir(dotgitdir->ptr, dotgitdir->size);
-	git_config_add_file_ondisk(config, (gitdir + "config").c_str(), GIT_CONFIG_LEVEL_LOCAL, repo, FALSE);
-	std::string home(CUnicodeUtils::StdGetUTF8(GetHomePath()));
-	git_config_add_file_ondisk(config, (home + "\\.gitconfig").c_str(), GIT_CONFIG_LEVEL_GLOBAL, repo, FALSE);
-	git_config_add_file_ondisk(config, (home + "\\.config\\git\\config").c_str(), GIT_CONFIG_LEVEL_XDG, repo, FALSE);
-	std::wstring systemConfig = GetSystemGitConfig();
-	if (!systemConfig.empty())
-		git_config_add_file_ondisk(config, CUnicodeUtils::StdGetUTF8(systemConfig).c_str(), GIT_CONFIG_LEVEL_SYSTEM, repo, FALSE);
-	std::wstring programDataConfig = GetProgramDataConfig();
-	if (!programDataConfig.empty())
-		git_config_add_file_ondisk(config, CUnicodeUtils::StdGetUTF8(programDataConfig).c_str(), GIT_CONFIG_LEVEL_PROGRAMDATA, repo, FALSE);
-	git_repository_set_config(repo, config);
 
 	if (git_repository_head_unborn(repo))
 	{
@@ -285,14 +290,25 @@ int GetStatus(const TCHAR* path, GitWCRev_t& GitStat)
 		return ERR_GIT_ERR;
 
 	const git_signature* sig = git_commit_author(commit);
-	GitStat.HeadAuthor = sig->name;
-	GitStat.HeadEmail = sig->email;
 	GitStat.HeadTime = sig->when.time;
+	if (CRegStdDWORD(L"Software\\TortoiseGit\\UseMailmap", TRUE) == TRUE)
+	{
+		CAutoMailmap mailmap;
+		if (git_mailmap_from_repository(mailmap.GetPointer(), repo))
+			return ERR_GIT_ERR;
+		CAutoSignature resolvedSignature;
+		if (git_mailmap_resolve_signature(resolvedSignature.GetPointer(), mailmap, sig))
+			return ERR_GIT_ERR;
+		GitStat.HeadAuthor = (*resolvedSignature).name;
+		GitStat.HeadEmail = (*resolvedSignature).email;
+	}
+	else
+	{
+		GitStat.HeadAuthor = sig->name;
+		GitStat.HeadEmail = sig->email;
+	}
 
-#pragma warning(push)
-#pragma warning(disable: 4510 4512 4610)
 	struct TagPayload { git_repository* repo; GitWCRev_t& GitStat; } tagpayload = { repo, GitStat };
-#pragma warning(pop)
 
 	if (git_tag_foreach(repo, [](const char*, git_oid* tagoid, void* payload)
 	{

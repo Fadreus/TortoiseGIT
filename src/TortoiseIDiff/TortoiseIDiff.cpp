@@ -1,6 +1,6 @@
 ﻿// TortoiseIDiff - an image diff viewer in TortoiseSVN and TortoiseGit
 
-// Copyright (C) 2015-2016, 2019 - TortoiseGit
+// Copyright (C) 2015-2016, 2019-2020 - TortoiseGit
 // Copyright (C) 2006-2007, 2010-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -44,6 +44,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     CRegStdDWORD loc = CRegStdDWORD(L"Software\\TortoiseGit\\LanguageID", 1033);
     long langId = loc;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    SCOPE_EXIT { CoUninitialize(); };
 
     CLangDll langDLL;
     hResource = langDLL.Init(L"TortoiseIDiff", langId);
@@ -51,6 +52,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
         hResource = hInstance;
 
     git_libgit2_init();
+    SCOPE_EXIT { git_libgit2_shutdown(); };
 
     CCmdLineParser parser(lpCmdLine);
 
@@ -63,6 +65,15 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
         return 0;
     }
 
+    SCOPE_EXIT
+    {
+        if (parser.HasKey(L"deletebasetheirsmineonclose") && parser.HasVal(L"base") && parser.HasVal(L"mine") && parser.HasVal(L"theirs"))
+        {
+            ::DeleteFile(parser.GetVal(L"base"));
+            ::DeleteFile(parser.GetVal(L"mine"));
+            ::DeleteFile(parser.GetVal(L"theirs"));
+        }
+    };
 
     MSG msg;
     hInst = hInstance;
@@ -156,10 +167,5 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
         }
         return static_cast<int>(msg.wParam);
     }
-    langDLL.Close();
-    DestroyCursor(curHand);
-    DestroyCursor(curHandDown);
-    CoUninitialize();
-    git_libgit2_shutdown();
     return 1;
 }

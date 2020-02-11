@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -746,7 +746,7 @@ int CGit::SetConfigValue(const CString& key, const CString& value, CONFIG_TYPE t
 		{
 		}
 		CStringA keya, valuea;
-		keya = CUnicodeUtils::GetMulti(key, CP_UTF8);
+		keya = CUnicodeUtils::GetUTF8(key);
 		valuea = CUnicodeUtils::GetUTF8(value);
 
 		try
@@ -798,7 +798,7 @@ int CGit::UnsetConfigValue(const CString& key, CONFIG_TYPE type)
 		{
 		}
 		CStringA keya;
-		keya = CUnicodeUtils::GetMulti(key, CP_UTF8);
+		keya = CUnicodeUtils::GetUTF8(key);
 
 		try
 		{
@@ -1598,6 +1598,8 @@ int CGit::GetBranchList(STRING_VECTOR &list, int *current, BRANCH_TYPE type, boo
 					return;
 				}
 			}
+			else if (lineA[0] == '+') // since Git 2.23 branches that are checked out in other worktrees connected to the same repository prefixed with '+'
+				branch = branch.Mid(static_cast<int>(wcslen(L"+ ")));
 			if ((type & BRANCH_REMOTE) != 0 && (type & BRANCH_LOCAL) == 0)
 				branch = L"remotes/" + branch;
 			list.push_back(branch);
@@ -1789,8 +1791,11 @@ int CGit::GetRemoteList(STRING_VECTOR &list)
 	});
 }
 
-int CGit::GetRemoteTags(const CString& remote, REF_VECTOR& list)
+int CGit::GetRemoteRefs(const CString& remote, REF_VECTOR& list, bool includeTags, bool includeBranches)
 {
+	if (!includeTags && !includeBranches)
+		return 0;
+
 	size_t prevCount = list.size();
 	if (UsingLibGit2(GIT_CMD_FETCH))
 	{
@@ -1825,26 +1830,58 @@ int CGit::GetRemoteTags(const CString& remote, REF_VECTOR& list)
 		{
 			CString ref = CUnicodeUtils::GetUnicode(heads[i]->name);
 			CString shortname;
-			if (!GetShortName(ref, shortname, L"refs/tags/"))
-				continue;
-			list.emplace_back(TGitRef{ shortname, &heads[i]->oid });
+			if (GetShortName(ref, shortname, L"refs/tags/"))
+			{
+				if (!includeTags)
+					continue;
+			}
+			else
+			{
+				if (!includeBranches)
+					continue;
+				if (!GetShortName(ref, shortname, L"refs/heads/"))
+					shortname = ref;
+			}
+			if (includeTags && includeBranches)
+				list.emplace_back(TGitRef{ ref, &heads[i]->oid });
+			else
+				list.emplace_back(TGitRef{ shortname, &heads[i]->oid });
 		}
-		std::sort(list.begin() + prevCount, list.end(), g_bSortTagsReversed ? LogicalCompareReversedPredicate : LogicalComparePredicate);
+		std::sort(list.begin() + prevCount, list.end(), g_bSortTagsReversed && includeTags && !includeBranches ? LogicalCompareReversedPredicate : LogicalComparePredicate);
 		return 0;
 	}
 
 	CString cmd;
-	cmd.Format(L"git.exe ls-remote -t \"%s\"", static_cast<LPCTSTR>(remote));
+	cmd.Format(L"git.exe ls-remote%s \"%s\"", (includeTags && !includeBranches) ? L" -t" : L" --refs", static_cast<LPCTSTR>(remote));
 	gitLastErr = cmd + L'\n';
-	if (Run(cmd, [&](CStringA lineA)
-	{
-		CGitHash hash = CGitHash::FromHexStr(lineA.Left(GIT_HASH_SIZE * 2));
-		lineA = lineA.Mid(GIT_HASH_SIZE * 2 + static_cast<int>(wcslen(L"\trefs/tags/"))); // sha1, tab + refs/tags/
-		if (!lineA.IsEmpty())
-			list.emplace_back(TGitRef{ CUnicodeUtils::GetUnicode(lineA), hash });
-	}, &gitLastErr))
+	if (Run(
+		cmd, [&](CStringA lineA) {
+			CGitHash hash = CGitHash::FromHexStr(lineA.Left(GIT_HASH_SIZE * 2));
+			lineA = lineA.Mid(GIT_HASH_SIZE * 2 + static_cast<int>(wcslen(L"\t"))); // sha1, tab
+			if (lineA.IsEmpty())
+				return;
+			CString ref = CUnicodeUtils::GetUnicode(lineA);
+			CString shortname;
+			if (GetShortName(ref, shortname, L"refs/tags/"))
+			{
+				if (!includeTags)
+					return;
+			}
+			else
+			{
+				if (!includeBranches)
+					return;
+				if (!GetShortName(ref, shortname, L"refs/heads/"))
+					shortname = ref;
+			}
+			if (includeTags && includeBranches)
+				list.emplace_back(TGitRef{ ref, hash });
+			else
+				list.emplace_back(TGitRef{ shortname, hash });
+		},
+		&gitLastErr))
 		return -1;
-	std::sort(list.begin() + prevCount, list.end(), g_bSortTagsReversed ? LogicalCompareReversedPredicate : LogicalComparePredicate);
+	std::sort(list.begin() + prevCount, list.end(), g_bSortTagsReversed && includeTags && !includeBranches ? LogicalCompareReversedPredicate : LogicalComparePredicate);
 	return 0;
 }
 
@@ -2050,13 +2087,13 @@ int CGit::GetBranchDescriptions(MAP_STRING_STRING& map)
 
 static void SetLibGit2SearchPath(int level, const CString &value)
 {
-	CStringA valueA = CUnicodeUtils::GetMulti(value, CP_UTF8);
+	CStringA valueA = CUnicodeUtils::GetUTF8(value);
 	git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, level, static_cast<LPCSTR>(valueA));
 }
 
 static void SetLibGit2TemplatePath(const CString &value)
 {
-	CStringA valueA = CUnicodeUtils::GetMulti(value, CP_UTF8);
+	CStringA valueA = CUnicodeUtils::GetUTF8(value);
 	git_libgit2_opts(GIT_OPT_SET_TEMPLATE_PATH, static_cast<LPCSTR>(valueA));
 }
 
@@ -2187,7 +2224,7 @@ BOOL CGit::CheckMsysGitDir(BOOL bFallback)
 		SetLibGit2SearchPath(GIT_CONFIG_LEVEL_PROGRAMDATA, CTGitPath(g_Git.GetGitProgramDataConfig()).GetContainingDirectory().GetWinPathString());
 	}
 	else
-		SetLibGit2SearchPath(GIT_CONFIG_LEVEL_PROGRAMDATA, CTGitPath(g_Git.GetGitSystemConfig()).GetContainingDirectory().GetWinPathString());
+		SetLibGit2SearchPath(GIT_CONFIG_LEVEL_PROGRAMDATA, L"");
 
 	// Configure libgit2 search paths
 	SetLibGit2SearchPath(GIT_CONFIG_LEVEL_SYSTEM, CTGitPath(g_Git.GetGitSystemConfig()).GetContainingDirectory().GetWinPathString());
@@ -2553,7 +2590,9 @@ int CGit::GetOneFile(const CString &Refname, const CTGitPath &path, const CStrin
 			return -1;
 		}
 		CAutoBuf buf;
-		if (git_blob_filtered_content(buf, blob, CUnicodeUtils::GetUTF8(path.GetGitPathString()), 0))
+		git_blob_filter_options opts = GIT_BLOB_FILTER_OPTIONS_INIT;
+		opts.flags &= ~static_cast<uint32_t>(GIT_BLOB_FILTER_CHECK_FOR_BINARY);
+		if (git_blob_filter(buf, blob, CUnicodeUtils::GetUTF8(path.GetGitPathString()), &opts))
 			return -1;
 		if (fwrite(buf->ptr, sizeof(char), buf->size, file) != buf->size)
 		{
@@ -2570,9 +2609,9 @@ int CGit::GetOneFile(const CString &Refname, const CTGitPath &path, const CStrin
 		{
 			g_Git.CheckAndInitDll();
 			CStringA ref, patha, outa;
-			ref = CUnicodeUtils::GetMulti(Refname, CP_UTF8);
-			patha = CUnicodeUtils::GetMulti(path.GetGitPathString(), CP_UTF8);
-			outa = CUnicodeUtils::GetMulti(outputfile, CP_UTF8);
+			ref = CUnicodeUtils::GetUTF8(Refname);
+			patha = CUnicodeUtils::GetUTF8(path.GetGitPathString());
+			outa = CUnicodeUtils::GetUTF8(outputfile);
 			::DeleteFile(outputfile);
 			int ret = git_checkout_file(ref, patha, outa.GetBuffer());
 			outa.ReleaseBuffer();
@@ -2897,8 +2936,8 @@ static int resolve_to_tree(git_repository *repo, const char *identifier, git_tre
 /* use libgit2 get unified diff */
 static int GetUnifiedDiffLibGit2(const CTGitPath& path, const CString& revOld, const CString& revNew, std::function<void(const git_buf*, void*)> statCallback, git_diff_line_cb callback, void* data, bool /* bMerge */, bool bNoPrefix)
 {
-	CStringA tree1 = CUnicodeUtils::GetMulti(revNew, CP_UTF8);
-	CStringA tree2 = CUnicodeUtils::GetMulti(revOld, CP_UTF8);
+	CStringA tree1 = CUnicodeUtils::GetUTF8(revNew);
+	CStringA tree2 = CUnicodeUtils::GetUTF8(revOld);
 
 	CAutoRepository repo(g_Git.GetGitRepository());
 	if (!repo)
@@ -2911,7 +2950,7 @@ static int GetUnifiedDiffLibGit2(const CTGitPath& path, const CString& revOld, c
 		return -1;
 
 	git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
-	CStringA pathA = CUnicodeUtils::GetMulti(path.GetGitPathString(), CP_UTF8);
+	CStringA pathA = CUnicodeUtils::GetUTF8(path.GetGitPathString());
 	char *buf = pathA.GetBuffer();
 	if (!pathA.IsEmpty())
 	{

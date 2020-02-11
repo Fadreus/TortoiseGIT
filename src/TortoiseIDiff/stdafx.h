@@ -9,7 +9,7 @@
 // Refer to MSDN for the latest info on corresponding values for different platforms.
 #define WIN32_LEAN_AND_MEAN     // Exclude rarely-used stuff from Windows headers
 
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 
 #define NOMINMAX
 #include <algorithm>
@@ -38,6 +38,8 @@ using std::min;
 
 #include "git2.h"
 #include "SmartLibgit2Ref.h"
+
+#include "scope_exit_noexcept.h"
 
 #ifdef _WIN64
 #   define APP_X64_STRING   "x64"

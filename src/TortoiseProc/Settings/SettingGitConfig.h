@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017 - TortoiseGit
+// Copyright (C) 2008-2017, 2019 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -54,6 +54,7 @@ protected:
 	afx_msg void OnBnClickedEditglobalxdggitconfig();
 	afx_msg void OnBnClickedEditlocalgitconfig();
 	afx_msg void OnBnClickedEdittgitconfig();
+	afx_msg void OnBnClickedVieweffectivegitconfig();
 	GITSETTINGS_RADIO_EVENT_HANDLE;
 
 	bool	m_bNeedSave;
@@ -63,7 +64,7 @@ protected:
 	BOOL	m_bInheritEmail;
 	CString	m_UserSigningKey;
 	BOOL	m_bInheritSigningKey;
-	BOOL	m_bAutoCrlf;
+	CComboBox m_cAutoCrLf;
 	BOOL	m_bQuotePath;
 	CComboBox m_cSafeCrLf;
 };

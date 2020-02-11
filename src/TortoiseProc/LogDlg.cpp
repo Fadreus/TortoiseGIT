@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2003-2009, 2015 - TortoiseSVN
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -398,8 +398,8 @@ BOOL CLogDlg::OnInitDialog()
 		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 	EnableSaveRestore(L"LogDlg");
 
-	DWORD yPos1 = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\LogDlgSizer1");
-	DWORD yPos2 = CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\LogDlgSizer2");
+	DWORD yPos1 = CDPIAware::Instance().ScaleY(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\LogDlgSizer1"));
+	DWORD yPos2 = CDPIAware::Instance().ScaleY(CRegDWORD(L"Software\\TortoiseGit\\TortoiseProc\\ResizableState\\LogDlgSizer2"));
 	RECT rcDlg, rcLogList, rcChgMsg;
 	GetClientRect(&rcDlg);
 	m_LogList.GetWindowRect(&rcLogList);
@@ -950,19 +950,17 @@ void CLogDlg::FillLogMessageCtrl(bool bShow /* = true*/)
 			if (static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\StyleCommitMessages", TRUE)) == TRUE)
 				CAppUtils::FormatTextInRichEditControl(pMsgView);
 
+			auto files = pLogEntry->GetFiles(&m_LogList); // either load the diff from disk cache and sets m_IsDiffFiles (then we safe a reload) or it enqueues it in the AsyncDiffThread
 			if (!pLogEntry->m_IsDiffFiles)
 			{
 				m_ChangedFileListCtrl.SetBusyString(CString(MAKEINTRESOURCE(IDS_PROC_LOG_FETCHINGFILES)));
 				m_ChangedFileListCtrl.SetBusy(TRUE);
 				m_ChangedFileListCtrl.SetRedraw(TRUE);
-				// entry might not already been enqueued for updating, issue #3090
-				pLogEntry->GetAction(&m_LogList);
 				return;
 			}
 
 			CString matchpath=this->m_path.GetGitPathString();
 
-			CTGitPathList& files = pLogEntry->GetFiles(&m_LogList);
 			int count = files.GetCount();
 			if (!m_bWholeProject && !matchpath.IsEmpty() && m_iHidePaths)
 			{
@@ -1014,11 +1012,11 @@ void CLogDlg::FillLogMessageCtrl(bool bShow /* = true*/)
 					pLogEntry->GetAction(&m_LogList) |= CTGitPath::LOGACTIONS_HIDE;
 			}
 
-			m_ChangedFileListCtrl.UpdateWithGitPathList(files);
+			m_ChangedFileListCtrl.UpdateWithGitPathList(const_cast<CTGitPathList&>(files.m_files));
 			m_ChangedFileListCtrl.m_CurrentVersion = pLogEntry->m_CommitHash;
 			if (pLogEntry->m_CommitHash.IsEmpty() && m_bShowUnversioned)
 			{
-				m_ChangedFileListCtrl.UpdateUnRevFileList(pLogEntry->GetUnRevFiles());
+				m_ChangedFileListCtrl.InsertUnRevListFromPreCalculatedList(pLogEntry->GetUnRevFiles());
 				m_ChangedFileListCtrl.Show(GITSLC_SHOWVERSIONED | GITSLC_SHOWUNVERSIONED);
 			}
 			else
@@ -1124,12 +1122,7 @@ void CLogDlg::TogglePatchView()
 		if (g_Git.GetConfigValueBool(L"tgit.logshowpatch") == FALSE)
 			g_Git.SetConfigValue(L"tgit.logshowpatch", L"true");
 		m_patchViewdlg.Create(IDD_PATCH_VIEW, this);
-		m_patchViewdlg.m_ctrlPatchView.Call(SCI_SETSCROLLWIDTHTRACKING, TRUE);
-		CRect rect;
-		this->GetWindowRect(&rect);
-
-		m_patchViewdlg.ShowWindow(SW_SHOW);
-		m_patchViewdlg.SetWindowPos(nullptr, rect.right, rect.top, static_cast<DWORD>(CRegStdDWORD(L"Software\\TortoiseGit\\TortoiseProc\\PatchDlgWidth", rect.Width())), rect.Height(), SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+		m_patchViewdlg.ShowAndAlignToParent();
 
 		FillPatchView();
 	}
@@ -1151,43 +1144,14 @@ void CLogDlg::OnMoving(UINT fwSide, LPRECT pRect)
 {
 	__super::OnMoving(fwSide, pRect);
 
-	if (!::IsWindow(m_patchViewdlg.m_hWnd))
-		return;
-
-	RECT patchrect;
-	m_patchViewdlg.GetWindowRect(&patchrect);
-	if (!::IsWindow(m_hWnd))
-		return;
-
-	RECT thisrect;
-	GetWindowRect(&thisrect);
-	if (patchrect.left == thisrect.right)
-	{
-		m_patchViewdlg.SetWindowPos(nullptr, patchrect.left - (thisrect.left - pRect->left), patchrect.top - (thisrect.top - pRect->top), 0, 0, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
-	}
+	m_patchViewdlg.ParentOnMoving(m_hWnd, pRect);
 }
 
 void CLogDlg::OnSizing(UINT fwSide, LPRECT pRect)
 {
 	__super::OnSizing(fwSide, pRect);
 
-	if (!::IsWindow(this->m_patchViewdlg.m_hWnd))
-		return;
-
-	CRect thisrect, patchrect;
-	this->GetWindowRect(thisrect);
-	this->m_patchViewdlg.GetWindowRect(patchrect);
-	if (thisrect.right != patchrect.left)
-		return;
-
-	patchrect.left -= (thisrect.right - pRect->right);
-	patchrect.right -= (thisrect.right - pRect->right);
-
-	if (patchrect.bottom == thisrect.bottom)
-		patchrect.bottom -= (thisrect.bottom - pRect->bottom);
-	if (patchrect.top == thisrect.top)
-		patchrect.top -= thisrect.top - pRect->top;
-	m_patchViewdlg.MoveWindow(patchrect);
+	m_patchViewdlg.ParentOnSizing(m_hWnd, pRect);
 }
 
 void CLogDlg::OnSelectSearchField()
@@ -1290,10 +1254,10 @@ void CLogDlg::SaveSplitterPos()
 		RECT rectSplitter;
 		m_wndSplitter1.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		regPos1 = rectSplitter.top;
+		regPos1 = CDPIAware::Instance().UnscaleY(rectSplitter.top);
 		m_wndSplitter2.GetWindowRect(&rectSplitter);
 		ScreenToClient(&rectSplitter);
-		regPos2 = rectSplitter.top;
+		regPos2 = CDPIAware::Instance().UnscaleY(rectSplitter.top);
 	}
 }
 
@@ -1508,6 +1472,9 @@ void CLogDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 			popup.AppendMenuIcon(++cnt, item);
 		}
 
+		popup.AppendMenu(MF_SEPARATOR);
+		popup.AppendMenuIcon(++cnt, IDS_CONFIGUREDEFAULT);
+
 		int cmd = popup.TrackPopupMenu(TPM_RETURNCMD | TPM_LEFTALIGN | TPM_NONOTIFY, point.x, point.y, this);
 		if (cmd <= 0)
 			return;
@@ -1516,6 +1483,11 @@ void CLogDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 			m_LogList.m_Filter.m_NumberOfLogsScale = CFilterData::SHOW_NO_LIMIT;
 			// reset last selected date
 			m_regLastSelectedFromDate.removeValue();
+		}
+		else if (cmd == cnt) // last entry, must be before cmd >= 2
+		{
+			CAppUtils::RunTortoiseGitProc(L"/command:settings /page:dialog");
+			return;
 		}
 		else if (cmd == 2)
 			m_LogList.m_Filter.m_NumberOfLogsScale = scale;
@@ -2484,7 +2456,7 @@ void CLogDlg::OnTimer(UINT_PTR nIDEvent)
 		KillTimer(FILEFILTER_TIMER);
 		FillLogMessageCtrl();
 	}
-	DialogEnableWindow(IDC_STATBUTTON, !(((this->IsThreadRunning())||(m_LogList.m_arShownList.empty() || m_LogList.m_arShownList.size() == 1 && m_LogList.m_bShowWC))));
+	DialogEnableWindow(IDC_STATBUTTON, !((IsThreadRunning() || (m_LogList.m_arShownList.empty() || m_LogList.m_arShownList.size() == 1 && m_LogList.m_bShowWC))));
 	__super::OnTimer(nIDEvent);
 }
 
@@ -2606,7 +2578,7 @@ void CLogDlg::OnBnClickedJumpUp()
 	m_LogList.SetSelectionMark(-1);
 
 	auto hashMapSharedPtr = m_LogList.m_HashMap;
-	auto hashMap = *hashMapSharedPtr.get();
+	auto& hashMap = *hashMapSharedPtr;
 
 	for (int i = index - 1; i >= 0; i--)
 	{
@@ -2716,7 +2688,7 @@ void CLogDlg::OnBnClickedJumpDown()
 	m_LogList.SetSelectionMark(-1);
 
 	auto hashMapSharedPtr = m_LogList.m_HashMap;
-	auto hashMap = *hashMapSharedPtr.get();
+	auto& hashMap = *hashMapSharedPtr;
 
 	for (int i = index + 1; i < m_LogList.GetItemCount(); ++i)
 	{

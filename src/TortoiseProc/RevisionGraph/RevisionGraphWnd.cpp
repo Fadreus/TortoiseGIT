@@ -108,6 +108,8 @@ CRevisionGraphWnd::CRevisionGraphWnd()
 	, m_bCurrentBranch(false)
 	, m_bLocalBranches(FALSE)
 	, m_bShowBranchingsMerges(false)
+	, m_bShowAllTags(true)
+	, m_bArrowPointToMerges(false)
 {
 	WNDCLASS wndcls;
 	HINSTANCE hInst = AfxGetInstanceHandle();
@@ -889,12 +891,17 @@ CString CRevisionGraphWnd::TooltipText(ogdf::node index)
 		GitRevLoglist* rev = this->m_LogCache.GetCacheData(hash);
 		str += rev->m_CommitHash.ToString();
 		str += L'\n';
-		str += rev->GetAuthorName() + L' ' + rev->GetAuthorEmail();
+		str += rev->GetAuthorName() + L" <" + rev->GetAuthorEmail() + L'>';
 		str += L' ';
 		str += rev->GetAuthorDate().Format(L"%Y-%m-%d %H:%M");
 		str += L"\n\n" + rev->GetSubject();
 		str += L'\n';
 		str += rev->GetBody();
+		if (str.GetLength() > 8000)
+		{
+			str.Truncate(8000);
+			str += L"...";
+		}
 		return str;
 	}else
 		return CString();
@@ -1255,13 +1262,16 @@ void CRevisionGraphWnd::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 		}
 		else
 		{
-			CGit::REF_TYPE remoteRefType = CGit::REMOTE_BRANCH;
-			remoteBranchNames = GetFriendRefNames(m_SelectedEntry1, &currentBranch, &remoteRefType);
-			if (remoteBranchNames.size() >= 1)
+			for (auto arefType : { CGit::REMOTE_BRANCH, CGit::TAG, CGit::ANNOTATED_TAG })
 			{
-				CString temp;
-				temp.LoadString(IDS_SWITCH_TO_THIS);
-				AppendMenu(popup, temp, ID_SWITCHTOREV, &remoteBranchNames[0]);
+				remoteBranchNames = GetFriendRefNames(m_SelectedEntry1, &currentBranch, &arefType);
+				if (remoteBranchNames.size() >= 1)
+				{
+					CString temp;
+					temp.LoadString(IDS_SWITCH_TO_THIS);
+					AppendMenu(popup, temp, ID_SWITCHTOREV, &remoteBranchNames[0]);
+					break;
+				}
 			}
 		}
 
@@ -1461,15 +1471,13 @@ BOOL CRevisionGraphWnd::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 		if (GetCursorPos(&pt))
 		{
 			ScreenToClient(&pt);
-			if (m_OverviewPosRect.PtInRect(pt))
+			if (m_OverviewPosRect.PtInRect(pt) || m_bIsCanvasMove)
 			{
 				resourceHandle = AfxGetResourceHandle();
 				cursorID = (GetKeyState(VK_LBUTTON) & 0x8000)
 						 ? MAKEINTRESOURCE(IDC_PANCURDOWN)
 						 : MAKEINTRESOURCE(IDC_PANCUR);
 			}
-			if (m_bIsCanvasMove)
-				cursorID = IDC_HAND;
 		}
 	}
 
@@ -1534,4 +1542,39 @@ LRESULT CRevisionGraphWnd::OnWorkerThreadDone(WPARAM, LPARAM)
 ULONG CRevisionGraphWnd::GetGestureStatus(CPoint /*ptTouch*/)
 {
 	return 0;
+}
+
+void CRevisionGraphWnd::ScrollTo(int i, bool select)
+{
+	bool found = false;
+	ogdf::node v;
+	forall_nodes(v, m_Graph)
+	{
+		if (v->index() == i)
+		{
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+
+	SCROLLINFO sinfo = { 0 };
+	sinfo.cbSize = sizeof(SCROLLINFO);
+	if (GetScrollInfo(SB_HORZ, &sinfo))
+	{
+		sinfo.nPos = min(max(sinfo.nMin, static_cast<int>(m_GraphAttr.x(v) - m_GraphAttr.width(v) / 2)), sinfo.nMax);
+		SetScrollInfo(SB_HORZ, &sinfo);
+	}
+	if (GetScrollInfo(SB_VERT, &sinfo))
+	{
+		sinfo.nPos = min(max(sinfo.nMin, static_cast<int>(m_GraphAttr.y(v) - m_GraphAttr.height(v) / 2 - max(1.0f, 25 * m_fZoomFactor))), sinfo.nMax);
+		SetScrollInfo(SB_VERT, &sinfo);
+	}
+
+	if (!select)
+		return;
+
+	m_SelectedEntry1 = v;
+	m_SelectedEntry2 = nullptr;
 }

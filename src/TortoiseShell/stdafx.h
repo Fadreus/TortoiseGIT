@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../targetver.h"
+#include <SDKDDKVer.h>
 
 #define NOMINMAX
 #include <algorithm>
@@ -36,6 +36,8 @@ using std::min;
 #include <functional>
 
 #define CSTRING_AVAILABLE
+
+#include "SmartHandle.h"
 
 #include "git2.h"
 #include "SmartLibgit2Ref.h"

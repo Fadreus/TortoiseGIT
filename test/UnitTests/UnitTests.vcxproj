@@ -68,6 +68,7 @@
     <ClInclude Include="..\..\src\Git\GitForWindows.h" />
     <ClInclude Include="..\..\src\Git\GitHash.h" />
     <ClInclude Include="..\..\src\Git\gitindex.h" />
+    <ClInclude Include="..\..\src\Git\GitMailmap.h" />
     <ClInclude Include="..\..\src\Git\GitRev.h" />
     <ClInclude Include="..\..\src\Git\GitRevLoglist.h" />
     <ClInclude Include="..\..\src\Git\GitRevRefBrowser.h" />
@@ -91,6 +92,7 @@
     <ClInclude Include="..\..\src\Utils\DebugHelpers.h" />
     <ClInclude Include="..\..\src\Utils\DebugOutput.h" />
     <ClInclude Include="..\..\src\Utils\DirFileEnum.h" />
+    <ClInclude Include="..\..\src\Utils\I18NHelper.h" />
     <ClInclude Include="..\..\src\Utils\LoadIconEx.h" />
     <ClInclude Include="..\..\src\Utils\LruCache.h" />
     <ClInclude Include="..\..\src\Utils\PathUtils.h" />
@@ -118,6 +120,7 @@
     <ClCompile Include="..\..\src\Git\Git.cpp" />
     <ClCompile Include="..\..\src\Git\GitAdminDir.cpp" />
     <ClCompile Include="..\..\src\Git\GitIndex.cpp" />
+    <ClCompile Include="..\..\src\Git\GitMailmap.cpp" />
     <ClCompile Include="..\..\src\Git\GitRev.cpp" />
     <ClCompile Include="..\..\src\Git\GitRevLoglist.cpp" />
     <ClCompile Include="..\..\src\Git\GitRevRefBrowser.cpp" />
@@ -161,6 +164,7 @@
     <ClCompile Include="GitRevTest.cpp" />
     <ClCompile Include="GitTest.cpp" />
     <ClCompile Include="GitWCRevStatusTest.cpp" />
+    <ClCompile Include="I18NHelperTest.cpp" />
     <ClCompile Include="libgit2Test.cpp" />
     <ClCompile Include="libgitTest.cpp" />
     <ClCompile Include="LogDataVectorTest.cpp" />
@@ -176,6 +180,7 @@
     <ClCompile Include="StringUtilsTest.cpp" />
     <ClCompile Include="TempFileTest.cpp" />
     <ClCompile Include="TGitPathTest.cpp" />
+    <ClCompile Include="UnicodeUtilsTest.cpp" />
     <ClCompile Include="UniqueQueueTests.cpp" />
     <ClCompile Include="UnitTests.cpp" />
     <ClCompile Include="UpdateCryptoTest.cpp" />

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2019 - TortoiseGit
+// Copyright (C) 2008-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,12 +27,13 @@
 #include <sys/stat.h>
 #include "SmartHandle.h"
 #include "git2/sys/repository.h"
+#include <stdexcept>
 
 CGitAdminDirMap g_AdminDirMap;
 
 static CString GetProgramDataGitConfig()
 {
-	if (!((CRegDWORD(L"Software\\TortoiseGit\\CygwinHack", FALSE) == TRUE) || (CRegDWORD(L"Software\\TortoiseGit\\Msys2Hack", FALSE) == TRUE)))
+	if (!((static_cast<int>(CRegDWORD(L"Software\\TortoiseGit\\git_cached_version", 0)) >= ConvertVersionToInt(2, 24, 0)) || (CRegDWORD(L"Software\\TortoiseGit\\CygwinHack", FALSE) == TRUE) || (CRegDWORD(L"Software\\TortoiseGit\\Msys2Hack", FALSE) == TRUE)))
 	{
 		CString programdataConfig;
 		if (SHGetFolderPath(nullptr, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, CStrBuf(programdataConfig, MAX_PATH)) == S_OK && programdataConfig.GetLength() < MAX_PATH - static_cast<int>(wcslen(L"\\Git\\config")))
@@ -72,15 +73,16 @@ int CGitIndexList::ReadIndex(CString dgitdir)
 #endif
 	ATLASSERT(empty());
 
-	CAutoRepository repository(dgitdir);
+	CString repodir = dgitdir;
+	if (dgitdir.GetLength() == 2 && dgitdir[1] == L':')
+		repodir += L'\\'; // libgit2 requires a drive root to end with a (back)slash
+
+	CAutoRepository repository(repodir);
 	if (!repository)
 	{
 		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Could not open git repository in %s: %s\n", static_cast<LPCTSTR>(dgitdir), static_cast<LPCTSTR>(CGit::GetLibGit2LastErr()));
 		return -1;
 	}
-
-	// add config files
-	config.New();
 
 	CString projectConfig = g_AdminDirMap.GetAdminDir(dgitdir) + L"config";
 	CString globalConfig = g_Git.GetGitGlobalConfig();
@@ -88,14 +90,17 @@ int CGitIndexList::ReadIndex(CString dgitdir)
 	CString systemConfig(CRegString(REG_SYSTEM_GITCONFIGPATH, L"", FALSE));
 	CString programDataConfig(GetProgramDataGitConfig());
 
-	git_config_add_file_ondisk(config, CGit::GetGitPathStringA(projectConfig), GIT_CONFIG_LEVEL_LOCAL, repository, FALSE);
-	git_config_add_file_ondisk(config, CGit::GetGitPathStringA(globalConfig), GIT_CONFIG_LEVEL_GLOBAL, repository, FALSE);
-	git_config_add_file_ondisk(config, CGit::GetGitPathStringA(globalXDGConfig), GIT_CONFIG_LEVEL_XDG, repository, FALSE);
+	CAutoConfig temp { true };
+	git_config_add_file_ondisk(temp, CGit::GetGitPathStringA(projectConfig), GIT_CONFIG_LEVEL_LOCAL, repository, FALSE);
+	git_config_add_file_ondisk(temp, CGit::GetGitPathStringA(globalConfig), GIT_CONFIG_LEVEL_GLOBAL, repository, FALSE);
+	git_config_add_file_ondisk(temp, CGit::GetGitPathStringA(globalXDGConfig), GIT_CONFIG_LEVEL_XDG, repository, FALSE);
 	if (!systemConfig.IsEmpty())
-		git_config_add_file_ondisk(config, CGit::GetGitPathStringA(systemConfig), GIT_CONFIG_LEVEL_SYSTEM, repository, FALSE);
+		git_config_add_file_ondisk(temp, CGit::GetGitPathStringA(systemConfig), GIT_CONFIG_LEVEL_SYSTEM, repository, FALSE);
 	if (!programDataConfig.IsEmpty())
-		git_config_add_file_ondisk(config, CGit::GetGitPathStringA(programDataConfig), GIT_CONFIG_LEVEL_PROGRAMDATA, repository, FALSE);
+		git_config_add_file_ondisk(temp, CGit::GetGitPathStringA(programDataConfig), GIT_CONFIG_LEVEL_PROGRAMDATA, repository, FALSE);
 
+	git_config_snapshot(config.GetPointer(), temp);
+	temp.Free();
 	git_repository_set_config(repository, config);
 
 	CGit::GetFileModifyTime(g_AdminDirMap.GetWorktreeAdminDir(dgitdir) + L"index", &m_LastModifyTime, nullptr, &m_LastFileSize);
@@ -123,6 +128,12 @@ int CGitIndexList::ReadIndex(CString dgitdir)
 	{
 		config.Free();
 		CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Could not resize index-vector: %s\n", ex.what());
+		return -1;
+	}
+	catch (const std::length_error& ex)
+	{
+		config.Free();
+		CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Could not resize index-vector, length_error: %s\n", ex.what());
 		return -1;
 	}
 	for (size_t i = 0; i < ecount; ++i)
@@ -201,7 +212,11 @@ int CGitIndexList::GetFileStatus(CAutoRepository& repository, const CString& git
 		 */
 		if (!repository)
 		{
-			if (repository.Open(gitdir))
+			CString repodir = gitdir;
+			if (gitdir.GetLength() == 2 && gitdir[1] == L':')
+				repodir += L'\\'; // libgit2 requires a drive root to end with a (back)slash
+
+			if (repository.Open(repodir))
 			{
 				CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": Could not open git repository in %s for checking file: %s\n", static_cast<LPCTSTR>(gitdir), static_cast<LPCTSTR>(CGit::GetLibGit2LastErr()));
 				return -1;
@@ -210,7 +225,7 @@ int CGitIndexList::GetFileStatus(CAutoRepository& repository, const CString& git
 		}
 
 		git_oid actual;
-		CStringA fileA = CUnicodeUtils::GetMulti(entry.m_FileName, CP_UTF8);
+		CStringA fileA = CUnicodeUtils::GetUTF8(entry.m_FileName);
 		if (isSymlink && S_ISLNK(entry.m_Mode))
 		{
 			CStringA linkDestination;
@@ -633,6 +648,11 @@ int CGitHeadFileList::ReadTree(bool ignoreCase)
 		CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Catched exception inside ReadTreeRecursive: %s\n", ex.what());
 		return -1;
 	}
+	catch (const std::length_error& ex)
+	{
+		CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Catched exception inside ReadTreeRecursive, length_error: %s\n", ex.what());
+		return -1;
+	}
 	if (!ret)
 	{
 		clear();
@@ -668,7 +688,7 @@ int CGitIgnoreItem::FetchIgnoreList(const CString& projectroot, const CString& f
 		if(start > 0)
 		{
 			base.Truncate(start);
-			this->m_BaseDir = CUnicodeUtils::GetMulti(base, CP_UTF8) + "/";
+			this->m_BaseDir = CUnicodeUtils::GetUTF8(base) + "/";
 		}
 	}
 
@@ -998,7 +1018,7 @@ int CGitIgnoreList::CheckIgnore(const CString &path, const CString &projectroot,
 	CString temp = CombinePath(projectroot, path);
 	temp.Replace(L'/', L'\\');
 
-	CStringA patha = CUnicodeUtils::GetMulti(path, CP_UTF8);
+	CStringA patha = CUnicodeUtils::GetUTF8(path);
 	patha.Replace('\\', '/');
 
 	int type = 0;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2009-2019 - TortoiseGit
+// Copyright (C) 2009-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
 #include "Git.h"
 #include "GitRevRefBrowser.h"
 #include "StringUtils.h"
+#include "GitMailmap.h"
 
 GitRevRefBrowser::GitRevRefBrowser() : GitRev()
 {
@@ -53,13 +54,14 @@ int GitRevRefBrowser::GetGitRevRefMap(MAP_REF_GITREVREFBROWSER& map, int mergefi
 	}
 
 	CString cmd;
-	cmd.Format(L"git.exe for-each-ref%s --format=\"%%(refname)%%04 %%(objectname)%%04 %%(upstream)%%04 %%(subject)%%04 %%(authorname)%%04 %%(authordate:raw)%%04 %%(creator)%%04 %%(creatordate:raw)%%03\"", static_cast<LPCTSTR>(args));
+	cmd.Format(L"git.exe for-each-ref%s --format=\"%%(refname)%%04 %%(objectname)%%04 %%(upstream)%%04 %%(subject)%%04 %%(authorname)%%04 %%(authoremail)%%04 %%(authordate:raw)%%04 %%(creator)%%04 %%(creatordate:raw)%%03\"", static_cast<LPCTSTR>(args));
 	CString allRefs;
 	if (g_Git.Run(cmd, &allRefs, &err, CP_UTF8))
 		return -1;
 
 	int linePos = 0;
 	CString singleRef;
+	CGitMailmap mailmap;
 	while (!(singleRef = allRefs.Tokenize(L"\03", linePos)).IsEmpty())
 	{
 		singleRef.TrimLeft(L"\r\n");
@@ -74,15 +76,20 @@ int GitRevRefBrowser::GetGitRevRefMap(MAP_REF_GITREVREFBROWSER& map, int mergefi
 		ref.m_UpstreamRef = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
 		ref.m_Subject = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
 		ref.m_AuthorName = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
+		CString email = singleRef.Tokenize(L"\04", valuePos).Trim().Trim(L"<>"); if (valuePos < 0) continue;
 		CString date = singleRef.Tokenize(L"\04", valuePos).Trim();
 		ref.m_AuthorDate = StrToInt(date);
 		if (ref.m_AuthorName.IsEmpty())
 		{
 			ref.m_AuthorName = singleRef.Tokenize(L"\04", valuePos).Trim(); if (valuePos < 0) continue;
-			ref.m_AuthorName = ref.m_AuthorName.Left(ref.m_AuthorName.Find(L" <")).Trim();
+			email = ref.m_AuthorName.Mid(ref.m_AuthorName.Find(L" <") + static_cast<int>(wcslen(L" <")));
+			email.Truncate(max(0, email.Find(L'>')));
+			ref.m_AuthorName.Truncate(max(0, ref.m_AuthorName.Find(L" <")));
 			date = singleRef.Tokenize(L"\04", valuePos).Trim();
 			ref.m_AuthorDate = StrToInt(date);
 		}
+		if (mailmap)
+			ref.m_AuthorName = mailmap.TranslateAuthor(ref.m_AuthorName, email);
 
 		if (CStringUtils::StartsWith(refName, L"refs/heads/"))
 			ref.m_Description = descriptions[refName.Mid(static_cast<int>(wcslen(L"refs/heads/")))];

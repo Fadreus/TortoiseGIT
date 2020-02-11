@@ -28,6 +28,8 @@
 #include "TGitPath.h"
 #include "RevGraphFilterDlg.h"
 #include "DPIAware.h"
+#include "LogDlgFilter.h"
+#include "GitLogList.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -36,6 +38,8 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 using namespace Gdiplus;
+
+const UINT CRevisionGraphDlg::m_FindDialogMessage = RegisterWindowMessage(FINDMSGSTRING);
 
 struct CToolBarData
 {
@@ -58,6 +62,8 @@ CRevisionGraphDlg::CRevisionGraphDlg(CWnd* pParent /*=nullptr*/)
 	, m_bFetchLogs(true)
 	, m_fZoomFactor(DEFAULT_ZOOM)
 	, m_bVisible(true)
+	, m_pFindDialog(nullptr)
+	, m_nSearchIndex(0)
 {
 	// GDI+ initialization
 
@@ -105,6 +111,10 @@ BEGIN_MESSAGE_MAP(CRevisionGraphDlg, CResizableStandAloneDialog)
 	ON_COMMAND(ID_VIEW_UNIFIEDDIFFOFHEADREVISIONS, OnViewUnifieddiffofheadrevisions)
 	ON_WM_WINDOWPOSCHANGING()
 	ON_COMMAND(ID_VIEW_SHOWBRANCHINGSANDMERGES, OnViewShowBranchingsMerges)
+	ON_COMMAND(ID_VIEW_SHOWALLTAGS, OnViewShowAllTags)
+	ON_COMMAND(ID_VIEW_ARROW_POINT_TO_MERGES, OnViewArrowPointToMerges)
+	ON_COMMAND(ID_FIND, OnFind)
+	ON_REGISTERED_MESSAGE(m_FindDialogMessage, OnFindDialogMessage)
 END_MESSAGE_MAP()
 
 BOOL CRevisionGraphDlg::InitializeToolbar()
@@ -261,23 +271,10 @@ BOOL CRevisionGraphDlg::OnInitDialog()
 	if (FAILED(m_pTaskbarList.CoCreateInstance(CLSID_TaskbarList)))
 		m_pTaskbarList = nullptr;
 
-	CMenu* pMenu = GetMenu();
-	if (pMenu)
-	{
-		CRegDWORD reg = CRegDWORD(L"Software\\TortoiseGit\\ShowRevGraphOverview", FALSE);
-		m_Graph.SetShowOverview((DWORD)reg != FALSE);
-		pMenu->CheckMenuItem(ID_VIEW_SHOWOVERVIEW, MF_BYCOMMAND | (DWORD(reg) ? MF_CHECKED : 0));
-		int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWOVERVIEW);
-		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWOVERVIEW, tbstate | (DWORD(reg) ? TBSTATE_CHECKED : 0));
-	}
-	if (pMenu)
-	{
-		CRegDWORD reg(L"Software\\TortoiseGit\\ShowRevGraphBranchesMerges", FALSE);
-		m_Graph.m_bShowBranchingsMerges = (DWORD)reg != FALSE;
-		pMenu->CheckMenuItem(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND | (DWORD(reg) ? MF_CHECKED : 0));
-		int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWBRANCHINGSANDMERGES);
-		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWBRANCHINGSANDMERGES, tbstate | (DWORD(reg) ? TBSTATE_CHECKED : 0));
-	}
+	m_Graph.SetShowOverview(InitialSetMenu(L"ShowRevGraphOverview", false, ID_VIEW_SHOWOVERVIEW));
+	m_Graph.m_bShowBranchingsMerges = InitialSetMenu(L"ShowRevGraphBranchesMerges", false, ID_VIEW_SHOWBRANCHINGSANDMERGES);
+	m_Graph.m_bShowAllTags = InitialSetMenu(L"ShowRevGraphAllTags", true, ID_VIEW_SHOWALLTAGS);
+	m_Graph.m_bArrowPointToMerges = InitialSetMenu(L"ArrowPointToMerges", false, ID_VIEW_ARROW_POINT_TO_MERGES);
 
 //	m_hAccel = LoadAccelerators(AfxGetResourceHandle(),MAKEINTRESOURCE(IDR_ACC_REVISIONGRAPH));
 
@@ -296,6 +293,45 @@ BOOL CRevisionGraphDlg::OnInitDialog()
 //		CenterWindow(CWnd::FromHandle(GetExplorerHWND()));
 
 	return TRUE;  // return TRUE unless you set the focus to a control
+}
+
+bool CRevisionGraphDlg::InitialSetMenu(const CString& settingName, bool defaultValue, int nId)
+{
+	CRegDWORD reg = CRegDWORD(L"Software\\TortoiseGit\\" + settingName, defaultValue ? TRUE : FALSE);
+	CMenu* pMenu = GetMenu();
+	if (!pMenu)
+		return static_cast<DWORD>(reg) != FALSE;
+	pMenu->CheckMenuItem(nId, MF_BYCOMMAND | (DWORD(reg) ? MF_CHECKED : 0));
+	int tbstate = m_ToolBar.GetToolBarCtrl().GetState(nId);
+	m_ToolBar.GetToolBarCtrl().SetState(nId, tbstate | (DWORD(reg) ? TBSTATE_CHECKED : 0));
+	return static_cast<DWORD>(reg) != FALSE;
+}
+
+bool CRevisionGraphDlg::ToggleSetMenu(const CString& settingName, int nId)
+{
+	CMenu* pMenu = GetMenu();
+	if (!pMenu)
+		return false;
+	int tbstate = m_ToolBar.GetToolBarCtrl().GetState(nId);
+	UINT state = pMenu->GetMenuState(nId, MF_BYCOMMAND);
+	bool ret = false;
+	if (state & MF_CHECKED)
+	{
+		pMenu->CheckMenuItem(nId, MF_BYCOMMAND | MF_UNCHECKED);
+		m_ToolBar.GetToolBarCtrl().SetState(nId, tbstate & (~TBSTATE_CHECKED));
+		ret = false;
+	}
+	else
+	{
+		pMenu->CheckMenuItem(nId, MF_BYCOMMAND | MF_CHECKED);
+		m_ToolBar.GetToolBarCtrl().SetState(nId, tbstate | TBSTATE_CHECKED);
+		ret = true;
+	}
+
+	CRegDWORD reg = CRegDWORD(L"Software\\TortoiseGit\\" + settingName, FALSE);
+	reg = ret;
+
+	return ret;
 }
 
 bool CRevisionGraphDlg::UpdateData()
@@ -383,6 +419,10 @@ BOOL CRevisionGraphDlg::PreTranslateMessage(MSG* pMsg)
 		case VK_F5:
 			UpdateFullHistory();
 			break;
+		case 'F':
+			if (GetKeyState(VK_CONTROL) < 0)
+				OnFind();
+			return TRUE;
 		}
 	}
 	if ((m_hAccel)&&(pMsg->message >= WM_KEYFIRST && pMsg->message <= WM_KEYLAST))
@@ -397,27 +437,21 @@ BOOL CRevisionGraphDlg::PreTranslateMessage(MSG* pMsg)
 
 void CRevisionGraphDlg::OnViewShowBranchingsMerges()
 {
-	CMenu* pMenu = GetMenu();
-	if (!pMenu)
-		return;
-	int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWBRANCHINGSANDMERGES);
-	UINT state = pMenu->GetMenuState(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND);
-	if (state & MF_CHECKED)
-	{
-		pMenu->CheckMenuItem(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND | MF_UNCHECKED);
-		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWBRANCHINGSANDMERGES, tbstate & (~TBSTATE_CHECKED));
-		m_Graph.m_bShowBranchingsMerges = false;
-	}
-	else
-	{
-		pMenu->CheckMenuItem(ID_VIEW_SHOWBRANCHINGSANDMERGES, MF_BYCOMMAND | MF_CHECKED);
-		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWBRANCHINGSANDMERGES, tbstate | TBSTATE_CHECKED);
-		m_Graph.m_bShowBranchingsMerges = true;
-	}
+	m_Graph.m_bShowBranchingsMerges = ToggleSetMenu(L"ShowRevGraphBranchesMerges", ID_VIEW_SHOWBRANCHINGSANDMERGES);
 
-	CRegDWORD reg(L"Software\\TortoiseGit\\ShowRevGraphBranchesMerges", FALSE);
-	reg = m_Graph.m_bShowBranchingsMerges;
+	UpdateFullHistory();
+}
 
+void CRevisionGraphDlg::OnViewShowAllTags()
+{
+	m_Graph.m_bShowAllTags = ToggleSetMenu(L"ShowRevGraphAllTags", ID_VIEW_SHOWALLTAGS);
+
+	UpdateFullHistory();
+}
+
+void CRevisionGraphDlg::OnViewArrowPointToMerges()
+{
+	m_Graph.m_bArrowPointToMerges = ToggleSetMenu(L"ArrowPointToMerges", ID_VIEW_ARROW_POINT_TO_MERGES);
 	UpdateFullHistory();
 }
 
@@ -480,6 +514,101 @@ void CRevisionGraphDlg::OnViewZoomAll()
 	float vertfact = (windowRect.Height() - 4.0f)/(4.0f + graphRect.Height());
 
 	DoZoom (min (MAX_ZOOM, min(horzfact, vertfact)));
+}
+
+void CRevisionGraphDlg::OnFind()
+{
+	if (!m_pFindDialog)
+	{
+		m_pFindDialog = new CFindDlg(this);
+		m_pFindDialog->Create(this);
+	}
+}
+
+LRESULT CRevisionGraphDlg::OnFindDialogMessage(WPARAM /*wParam*/, LPARAM /*lParam*/)
+{
+	ASSERT(m_pFindDialog);
+	bool bFound = false;
+	int i = 0;
+
+	if (m_pFindDialog->IsTerminating())
+	{
+		// invalidate the handle identifying the dialog box.
+		m_pFindDialog = nullptr;
+		return 0;
+	}
+
+	bool bShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+	int cnt = static_cast<int>(m_Graph.m_logEntries.size());
+	if (m_pFindDialog->IsRef())
+	{
+		CString str;
+		str = m_pFindDialog->GetFindString();
+
+		CGitHash hash;
+
+		if (!str.IsEmpty())
+		{
+			if (g_Git.GetHash(hash, str + L"^{}")) // add ^{} in order to get the correct SHA-1 (especially for signed tags)
+				MessageBox(g_Git.GetGitLastErr(L"Could not get hash of ref \"" + str + L"^{}\"."), L"TortoiseGit", MB_ICONERROR);
+		}
+
+		if (!hash.IsEmpty())
+		{
+			for (i = 0; i < cnt; ++i)
+			{
+				if (m_Graph.m_logEntries.at(i) == hash)
+				{
+					bFound = true;
+					break;
+				}
+			}
+		}
+		if (!bFound)
+		{
+			m_pFindDialog->FlashWindowEx(FLASHW_ALL, 2, 100);
+			return 0;
+		}
+	}
+
+	if (m_pFindDialog->FindNext() && !bFound)
+	{
+		//read data from dialog
+		CLogDlgFilter filter{ m_pFindDialog->GetFindString(), m_pFindDialog->Regex(), LOGFILTER_SUBJECT | LOGFILTER_MESSAGES | LOGFILTER_AUTHORS | LOGFILTER_EMAILS | LOGFILTER_REVS | LOGFILTER_REFNAME, m_pFindDialog->MatchCase() == TRUE };
+
+		for (i = m_nSearchIndex + 1;; ++i)
+		{
+			if (i >= cnt)
+			{
+				i = 0;
+				m_pFindDialog->FlashWindowEx(FLASHW_ALL, 2, 100);
+			}
+			if (m_nSearchIndex >= 0)
+			{
+				if (i == m_nSearchIndex)
+				{
+					::MessageBeep(0xFFFFFFFF);
+					m_pFindDialog->FlashWindowEx(FLASHW_ALL, 3, 100);
+					break;
+				}
+			}
+
+			if (filter(m_Graph.m_LogCache.GetCacheData(m_Graph.m_logEntries.at(i)), nullptr, m_Graph.m_HashMap))
+			{
+				bFound = true;
+				break;
+			}
+		}
+	} // if(m_pFindDialog->FindNext())
+
+	if (bFound)
+	{
+		m_nSearchIndex = i;
+		m_Graph.ScrollTo(i, !bShift);
+		Invalidate(FALSE);
+	}
+
+	return 0;
 }
 
 void CRevisionGraphDlg::OnMenuexit()
@@ -701,26 +830,8 @@ void CRevisionGraphDlg::OnViewFilter()
 
 void CRevisionGraphDlg::OnViewShowoverview()
 {
-	CMenu * pMenu = GetMenu();
-	if (!pMenu)
-		return;
-	int tbstate = m_ToolBar.GetToolBarCtrl().GetState(ID_VIEW_SHOWOVERVIEW);
-	UINT state = pMenu->GetMenuState(ID_VIEW_SHOWOVERVIEW, MF_BYCOMMAND);
-	if (state & MF_CHECKED)
-	{
-		pMenu->CheckMenuItem(ID_VIEW_SHOWOVERVIEW, MF_BYCOMMAND | MF_UNCHECKED);
-		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWOVERVIEW, tbstate & (~TBSTATE_CHECKED));
-		m_Graph.SetShowOverview (false);
-	}
-	else
-	{
-		pMenu->CheckMenuItem(ID_VIEW_SHOWOVERVIEW, MF_BYCOMMAND | MF_CHECKED);
-		m_ToolBar.GetToolBarCtrl().SetState(ID_VIEW_SHOWOVERVIEW, tbstate | TBSTATE_CHECKED);
-		m_Graph.SetShowOverview (true);
-	}
+	m_Graph.SetShowOverview(ToggleSetMenu(L"ShowRevGraphOverview", ID_VIEW_SHOWOVERVIEW));
 
-	CRegDWORD reg(L"Software\\TortoiseGit\\ShowRevGraphOverview", FALSE);
-	reg = m_Graph.GetShowOverview();
 	m_Graph.Invalidate(FALSE);
 }
 

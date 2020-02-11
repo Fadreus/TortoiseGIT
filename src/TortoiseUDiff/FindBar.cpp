@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2012-2013, 2015-2016, 2019 - TortoiseGit
+// Copyright (C) 2012-2013, 2015-2016, 2019-2020 - TortoiseGit
 // Copyright (C) 2003-2007, 2012-2013, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -27,13 +27,11 @@
 
 CFindBar::CFindBar()
 	: m_hParent(nullptr)
-	, m_hIcon(nullptr)
 {
 }
 
 CFindBar::~CFindBar(void)
 {
-	DestroyIcon(m_hIcon);
 }
 
 LRESULT CFindBar::DlgFunc(HWND /*hwndDlg*/, UINT uMsg, WPARAM wParam, LPARAM /*lParam*/)
@@ -43,7 +41,7 @@ LRESULT CFindBar::DlgFunc(HWND /*hwndDlg*/, UINT uMsg, WPARAM wParam, LPARAM /*l
 	case WM_INITDIALOG:
 		{
 			m_hIcon = LoadIconEx(hResource, MAKEINTRESOURCE(IDI_CANCELNORMAL));
-			SendMessage(GetDlgItem(*this, IDC_FINDEXIT), BM_SETIMAGE, IMAGE_ICON, reinterpret_cast<LPARAM>(m_hIcon));
+			SendMessage(GetDlgItem(*this, IDC_FINDEXIT), BM_SETIMAGE, IMAGE_ICON, reinterpret_cast<LPARAM>(static_cast<HICON>(m_hIcon)));
 		}
 		return TRUE;
 	case WM_COMMAND:
@@ -94,4 +92,14 @@ void CFindBar::DoFind(bool bFindPrev)
 	const bool bCaseSensitive = !!SendMessage(GetDlgItem(*this, IDC_MATCHCASECHECK), BM_GETCHECK, 0, 0);
 	const UINT message = bFindPrev ? COMMITMONITOR_FINDMSGPREV : COMMITMONITOR_FINDMSGNEXT;
 	::SendMessage(m_hParent, message, bCaseSensitive, reinterpret_cast<LPARAM>(ft.c_str()));
+}
+
+void CFindBar::SelectSearchString()
+{
+	SendMessage(GetDlgItem(*this, IDC_FINDTEXT), EM_SETSEL, 0, -1);
+}
+
+void CFindBar::SetSearchString(LPCTSTR findStr)
+{
+	::SetWindowText(GetDlgItem(*this, IDC_FINDTEXT), findStr);
 }

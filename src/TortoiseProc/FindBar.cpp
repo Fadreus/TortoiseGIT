@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2016, 2018-2019 - TortoiseGit
+// Copyright (C) 2015-2016, 2018-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -30,14 +30,12 @@ IMPLEMENT_DYNAMIC(CFindBar, CDialog)
 
 CFindBar::CFindBar(CWnd* pParent /*=nullptr*/)
 : CDialog(CFindBar::IDD, pParent)
-, m_hIcon(nullptr)
 , m_bMatchCase(false)
 {
 }
 
 CFindBar::~CFindBar(void)
 {
-	DestroyIcon(m_hIcon);
 }
 
 BOOL CFindBar::OnInitDialog()
@@ -45,7 +43,7 @@ BOOL CFindBar::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	m_hIcon = LoadIconEx(AfxGetResourceHandle(), MAKEINTRESOURCE(IDI_CANCELNORMAL));
-	GetDlgItem(IDC_FINDEXIT)->SendMessage(BM_SETIMAGE, IMAGE_ICON, reinterpret_cast<LPARAM>(m_hIcon));
+	GetDlgItem(IDC_FINDEXIT)->SendMessage(BM_SETIMAGE, IMAGE_ICON, reinterpret_cast<LPARAM>(static_cast<HICON>(m_hIcon)));
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 }
@@ -73,6 +71,12 @@ void CFindBar::OnCancel()
 {
 	// hide the find bar on escape
 	OnFindExit();
+}
+
+void CFindBar::SetFindText(CString findStr)
+{
+	m_sFindStr = findStr;
+	UpdateData(FALSE);
 }
 
 void CFindBar::OnFindNext()
