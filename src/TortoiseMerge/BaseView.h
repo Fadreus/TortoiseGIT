@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2020 - TortoiseGit
-// Copyright (C) 2003-2015, 2019 - TortoiseSVN
+// Copyright (C) 2003-2015, 2019-2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -139,6 +139,7 @@ public: // methods
 	void			SetInlineDiff(bool bDiff) {m_bShowInlineDiff = bDiff;}
 	void			SetMarkedWord(const CString& word) {m_sMarkedWord = word; BuildMarkedWordArray();}
 	LPCTSTR			GetMarkedWord() { return static_cast<LPCTSTR>(m_sMarkedWord); }
+	int				GetMarkedWordCount() const { return m_MarkedWordCount; }
 	LPCTSTR			GetFindString() { return static_cast<LPCTSTR>(m_sFindText); }
 
 	// Selection methods; all public methods dealing with selection go here
@@ -498,6 +499,7 @@ protected:  // variables
 	int				m_nSelViewBlockEnd;
 
 	int				m_nMouseLine;
+	int				m_nLDownLine;
 	bool			m_mouseInMargin;
 	HCURSOR			m_margincursor;
 
@@ -543,6 +545,7 @@ protected:  // variables
 	CString			m_sNoLineNr;
 	CString			m_sMarkedWord;
 	CString			m_sPreviousMarkedWord;
+	int				m_MarkedWordCount;
 
 	CBitmap *		m_pCacheBitmap;
 	CDC *			m_pDC;

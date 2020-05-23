@@ -45,7 +45,6 @@ bool CGit::ms_bCygwinGit = (CRegDWORD(L"Software\\TortoiseGit\\CygwinHack", FALS
 bool CGit::ms_bMsys2Git = (CRegDWORD(L"Software\\TortoiseGit\\Msys2Hack", FALSE) == TRUE);
 int CGit::ms_iSimilarityIndexThreshold = CalculateDiffSimilarityIndexThreshold(CRegDWORD(L"Software\\TortoiseGit\\DiffSimilarityIndexThreshold", 50));
 int CGit::m_LogEncode=CP_UTF8;
-typedef CComCritSecLock<CComCriticalSection> CAutoLocker;
 
 static LPCTSTR nextpath(const wchar_t* path, wchar_t* buf, size_t buflen)
 {
@@ -154,7 +153,7 @@ static CString FindExecutableOnPath(const CString& executable, LPCTSTR env)
 static bool g_bSortLogical;
 static bool g_bSortLocalBranchesFirst;
 static bool g_bSortTagsReversed;
-static git_cred_acquire_cb g_Git2CredCallback;
+static git_credential_acquire_cb g_Git2CredCallback;
 static git_transport_certificate_check_cb g_Git2CheckCertificateCallback;
 
 static void GetSortOptions()
@@ -366,8 +365,8 @@ void CGit::StringAppend(CString* str, const char* p, int code, int length)
 	if (len == 0)
 		return;
 	int currentContentLen = str->GetLength();
-	WCHAR * buf = str->GetBuffer(len * 4 + 1 + currentContentLen) + currentContentLen;
-	int appendedLen = MultiByteToWideChar(code, 0, p, len, buf, len * 4);
+	auto* buf = str->GetBuffer(len * 2 + currentContentLen) + currentContentLen;
+	int appendedLen = MultiByteToWideChar(code, 0, p, len, buf, len * 2);
 	str->ReleaseBuffer(currentContentLen + appendedLen); // no - 1 because MultiByteToWideChar is called with a fixed length (thus no nul char included)
 }
 
@@ -565,10 +564,15 @@ public:
 
 		// Break into lines and feed to m_recv
 		int eolPos;
+		CStringA line;
 		while ((eolPos = m_buffer.Find('\n')) >= 0)
 		{
-			m_recv(m_buffer.Left(eolPos));
-			m_buffer = m_buffer.Mid(eolPos + 1);
+			memcpy(line.GetBuffer(eolPos), static_cast<const char*>(m_buffer), eolPos);
+			line.ReleaseBuffer(eolPos);
+			auto oldLen = m_buffer.GetLength();
+			memmove(m_buffer.GetBuffer(oldLen), static_cast<const char*>(m_buffer) + eolPos + 1, m_buffer.GetLength() - eolPos - 1);
+			m_buffer.ReleaseBuffer(oldLen - eolPos - 1);
+			m_recv(line);
 		}
 		return false;
 	}
@@ -1194,7 +1198,10 @@ int CGit::GetHash(git_repository * repo, CGitHash &hash, const CString& friendna
 	{
 		hash.Empty();
 		if (isHeadOrphan == 1)
-			return 0;
+		{
+			if (friendname == GitRev::GetHead()) // special check for unborn branch: if not requesting HEAD, do normal commit lookup
+				return 0;
+		}
 		else
 			return -1;
 	}
@@ -1227,6 +1234,11 @@ int CGit::GetHash(CGitHash &hash, const CString& friendname)
 	}
 	else
 	{
+		if (friendname.IsEmpty())
+		{
+			gitLastErr.Empty();
+			return -1;
+		}
 		CString branch = FixBranchName(friendname);
 		if (friendname == L"FETCH_HEAD" && branch.IsEmpty())
 			branch = friendname;
@@ -1310,8 +1322,7 @@ int CGit::GetTagList(STRING_VECTOR &list)
 
 		for (size_t i = 0; i < tag_names->count; ++i)
 		{
-			CStringA tagName(tag_names->strings[i]);
-			list.push_back(CUnicodeUtils::GetUnicode(tagName));
+			list.push_back(CUnicodeUtils::GetUnicode(tag_names->strings[i]));
 		}
 
 		std::sort(list.begin() + prevCount, list.end(), g_bSortTagsReversed ? LogicalCompareReversedPredicate : LogicalComparePredicate);
@@ -1367,7 +1378,7 @@ CString CGit::GetLibGit2LastErr()
 	const git_error *libgit2err = git_error_last();
 	if (libgit2err)
 	{
-		CString lastError = CUnicodeUtils::GetUnicode(CStringA(libgit2err->message));
+		CString lastError = CUnicodeUtils::GetUnicode(libgit2err->message);
 		git_error_clear();
 		return L"libgit2 returned: " + lastError;
 	}
@@ -1774,8 +1785,7 @@ int CGit::GetRemoteList(STRING_VECTOR &list)
 
 		for (size_t i = 0; i < remotes->count; ++i)
 		{
-			CStringA remote(remotes->strings[i]);
-			list.push_back(CUnicodeUtils::GetUnicode(remote));
+			list.push_back(CUnicodeUtils::GetUnicode(remotes->strings[i]));
 		}
 
 		std::sort(list.begin() + prevCount, list.end(), LogicalComparePredicate);
@@ -2158,6 +2168,8 @@ BOOL CGit::CheckMsysGitDir(BOOL bFallback)
 
 	if(!sshclient.IsEmpty())
 	{
+		if (ms_bCygwinGit)
+			sshclient.Replace(L'\\', L'/');
 		m_Environment.SetEnv(L"GIT_SSH", sshclient);
 		if (CStringUtils::EndsWithI(sshclient, L"tortoisegitplink") || CStringUtils::EndsWithI(sshclient, L"tortoisegitplink.exe"))
 			m_Environment.SetEnv(L"GIT_SSH_VARIANT", L"ssh");
@@ -2170,6 +2182,8 @@ BOOL CGit::CheckMsysGitDir(BOOL bFallback)
 		LPTSTR ptr = wcsrchr(sPlink, L'\\');
 		if (ptr) {
 			wcscpy_s(ptr + 1, _countof(sPlink) - (ptr - sPlink + 1), L"TortoiseGitPlink.exe");
+			if (ms_bCygwinGit)
+				CPathUtils::ConvertToSlash(sPlink);
 			m_Environment.SetEnv(L"GIT_SSH", sPlink);
 			m_Environment.SetEnv(L"GIT_SSH_VARIANT", L"ssh");
 			m_Environment.SetEnv(L"SVN_SSH", sPlink);
@@ -2183,6 +2197,8 @@ BOOL CGit::CheckMsysGitDir(BOOL bFallback)
 		if (ptr)
 		{
 			wcscpy_s(ptr + 1, _countof(sAskPass) - (ptr - sAskPass + 1), L"SshAskPass.exe");
+			if (ms_bCygwinGit)
+				CPathUtils::ConvertToSlash(sAskPass);
 			m_Environment.SetEnv(L"DISPLAY",L":9999");
 			m_Environment.SetEnv(L"SSH_ASKPASS",sAskPass);
 			m_Environment.SetEnv(L"GIT_ASKPASS",sAskPass);
@@ -2847,7 +2863,7 @@ bool CGit::UsingLibGit2(LIBGIT2_CMD cmd) const
 
 void CGit::SetGit2CredentialCallback(void* callback)
 {
-	g_Git2CredCallback = static_cast<git_cred_acquire_cb>(callback);
+	g_Git2CredCallback = static_cast<git_credential_acquire_cb>(callback);
 }
 
 void CGit::SetGit2CertificateCheckCertificate(void* callback)

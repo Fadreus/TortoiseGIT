@@ -250,6 +250,9 @@ BOOL CCommitDlg::OnInitDialog()
 	if (m_bSetAuthor)
 		GetDlgItem(IDC_COMMIT_AUTHORDATA)->ShowWindow(SW_SHOW);
 
+	// git commit accepts only 1970-01-01 to 2099-12-31 regardless timezone
+	COleDateTime minDate(1970, 1, 1, 0, 0, 0), maxDate(2099, 12, 31, 0, 0, 0);
+	m_CommitDate.SetRange(&minDate, &maxDate);
 	if (m_bSetCommitDateTime)
 	{
 		m_CommitDate.SetTime(&m_wantCommitTime);
@@ -1062,9 +1065,16 @@ void CCommitDlg::OnOK()
 		CString dateTime;
 		if (m_bSetCommitDateTime)
 		{
-			CTime date, time;
+			COleDateTime date, time;
 			m_CommitDate.GetTime(date);
 			m_CommitTime.GetTime(time);
+			COleDateTime dateWithTime(date.GetYear(), date.GetMonth(), date.GetDay(), time.GetHour(), time.GetMinute(), time.GetSecond());
+			if (dateWithTime < COleDateTime((time_t)0))
+			{
+				CMessageBox::Show(GetSafeHwnd(), L"Invalid time", L"TortoiseGit", MB_OK | MB_ICONERROR);
+				InterlockedExchange(&m_bBlock, FALSE);
+				return;
+			}
 			if (m_bCommitAmend && m_AsCommitDateCtrl.GetCheck())
 				dateTime = L"--date=\"now\"";
 			else

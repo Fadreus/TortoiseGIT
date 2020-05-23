@@ -791,7 +791,7 @@ bool CAppUtils::LaunchRemoteSetting()
 	CTGitPath path(g_Git.m_CurrentDir);
 	CSettings dlg(IDS_PROC_SETTINGS_TITLE, &path);
 	dlg.SetTreeViewMode(TRUE, TRUE, TRUE);
-	dlg.SetTreeWidth(CDPIAware::Instance().ScaleX(220));
+	dlg.SetTreeWidth(220);
 	dlg.m_DefaultPage = L"gitremote";
 
 	dlg.DoModal();
@@ -1764,7 +1764,7 @@ static bool ParseHashesFromLsFile(const BYTE_VECTOR& out, CGitHash& hash1, bool&
 	return false;
 }
 
-void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CString& theirsText, bool rebaseActive)
+void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CGitHash* mineHash, CString& theirsText, CGitHash* theirsHash, bool rebaseActive)
 {
 	if (baseText)
 		baseText->LoadString(IDS_PROC_DIFF_BASE);
@@ -1778,6 +1778,8 @@ void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CString&
 			CGitHash hash;
 			if (!g_Git.GetHash(hash, L"rebase-apply/onto"))
 				g_Git.GuessRefForHash(mineText, hash);
+			if (mineHash)
+				*mineHash = hash;
 		}
 		theirsText = L"Branch being rebased";
 		if (!CStringUtils::ReadStringFromTextFile(adminDir + L"tgitrebase.active\\head-name", theirsText))
@@ -1806,6 +1808,8 @@ void CAppUtils::GetConflictTitles(CString* baseText, CString& mineText, CString&
 			else
 				g_Git.GuessRefForHash(guessedRef, hash);
 			theirsText.FormatMessage(infotext.theirstext, infotext.headref, static_cast<LPCTSTR>(guessedRef));
+			if (theirsHash)
+				*theirsHash = hash;
 			break;
 		}
 	}
@@ -1825,7 +1829,8 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 		return FALSE;
 
 	CString baseTitle, mineTitle, theirsTitle;
-	GetConflictTitles(&baseTitle, mineTitle, theirsTitle, isRebase);
+	CGitHash mineHash, theirsHash;
+	GetConflictTitles(&baseTitle, mineTitle, &mineHash, theirsTitle, &theirsHash, isRebase);
 
 	CGitHash baseHash, realBaseHash, localHash, remoteHash;
 	bool baseIsFile = true, localIsFile = true, remoteIsFile = true;
@@ -2044,16 +2049,20 @@ bool CAppUtils::ConflictEdit(HWND hWnd, CTGitPath& path, bool bAlternativeTool /
 		{
 			DescribeConflictFile(b_local, b_base, dlg.m_LocalStatus);
 			DescribeConflictFile(b_remote, b_base, dlg.m_RemoteStatus);
-			dlg.m_LocalHash = CGitHash::FromHexStrTry(mineTitle);
-			dlg.m_RemoteHash = CGitHash::FromHexStrTry(theirsTitle);
+			dlg.m_LocalHash = mineHash;
+			dlg.m_RemoteHash = theirsHash;
+			dlg.m_LocalRef = mineTitle;
+			dlg.m_RemoteRef = theirsTitle;
 			dlg.m_bDiffMine = b_local;
 		}
 		else
 		{
 			DescribeConflictFile(b_local, b_base, dlg.m_RemoteStatus);
 			DescribeConflictFile(b_remote, b_base, dlg.m_LocalStatus);
-			dlg.m_LocalHash = CGitHash::FromHexStrTry(theirsTitle);
-			dlg.m_RemoteHash = CGitHash::FromHexStrTry(mineTitle);
+			dlg.m_LocalHash = theirsHash;
+			dlg.m_RemoteHash = mineHash;
+			dlg.m_LocalRef = theirsTitle;
+			dlg.m_RemoteRef = mineTitle;
 			dlg.m_bDiffMine = !b_local;
 		}
 		dlg.m_bShowModifiedButton = b_base;
@@ -3579,7 +3588,7 @@ bool CAppUtils::BisectOperation(HWND hWnd, const CString& op, const CString& ref
 	return ret == IDOK;
 }
 
-int CAppUtils::Git2GetUserPassword(git_cred **out, const char *url, const char *username_from_url, unsigned int /*allowed_types*/, void * /*payload*/)
+int CAppUtils::Git2GetUserPassword(git_credential **out, const char *url, const char *username_from_url, unsigned int /*allowed_types*/, void * /*payload*/)
 {
 	CUserPassword dlg;
 	dlg.m_URL = CUnicodeUtils::GetUnicode(url);
@@ -3587,7 +3596,7 @@ int CAppUtils::Git2GetUserPassword(git_cred **out, const char *url, const char *
 		dlg.m_UserName = CUnicodeUtils::GetUnicode(username_from_url);
 
 	if (dlg.DoModal() == IDOK)
-		return git_cred_userpass_plaintext_new(out, CUnicodeUtils::GetUTF8(dlg.m_UserName), dlg.m_passwordA);
+		return git_credential_userpass_plaintext_new(out, CUnicodeUtils::GetUTF8(dlg.m_UserName), dlg.m_passwordA);
 
 	git_error_set_str(GIT_ERROR_NONE, "User cancelled.");
 	return GIT_EUSER;

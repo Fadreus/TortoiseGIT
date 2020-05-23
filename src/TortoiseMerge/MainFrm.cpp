@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2008-2020 - TortoiseGit
-// Copyright (C) 2004-2018 - TortoiseSVN
+// Copyright (C) 2004-2018, 2020 - TortoiseSVN
 // Copyright (C) 2012-2014 - Sven Strickroth <email@cs-ware.de>
 
 // This program is free software; you can redistribute it and/or
@@ -156,6 +156,10 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_COMMAND(ID_INDICATOR_RIGHTVIEWCOMBOTABMODE, &CMainFrame::OnDummyEnabled)
 	ON_COMMAND(ID_INDICATOR_BOTTOMVIEWCOMBOTABMODE, &CMainFrame::OnDummyEnabled)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_THREEWAY_ACTIONS, &CMainFrame::OnUpdateThreeWayActions)
+	ON_UPDATE_COMMAND_UI(ID_INDICATOR_COLUMN, &CMainFrame::OnUpdateColumnStatusBar)
+	ON_UPDATE_COMMAND_UI(ID_INDICATOR_MARKEDWORDS, &CMainFrame::OnUpdateMarkedWords)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_FINDNEXTSTART, &CMainFrame::OnUpdateEnableIfSelection)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_FINDPREVSTART, &CMainFrame::OnUpdateEnableIfSelection)
 	ON_COMMAND_RANGE(ID_INDICATOR_LEFTENCODINGSTART, ID_INDICATOR_LEFTENCODINGSTART+19, &CMainFrame::OnEncodingLeft)
 	ON_COMMAND_RANGE(ID_INDICATOR_RIGHTENCODINGSTART, ID_INDICATOR_RIGHTENCODINGSTART+19, &CMainFrame::OnEncodingRight)
 	ON_COMMAND_RANGE(ID_INDICATOR_BOTTOMENCODINGSTART, ID_INDICATOR_BOTTOMENCODINGSTART+19, &CMainFrame::OnEncodingBottom)
@@ -275,7 +279,18 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			TRACE0("Failed to create ribbon status bar\n");
 			return -1; // fail to create
 		}
-		m_wndRibbonStatusBar.AddElement(new CMFCRibbonStatusBarPane(ID_SEPARATOR, CString(MAKEINTRESOURCE(AFX_IDS_IDLEMESSAGE)), TRUE), L"");
+
+		// column info
+		CString sColumn;
+		sColumn.Format(IDS_INDICATOR_COLUMN, 0);
+		auto columnPane = new CMFCRibbonStatusBarPane(ID_INDICATOR_COLUMN, sColumn, FALSE);
+		m_wndRibbonStatusBar.AddElement(columnPane, L"");
+		sColumn.Format(IDS_INDICATOR_COLUMN, 999999);
+		columnPane->SetAlmostLargeText(sColumn);
+		// marked word counter
+		auto columnPaneMW = new CMFCRibbonStatusBarPane(ID_INDICATOR_MARKEDWORDS, L"", FALSE);
+		m_wndRibbonStatusBar.AddElement(columnPaneMW, L"");
+		columnPaneMW->SetAlmostLargeText(L"Marked words: l: XXXX | r: XXXX | b: XXXX");
 
 		CString sTooltip(MAKEINTRESOURCE(IDS_ENCODING_COMBO_TOOLTIP));
 		auto apBtnGroupLeft = std::make_unique<CMFCRibbonButtonsGroup>();
@@ -3116,6 +3131,55 @@ void CMainFrame::OnUpdateViewIgnorecomments(CCmdUI *pCmdUI)
 	pCmdUI->SetCheck(DWORD(m_regIgnoreComments) != 0);
 }
 
+void CMainFrame::OnUpdateMarkedWords(CCmdUI* pCmdUI)
+{
+	CString sText;
+	CString sTmp;
+	if (IsViewGood(m_pwndLeftView) && m_pwndLeftView->GetMarkedWordCount())
+	{
+		sTmp.Format(L"L: %d", m_pwndLeftView->GetMarkedWordCount());
+		if (!sText.IsEmpty())
+			sText += L" | ";
+		sText += sTmp;
+	}
+	if (IsViewGood(m_pwndRightView) && m_pwndRightView->GetMarkedWordCount())
+	{
+		sTmp.Format(L"R: %d", m_pwndRightView->GetMarkedWordCount());
+		if (!sText.IsEmpty())
+			sText += L" | ";
+		sText += sTmp;
+	}
+	if (IsViewGood(m_pwndBottomView) && m_pwndBottomView->GetMarkedWordCount())
+	{
+		sTmp.Format(L"B: %d", m_pwndBottomView->GetMarkedWordCount());
+		if (!sText.IsEmpty())
+			sText += L" | ";
+		sText += sTmp;
+	}
+	if (!sText.IsEmpty())
+	{
+		CString sStatusBarText;
+		sStatusBarText.Format(IDS_INDICATOR_MARKEDWORDCOUNT, LPCWSTR(sText));
+		pCmdUI->SetText(sStatusBarText);
+		pCmdUI->Enable(true);
+	}
+}
+
+void CMainFrame::OnUpdateEnableIfSelection(CCmdUI* pCmdUI)
+{
+	bool bEnabled = false;
+	auto pWndWithFocus = GetFocus();
+	if (pWndWithFocus)
+	{
+		if (pWndWithFocus == m_pwndBottomView)
+			bEnabled = !m_pwndBottomView->GetSelectedText().IsEmpty();
+		if (pWndWithFocus == m_pwndLeftView)
+			bEnabled = !m_pwndLeftView->GetSelectedText().IsEmpty();
+		if (pWndWithFocus == m_pwndRightView)
+			bEnabled = !m_pwndRightView->GetSelectedText().IsEmpty();
+	}
+	pCmdUI->Enable(bEnabled);
+}
 
 void CMainFrame::OnRegexfilter(UINT cmd)
 {
@@ -3605,6 +3669,25 @@ LRESULT CMainFrame::OnIdleUpdateCmdUI(WPARAM wParam, LPARAM lParam)
 void CMainFrame::OnUpdateThreeWayActions(CCmdUI * pCmdUI)
 {
 	pCmdUI->Enable();
+}
+
+void CMainFrame::OnUpdateColumnStatusBar(CCmdUI* pCmdUI)
+{
+	int column = 0;
+	auto pWndWithFocus = GetFocus();
+	if (pWndWithFocus)
+	{
+		if (pWndWithFocus == m_pwndBottomView)
+			column = m_pwndBottomView->GetCaretPosition().x;
+		if (pWndWithFocus == m_pwndLeftView)
+			column = m_pwndLeftView->GetCaretPosition().x;
+		if (pWndWithFocus == m_pwndRightView)
+			column = m_pwndRightView->GetCaretPosition().x;
+	}
+	CString sColumn;
+	sColumn.Format(IDS_INDICATOR_COLUMN, column);
+	pCmdUI->SetText(sColumn);
+	pCmdUI->Enable(true);
 }
 
 void CMainFrame::OnRegexNoFilter()

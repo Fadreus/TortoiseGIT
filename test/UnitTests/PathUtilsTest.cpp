@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2018 - TortoiseGit
+// Copyright (C) 2015-2018, 2020 - TortoiseGit
 // Copyright (C) 2003-2008, 2013-2014 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -20,6 +20,7 @@
 
 #include "stdafx.h"
 #include "PathUtils.h"
+#include "StringUtils.h"
 
 TEST(CPathUtils, GetFileNameFromPath)
 {
@@ -184,4 +185,60 @@ TEST(CPathUtils, IsSamePath)
 	EXPECT_FALSE(CPathUtils::IsSamePath(L"C:\\my\\path\\da\\da\\da", L"C:\\my\\path\\da\\da\\da\\.."));
 	EXPECT_FALSE(CPathUtils::IsSamePath(L"C:\\my\\path\\da\\da\\da", L"C:\\my\\path\\da\\da\\da\\..\\"));
 	EXPECT_FALSE(CPathUtils::IsSamePath(L"C:\\my\\path\\da\\da\\da", L"C:\\my\\path\\..\\path\\da\\da\\da\\.\\da"));
+}
+
+TEST(CPathUtils, GetCopyrightForSelf)
+{
+	CString copyright = CPathUtils::GetCopyrightForSelf();
+	EXPECT_TRUE(CStringUtils::StartsWith(copyright, L"Copyright (C) 20"));
+}
+
+TEST(CPathUtils, ConvertToSlash)
+{
+	CString path = L"";
+	CPathUtils::ConvertToSlash(path.GetBuffer());
+	EXPECT_STREQ(path, L"");
+
+	path = L"\\";
+	CPathUtils::ConvertToSlash(path.GetBuffer());
+	EXPECT_STREQ(path, L"/");
+
+	path = L"test";
+	CPathUtils::ConvertToSlash(path.GetBuffer());
+	EXPECT_STREQ(path, L"test");
+
+	path = L"test\\def";
+	CPathUtils::ConvertToSlash(path.GetBuffer());
+	EXPECT_STREQ(path, L"test/def");
+
+	path = L"test/def";
+	CPathUtils::ConvertToSlash(path.GetBuffer());
+	EXPECT_STREQ(path, L"test/def");
+
+	path = L"te\\st/def";
+	CPathUtils::ConvertToSlash(path.GetBuffer());
+	EXPECT_STREQ(path, L"te/st/def");
+}
+
+TEST(CPathUtils, ConvertToBackslash)
+{
+	wchar_t out[MAX_PATH] = { 0 };
+
+	CPathUtils::ConvertToBackslash(out, L"", _countof(out));
+	EXPECT_STREQ(out, L"");
+
+	CPathUtils::ConvertToBackslash(out, L"/", _countof(out));
+	EXPECT_STREQ(out, L"\\");
+
+	CPathUtils::ConvertToBackslash(out, L"test", _countof(out));
+	EXPECT_STREQ(out, L"test");
+
+	CPathUtils::ConvertToBackslash(out, L"test/def", _countof(out));
+	EXPECT_STREQ(out, L"test\\def");
+
+	CPathUtils::ConvertToBackslash(out, L"test\\def", _countof(out));
+	EXPECT_STREQ(out, L"test\\def");
+
+	CPathUtils::ConvertToBackslash(out, L"te\\st/def", _countof(out));
+	EXPECT_STREQ(out, L"te\\st\\def");
 }

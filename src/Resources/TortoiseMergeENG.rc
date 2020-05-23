@@ -686,6 +686,13 @@ END
 
 STRINGTABLE
 BEGIN
+    IDS_SELECTFILE          "Select File..."
+    IDS_INDICATOR_COLUMN    "Column: %d"
+    IDS_INDICATOR_MARKEDWORDCOUNT "Marked words: %s"
+END
+
+STRINGTABLE
+BEGIN
     ID_REGEX_NO_FILTER      "No filter"
 END
 
@@ -798,11 +805,6 @@ STRINGTABLE
 BEGIN
     AFX_IDS_SCRESTORE       "Restore the window to normal size"
     AFX_IDS_SCTASKLIST      "Activate Task List"
-END
-
-STRINGTABLE
-BEGIN
-    IDS_SELECTFILE          "Select File..."
 END
 
 STRINGTABLE
@@ -1068,6 +1070,8 @@ BEGIN
     ID_VIEW_MOVEDBLOCKS     "Detect and highlight moved blocks"
     ID_VIEW_WRAPLONGLINES   "Wrap long lines at the right border of the view\nWrap long lines"
     ID_VIEW_INLINEDIFF      "Show Inline-Diff\nInline diff"
+    ID_EDIT_FINDNEXTSTART   "Find the next occurrence of the selected text\nSearch Next"
+    ID_EDIT_FINDPREVSTART   "Find the last occurrence of the selected text\nSearch Previous"
     ID_EDIT_GOTOLINE        "Navigate to a specific line in the view\nGoto Line"
 END
 

@@ -267,7 +267,6 @@ CGitStatusListCtrl::CGitStatusListCtrl() : CResizableColumnsListCtrl<CListCtrl>(
 	, m_nRestoreOvl(0)
 	, m_pContextMenu(nullptr)
 	, m_hShellMenu(nullptr)
-	, m_nBackgroundImageID(0)
 	, m_FileLoaded(0)
 	, m_bIsRevertTheirMy(false)
 	, m_nLineAdded(0)
@@ -376,7 +375,6 @@ void CGitStatusListCtrl::Init(DWORD dwColumns, const CString& sColumnInfoContain
 
 bool CGitStatusListCtrl::SetBackgroundImage(UINT nID)
 {
-	m_nBackgroundImageID = nID;
 	return CAppUtils::SetListCtrlBackgroundImage(GetSafeHwnd(), nID);
 }
 
@@ -1541,7 +1539,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 				{
 					popup.AppendMenuIcon(IDGITLC_RESOLVECONFLICT, IDS_STATUSLIST_CONTEXT_RESOLVED, IDI_RESOLVE);
 					CString tmp, mineTitle, theirsTitle;
-					CAppUtils::GetConflictTitles(nullptr, mineTitle, theirsTitle, m_bIsRevertTheirMy);
+					CAppUtils::GetConflictTitles(nullptr, mineTitle, nullptr, theirsTitle, nullptr, m_bIsRevertTheirMy);
 					tmp.Format(IDS_SVNPROGRESS_MENURESOLVEUSING, static_cast<LPCTSTR>(theirsTitle));
 					if (m_bIsRevertTheirMy)
 					{
@@ -2233,7 +2231,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 						if (nListItems >= 5)
 						{
 							CString tmp, mineTitle, theirsTitle;
-							CAppUtils::GetConflictTitles(nullptr, mineTitle, theirsTitle, m_bIsRevertTheirMy);
+							CAppUtils::GetConflictTitles(nullptr, mineTitle, nullptr, theirsTitle, nullptr, m_bIsRevertTheirMy);
 							tmp.LoadString(IDS_PROGRS_TITLE_RESOLVE);
 							if (m_bIsRevertTheirMy)
 							{
@@ -4587,8 +4585,6 @@ CTGitPath* CGitStatusListCtrl::GetListEntry(int index)
 void CGitStatusListCtrl::OnSysColorChange()
 {
 	__super::OnSysColorChange();
-	if (m_nBackgroundImageID)
-		CAppUtils::SetListCtrlBackgroundImage(GetSafeHwnd(), m_nBackgroundImageID);
 }
 
 ULONG CGitStatusListCtrl::GetGestureStatus(CPoint /*ptTouch*/)

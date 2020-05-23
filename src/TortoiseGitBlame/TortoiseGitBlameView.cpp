@@ -109,6 +109,7 @@ BEGIN_MESSAGE_MAP(CTortoiseGitBlameView, CView)
 	ON_WM_ERASEBKGND()
 	ON_NOTIFY(SCN_PAINTED, IDC_SCINTILLA, OnSciPainted)
 	ON_NOTIFY(SCN_GETBKCOLOR, IDC_SCINTILLA, OnSciGetBkColor)
+	ON_NOTIFY(SCN_ZOOM, IDC_SCINTILLA, OnSciZoom)
 	ON_REGISTERED_MESSAGE(m_FindDialogMessage, OnFindDialogMessage)
 END_MESSAGE_MAP()
 
@@ -116,10 +117,7 @@ END_MESSAGE_MAP()
 // CTortoiseGitBlameView construction/destruction
 
 CTortoiseGitBlameView::CTortoiseGitBlameView()
-	: wBlame(0)
-	, wHeader(0)
-	, hwndTT(0)
-	, bIgnoreEOL(false)
+	: bIgnoreEOL(false)
 	, bIgnoreSpaces(false)
 	, bIgnoreAllSpaces(false)
 	, m_MouseLine(-1)
@@ -127,8 +125,6 @@ CTortoiseGitBlameView::CTortoiseGitBlameView()
 	, hInstance(nullptr)
 	, hResource(nullptr)
 	, currentDialog(nullptr)
-	, wMain(nullptr)
-	, wLocator(nullptr)
 	, m_blamewidth(0)
 	, m_revwidth(0)
 	, m_logidwidth(0)
@@ -665,7 +661,7 @@ bool CTortoiseGitBlameView::DoSearch(CTortoiseGitBlameData::SearchDirection dire
 		m_SelectedLine = i;
 	}
 	else
-		::MessageBox(m_pFindDialog && m_pFindDialog->GetSafeHwnd() ? m_pFindDialog->GetSafeHwnd() : wMain, L"\"" + m_sFindText + L"\" " + CString(MAKEINTRESOURCE(IDS_NOTFOUND)), L"TortoiseGitBlame", MB_ICONINFORMATION);
+		::MessageBox(m_pFindDialog && m_pFindDialog->GetSafeHwnd() ? m_pFindDialog->GetSafeHwnd() : GetSafeHwnd(), L"\"" + m_sFindText + L"\" " + CString(MAKEINTRESOURCE(IDS_NOTFOUND)), L"TortoiseGitBlame", MB_ICONINFORMATION);
 
 	return true;
 }
@@ -774,7 +770,7 @@ LONG CTortoiseGitBlameView::GetBlameWidth()
 	}
 	else
 	{
-		auto length = static_cast<int>(std::ceil(std::log10(GetLogList()->GetItemCount())));
+		auto length = static_cast<int>(std::ceil(std::log10(GetLogList()->GetItemCount() + 1)));
 		m_sLogIDFormat.Format(L"%%%dd", length);
 		::GetTextExtentPoint32(hDC, CString(L'8', length), length, &width);
 		m_logidwidth = width.cx + CDPIAware::Instance().ScaleX(BLAMESPACE);
@@ -1001,7 +997,6 @@ void CTortoiseGitBlameView::DrawLocatorBar(HDC hDC)
 	COLORREF blackColor = GetSysColor(COLOR_WINDOWTEXT);
 
 	RECT rc;
-	//::GetClientRect(wLocator, &rc);
 	this->GetClientRect(&rc);
 
 	rc.right = CDPIAware::Instance().ScaleX(LOCATOR_WIDTH);
@@ -1712,6 +1707,12 @@ void CTortoiseGitBlameView::OnLButtonDown(UINT nFlags,CPoint point)
 	CView::OnLButtonDown(nFlags,point);
 }
 
+void CTortoiseGitBlameView::OnSciZoom(NMHDR* /*hdr*/, LRESULT* /*result*/)
+{
+	InitialiseEditor();
+	Invalidate();
+}
+
 void CTortoiseGitBlameView::OnSciGetBkColor(NMHDR* hdr, LRESULT* /*result*/)
 {
 	auto notification = reinterpret_cast<SCNotification*>(hdr);
@@ -1825,6 +1826,8 @@ BOOL CTortoiseGitBlameView::PreTranslateMessage(MSG* pMsg)
 {
 	if (m_ToolTip.GetSafeHwnd())
 		m_ToolTip.RelayEvent(pMsg);
+	if (pMsg->message == WM_MOUSEWHEEL)
+		pMsg->hwnd = m_TextView.GetSafeHwnd();
 	return CView::PreTranslateMessage(pMsg);
 }
 
@@ -1892,16 +1895,16 @@ LRESULT CTortoiseGitBlameView::OnFindDialogMessage(WPARAM /*wParam*/, LPARAM /*l
 void CTortoiseGitBlameView::OnViewNext()
 {
 	int startline = static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE));
-	int line = m_data.FindNextLine(this->m_SelectedHash, static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE), false));
+	int line = m_data.FindNextLine(this->m_SelectedHash, startline, false);
 	if(line >= 0)
-		SendEditor(SCI_LINESCROLL, 0, line - startline - 2);
+		SendEditor(SCI_LINESCROLL, 0, line - startline);
 }
 void CTortoiseGitBlameView::OnViewPrev()
 {
 	int startline = static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE));
-	int line = m_data.FindNextLine(this->m_SelectedHash, static_cast<int>(SendEditor(SCI_GETFIRSTVISIBLELINE)), true);
+	int line = m_data.FindNextLine(this->m_SelectedHash, startline, true);
 	if(line >= 0)
-		SendEditor(SCI_LINESCROLL, 0, line - startline - 2);
+		SendEditor(SCI_LINESCROLL, 0, line - startline + 1);
 }
 
 void CTortoiseGitBlameView::OnViewToggleLogID()

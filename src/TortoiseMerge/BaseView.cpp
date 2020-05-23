@@ -81,6 +81,7 @@ CBaseView::CBaseView()
 	, m_nOffsetChar(0)
 	, m_nDigits(0)
 	, m_nMouseLine(-1)
+	, m_nLDownLine(-1)
 	, m_mouseInMargin(false)
 	, m_bIsHidden(FALSE)
 	, m_lineendings(EOL_AUTOLINE)
@@ -239,6 +240,7 @@ void CBaseView::DocumentUpdated()
 	m_bOtherDiffChecked = false;
 	m_nDigits = 0;
 	m_nMouseLine = -1;
+	m_nLDownLine = -1;
 	m_nTabSize = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabSize", 4));
 	m_nTabMode = static_cast<int>(CRegDWORD(L"Software\\TortoiseGitMerge\\TabMode", TABMODE_NONE));
 	m_bViewLinenumbers = CRegDWORD(L"Software\\TortoiseGitMerge\\ViewLinenumbers", 1);
@@ -1836,7 +1838,7 @@ void CBaseView::DrawTextLine(
 			// change color of affected parts
 			const long int nIntenseColorScale = 30;
 			std::map<int, linecolors_t>::iterator it = lineCols.lower_bound(nMarkStart+nStringPos);
-			for ( ; it != lineCols.end() && it->first < nMarkEnd; ++it)
+			for ( ; it != lineCols.end() && it->first < nMarkEnd + nStringPos; ++it)
 			{
 				auto& second = it->second;
 				COLORREF crBk = CAppUtils::IntenseColor(nIntenseColorScale, second.background);
@@ -1846,7 +1848,7 @@ void CBaseView::DrawTextLine(
 				second.text = CAppUtils::IntenseColor(nIntenseColorScale, second.text);
 			}
 			searchLine = searchLine.Mid(nMarkEnd);
-			nStringPos = nMarkEnd;
+			nStringPos += nMarkEnd;
 			nMarkStart = 0;
 			nMarkEnd = 0;
 		}
@@ -3178,6 +3180,7 @@ void CBaseView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 void CBaseView::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	const int nClickedLine = GetButtonEventLineIndex(point);
+	m_nLDownLine = nClickedLine;
 	if ((nClickedLine >= m_nTopLine)&&(nClickedLine < GetLineCount()))
 	{
 		POINT ptCaretPos;
@@ -3344,12 +3347,21 @@ void CBaseView::OnLButtonDblClk(UINT nFlags, CPoint point)
 			m_sMarkedWord.Empty();
 		}
 
-		if (m_pwndLeft)
-			m_pwndLeft->SetMarkedWord(m_sMarkedWord);
-		if (m_pwndRight)
-			m_pwndRight->SetMarkedWord(m_sMarkedWord);
-		if (m_pwndBottom)
-			m_pwndBottom->SetMarkedWord(m_sMarkedWord);
+		if (GetKeyState(VK_CONTROL) & 0x8000)
+		{
+			// if the ctrl key is pressed, only
+			// mark the words in this view
+			SetMarkedWord(m_sMarkedWord);
+		}
+		else
+		{
+			if (m_pwndLeft)
+				m_pwndLeft->SetMarkedWord(m_sMarkedWord);
+			if (m_pwndRight)
+				m_pwndRight->SetMarkedWord(m_sMarkedWord);
+			if (m_pwndBottom)
+				m_pwndBottom->SetMarkedWord(m_sMarkedWord);
+		}
 
 		Invalidate();
 		if (m_pwndLocator)
@@ -3362,7 +3374,7 @@ void CBaseView::OnLButtonDblClk(UINT nFlags, CPoint point)
 void CBaseView::OnLButtonTrippleClick( UINT /*nFlags*/, CPoint point )
 {
 	const int nClickedLine = GetButtonEventLineIndex(point);
-	if (((point.y - HEADERHEIGHT) / GetLineHeight()) <= 0)
+	if (((point.y - (GetLineHeight() + HEADERHEIGHT)) / GetLineHeight()) <= 0)
 	{
 		if (!m_sConvertedFilePath.IsEmpty() && (GetKeyState(VK_CONTROL)&0x8000))
 		{
@@ -3441,6 +3453,8 @@ void CBaseView::OnMouseMove(UINT nFlags, CPoint point)
 			Invalidate();
 			UpdateWindow();
 		}
+		if (m_nLDownLine < 0)
+			return; // no scrolling if the click started on the header
 		if (nMouseLine < m_nTopLine)
 		{
 			ScrollAllToLine(m_nTopLine-1, TRUE);
@@ -4474,6 +4488,7 @@ void CBaseView::BuildMarkedWordArray()
 	m_arMarkedWordLines.clear();
 	m_arMarkedWordLines.reserve(lineCount);
 	bool bDoit = !m_sMarkedWord.IsEmpty();
+	m_MarkedWordCount = 0;
 	for (int i = 0; i < lineCount; ++i)
 	{
 		if (bDoit)
@@ -4496,6 +4511,7 @@ void CBaseView::BuildMarkedWordArray()
 						if (eRight != eEnd)
 						{
 							found = 1;
+							++m_MarkedWordCount;
 							break;
 						}
 					}
@@ -5020,6 +5036,8 @@ void CBaseView::FilterWhitespaces(CString& line)
 
 int CBaseView::GetButtonEventLineIndex(const POINT& point)
 {
+	if (point.y < (GetLineHeight() + HEADERHEIGHT))
+		return -1;
 	const int nLineFromTop = (point.y - HEADERHEIGHT) / GetLineHeight();
 	int nEventLine = nLineFromTop + m_nTopLine;
 	nEventLine--;     //we need the index
@@ -5487,32 +5505,45 @@ void CBaseView::OnEditFindprevStart()
 
 bool CBaseView::StringFound(const CString& str, SearchDirection srchDir, int& start, int& end) const
 {
-	if (srchDir == SearchPrevious)
+	bool bStringFound;
+	do
 	{
-		int laststart = -1;
-		int laststart2 = -1;
-		do
+		if (srchDir == SearchPrevious)
 		{
-			laststart2 = laststart;
-			laststart = str.Find(m_sFindText, laststart + 1);
-		} while (laststart >= 0 && laststart < start);
-		start = laststart2;
-	}
-	else
-		start = str.Find(m_sFindText, start);
-	end = start + m_sFindText.GetLength();
-	bool bStringFound = (start >= 0);
-	if (bStringFound && m_bWholeWord)
-	{
-		if (start)
-			bStringFound = IsWordSeparator(str.Mid(start-1,1).GetAt(0));
-
-		if (bStringFound)
-		{
-			if (str.GetLength() > end)
-				bStringFound = IsWordSeparator(str.Mid(end, 1).GetAt(0));
+			int laststart = -1;
+			int laststart2 = -1;
+			do
+			{
+				laststart2 = laststart;
+				laststart = str.Find(m_sFindText, laststart + 1);
+			} while (laststart >= 0 && laststart < start);
+			start = laststart2;
 		}
-	}
+		else
+			start = str.Find(m_sFindText, start);
+		end = start + m_sFindText.GetLength();
+		bStringFound = (start >= 0);
+		if (bStringFound && m_bWholeWord)
+		{
+			if (start)
+				bStringFound = IsWordSeparator(str.Mid(start - 1, 1).GetAt(0));
+
+			if (bStringFound)
+			{
+				if (str.GetLength() > end)
+					bStringFound = IsWordSeparator(str.Mid(end, 1).GetAt(0));
+			}
+
+			if (!bStringFound)
+			{
+				if (srchDir == SearchPrevious)
+					start--;
+				else
+					start = end;
+			}
+		}
+	} while (!bStringFound && start >= 0);
+
 	return bStringFound;
 }
 
@@ -5718,7 +5749,7 @@ CString CBaseView::GetSelectedText() const
 	}
 	// remove the non-selected chars from the first line, last line and last \r\n
 	int nLeftCut = start.x;
-	int nRightCut = GetViewLineChars(end.y).GetLength() - end.x + CDPIAware::Instance().ScaleX(2);
+	int nRightCut = GetViewLineChars(end.y).GetLength() - end.x + 2;
 	sSelectedText = sSelectedText.Mid(nLeftCut, sSelectedText.GetLength()-nLeftCut-nRightCut);
 	return sSelectedText;
 }
