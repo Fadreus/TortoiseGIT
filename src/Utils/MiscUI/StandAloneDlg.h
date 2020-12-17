@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2015-2016, 2019 - TortoiseGit
+// Copyright (C) 2015-2016, 2020 - TortoiseGit
 // Copyright (C) 2003-2015, 2018 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -24,10 +24,14 @@
 #include "Tooltip.h"
 #include "CommonDialogFunctions.h"
 #include "EditWordBreak.h"
+#include "Theme.h"
+#include "DarkModeHelper.h"
 #pragma comment(lib, "htmlhelp.lib")
 
 #define DIALOG_BLOCKHORIZONTAL 1
 #define DIALOG_BLOCKVERTICAL 2
+
+std::wstring GetMonitorSetupHash();
 
 /**
  * \ingroup TortoiseProc
@@ -43,11 +47,21 @@ template <typename BaseType> class CStandAloneDialogTmpl : public BaseType, prot
 {
 protected:
 	CStandAloneDialogTmpl(UINT nIDTemplate, CWnd* pParentWnd = nullptr) : BaseType(nIDTemplate, pParentWnd), CommonDialogFunctions(this)
+		, m_themeCallbackId(0)
 	{
 		m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	}
+
+
+	~CStandAloneDialogTmpl()
+	{
+		CTheme::Instance().RemoveRegisteredCallback(m_themeCallbackId);
+	}
+
 	virtual BOOL OnInitDialog() override
 	{
+		m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme()); });
+
 		BaseType::OnInitDialog();
 
 		// Set the icon for this dialog.  The framework does this automatically
@@ -57,6 +71,7 @@ protected:
 
 		EnableToolTips();
 		m_tooltips.Create(this);
+		SetTheme(CTheme::Instance().IsDarkTheme());
 
 		auto CustomBreak = static_cast<DWORD>(CRegDWORD(L"Software\\TortoiseGit\\UseCustomWordBreak", 2));
 		if (CustomBreak)
@@ -83,6 +98,8 @@ protected:
 					return TRUE;
 				}
 			}
+			if (nVirtKey == 'D' && (GetKeyState(VK_CONTROL) & 0x8000) && (GetKeyState(VK_MENU) & 0x8000))
+				CTheme::Instance().SetDarkTheme(!CTheme::Instance().IsDarkTheme());
 		}
 		return BaseType::PreTranslateMessage(pMsg);
 	}
@@ -139,7 +156,7 @@ protected:
 
 protected:
 	CToolTips	m_tooltips;
-
+	int m_themeCallbackId;
 	DECLARE_MESSAGE_MAP()
 
 private:
@@ -147,6 +164,49 @@ private:
 	{
 		return static_cast<HCURSOR>(m_hIcon);
 	}
+
+protected:
+	afx_msg void OnSysColorChange()
+	{
+		BaseType::OnSysColorChange();
+		CTheme::Instance().OnSysColorChanged();
+		SetTheme(CTheme::Instance().IsDarkTheme());
+	}
+
+	virtual void SetTheme(bool bDark)
+	{
+		if (bDark)
+		{
+			DarkModeHelper::Instance().AllowDarkModeForApp(TRUE);
+			DarkModeHelper::Instance().AllowDarkModeForWindow(GetSafeHwnd(), TRUE);
+			DarkModeHelper::Instance().AllowDarkModeForWindow(m_tooltips.GetSafeHwnd(), TRUE);
+			SetWindowTheme(m_tooltips.GetSafeHwnd(), L"Explorer", nullptr);
+			SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetStockObject(BLACK_BRUSH)));
+			BOOL darkFlag = TRUE;
+			DarkModeHelper::WINDOWCOMPOSITIONATTRIBDATA data = { DarkModeHelper::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkFlag, sizeof(darkFlag) };
+			DarkModeHelper::Instance().SetWindowCompositionAttribute(GetSafeHwnd(), &data);
+			DarkModeHelper::Instance().FlushMenuThemes();
+			DarkModeHelper::Instance().RefreshImmersiveColorPolicyState();
+			BOOL dark = TRUE;
+			DwmSetWindowAttribute(GetSafeHwnd(), 19, &dark, sizeof(dark));
+		}
+		else
+		{
+			DarkModeHelper::Instance().AllowDarkModeForWindow(GetSafeHwnd(), FALSE);
+			DarkModeHelper::Instance().AllowDarkModeForWindow(m_tooltips.GetSafeHwnd(), FALSE);
+			SetWindowTheme(m_tooltips.GetSafeHwnd(), L"Explorer", nullptr);
+			BOOL darkFlag = FALSE;
+			DarkModeHelper::WINDOWCOMPOSITIONATTRIBDATA data = { DarkModeHelper::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkFlag, sizeof(darkFlag) };
+			DarkModeHelper::Instance().SetWindowCompositionAttribute(GetSafeHwnd(), &data);
+			DarkModeHelper::Instance().FlushMenuThemes();
+			DarkModeHelper::Instance().RefreshImmersiveColorPolicyState();
+			DarkModeHelper::Instance().AllowDarkModeForApp(FALSE);
+			SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetSysColorBrush(COLOR_3DFACE)));
+		}
+		CTheme::Instance().SetThemeForDialog(GetSafeHwnd(), bDark);
+		::RedrawWindow(GetSafeHwnd(), nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
+	}
+
 protected:
 	virtual void HtmlHelp(DWORD_PTR dwData, UINT nCmd = 0x000F) override
 	{
@@ -212,13 +272,13 @@ protected:
 	{
 		UNREFERENCED_PARAMETER(bHorzResize);
 		UNREFERENCED_PARAMETER(bVertResize);
-		m_sSection = pszSection;
+		m_sSection = CString(pszSection) + L'_' + GetMonitorSetupHash().c_str();
 
 		m_bEnableSaveRestore = true;
 		m_bRectOnly = bRectOnly;
 
 		// restore immediately
-		LoadWindowRect(pszSection, bRectOnly, false, false);
+		LoadWindowRect(m_sSection, bRectOnly, false, false);
 	};
 
 	virtual CWnd* GetResizableWnd() const override
@@ -269,7 +329,8 @@ protected:
 	{
 		// call the base method with the bHorzResize and bVertResize parameters
 		// figured out from the resize block flags.
-		__super::EnableSaveRestore(pszSection, bRectOnly, (m_nResizeBlock & DIALOG_BLOCKHORIZONTAL) == 0, (m_nResizeBlock & DIALOG_BLOCKVERTICAL) == 0);
+		std::wstring monitorSetupSection = std::wstring(pszSection) + L'_' + GetMonitorSetupHash();
+		__super::EnableSaveRestore(monitorSetupSection.c_str(), bRectOnly, (m_nResizeBlock & DIALOG_BLOCKHORIZONTAL) == 0, (m_nResizeBlock & DIALOG_BLOCKVERTICAL) == 0);
 	};
 
 private:
@@ -304,5 +365,6 @@ BEGIN_TEMPLATE_MESSAGE_MAP(CStandAloneDialogTmpl, BaseType, BaseType)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_REGISTERED_MESSAGE(TaskBarButtonCreated, OnTaskbarButtonCreated)
+	ON_WM_SYSCOLORCHANGE()
 END_MESSAGE_MAP()
 

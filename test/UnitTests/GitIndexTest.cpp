@@ -35,16 +35,6 @@ protected:
 	}
 };
 
-class GitIndexCBasicGitWithEmptyRepositoryFixture : public CBasicGitWithEmptyRepositoryFixture
-{
-protected:
-	virtual void SetUp()
-	{
-		CBasicGitWithEmptyRepositoryFixture::SetUp();
-		g_AdminDirMap.clear();
-	}
-};
-
 class GitIndexCBasicGitWithTestRepoFixture : public CBasicGitWithTestRepoFixture
 {
 protected:
@@ -72,7 +62,7 @@ protected:
 		EXPECT_EQ(0, m_Git.Run(L"git.exe checkout -f master", &output, nullptr, CP_UTF8));
 		EXPECT_STRNE(L"", output);
 
-		if (CGit::ms_bCygwinGit)
+		if (CGit::ms_bCygwinGit || CGit::ms_bMsys2Git)
 			return;
 
 		// ====Source of the Sub-Module====
@@ -101,7 +91,6 @@ protected:
 };
 
 INSTANTIATE_TEST_SUITE_P(GitIndex, GitIndexCBasicGitFixture, testing::Values(LIBGIT2));
-INSTANTIATE_TEST_SUITE_P(GitIndex, GitIndexCBasicGitWithEmptyRepositoryFixture, testing::Values(LIBGIT2));
 INSTANTIATE_TEST_SUITE_P(GitIndex, GitIndexCBasicGitWithTestRepoFixture, testing::Values(LIBGIT2));
 INSTANTIATE_TEST_SUITE_P(GitIndex, CBasicGitWithMultiLinkedTestWithSubmoduleRepoFixture, testing::Values(LIBGIT2));
 
@@ -900,7 +889,7 @@ TEST_P(CBasicGitWithMultiLinkedTestWithSubmoduleRepoFixture, AdminDirMap) // Sub
 	workDir = g_AdminDirMap.GetWorkingCopy(CPathUtils::BuildPathWithPathDelimiter(m_MainWorkTreePath) + L".git");
 	EXPECT_TRUE(CPathUtils::IsSamePath(m_MainWorkTreePath, workDir));
 
-	if (CGit::ms_bCygwinGit)
+	if (CGit::ms_bCygwinGit || CGit::ms_bMsys2Git)
 		return;
 
 	// Test if the linked repository admin directory can be found (**WITHOUT** trailing path delimiter)

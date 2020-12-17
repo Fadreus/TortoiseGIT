@@ -1,7 +1,7 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2009-2020 - TortoiseGit
-// Copyright (C) 2003-2008, 2012-2019 - TortoiseSVN
+// Copyright (C) 2003-2008, 2012-2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include "SmartHandle.h"
 #include "../../TortoiseUDiff/UDiffColors.h"
 #include "LoadIconEx.h"
+#include "Theme.h"
 
 void CSciEditContextMenuInterface::InsertMenuItems(CMenu&, int&) {return;}
 bool CSciEditContextMenuInterface::HandleMenuItemClick(int, CSciEdit *) {return false;}
@@ -81,12 +82,15 @@ CSciEdit::CSciEdit(void) : m_DirectFunction(NULL)
 	, m_nAutoCompleteMinChars(3)
 	, m_SpellingCache(2000)
 	, m_blockModifiedHandler(false)
+	, m_bReadOnly(false)
+	, m_themeCallbackId(0)
 {
 	m_hModule = ::LoadLibrary(L"SciLexer_tgit.dll");
 }
 
 CSciEdit::~CSciEdit(void)
 {
+	CTheme::Instance().RemoveRegisteredCallback(m_themeCallbackId);
 	m_personalDict.Save();
 }
 
@@ -154,11 +158,47 @@ static std::unique_ptr<UINT[]> Icon2Image(HICON hIcon)
 
 void CSciEdit::SetColors(bool recolorize)
 {
-	Call(SCI_STYLESETFORE, STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOWTEXT));
-	Call(SCI_STYLESETBACK, STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOW));
-	Call(SCI_SETSELFORE, TRUE, ::GetSysColor(COLOR_HIGHLIGHTTEXT));
-	Call(SCI_SETSELBACK, TRUE, ::GetSysColor(COLOR_HIGHLIGHT));
-	Call(SCI_SETCARETFORE, ::GetSysColor(COLOR_WINDOWTEXT));
+	if (CTheme::Instance().IsDarkTheme())
+	{
+		SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetStockObject(BLACK_BRUSH)));
+		Call(SCI_STYLESETFORE, STYLE_DEFAULT, !IsWindowEnabled() ? ::CTheme::darkDisabledTextColor : CTheme::darkTextColor);
+		Call(SCI_STYLESETBACK, STYLE_DEFAULT, !IsWindowEnabled() ? ::GetSysColor(COLOR_BTNFACE) : CTheme::darkBkColor);
+		Call(SCI_SETCARETFORE, CTheme::darkTextColor);
+	}
+	else
+	{
+		SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetSysColorBrush(COLOR_3DFACE)));
+		Call(SCI_STYLESETFORE, STYLE_DEFAULT, ::GetSysColor(!IsWindowEnabled() ? COLOR_GRAYTEXT : COLOR_WINDOWTEXT));
+		Call(SCI_STYLESETBACK, STYLE_DEFAULT, ::GetSysColor(!IsWindowEnabled() ? COLOR_BTNFACE : COLOR_WINDOW));
+		Call(SCI_SETCARETFORE, ::GetSysColor(COLOR_WINDOWTEXT));
+	}
+	Call(SCI_SETSELFORE, TRUE, CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_HIGHLIGHTTEXT)));
+	Call(SCI_SETSELBACK, TRUE, CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_HIGHLIGHT)));
+
+	if (!m_bNoAutomaticStyling)
+	{
+		Call(SCI_STYLECLEARALL);
+
+		LPARAM color = ::GetSysColor(COLOR_HOTLIGHT);
+		// set the styles for the bug ID strings
+		Call(SCI_STYLESETBOLD, STYLE_ISSUEBOLD, TRUE);
+		Call(SCI_STYLESETFORE, STYLE_ISSUEBOLD, color);
+		Call(SCI_STYLESETBOLD, STYLE_ISSUEBOLDITALIC, TRUE);
+		Call(SCI_STYLESETITALIC, STYLE_ISSUEBOLDITALIC, TRUE);
+		Call(SCI_STYLESETFORE, STYLE_ISSUEBOLDITALIC, color);
+		Call(SCI_STYLESETHOTSPOT, STYLE_ISSUEBOLDITALIC, TRUE);
+
+		// set the formatted text styles
+		Call(SCI_STYLESETBOLD, STYLE_BOLD, TRUE);
+		Call(SCI_STYLESETITALIC, STYLE_ITALIC, TRUE);
+		Call(SCI_STYLESETUNDERLINE, STYLE_UNDERLINED, TRUE);
+
+		// set the style for URLs
+		Call(SCI_STYLESETFORE, STYLE_URL, color);
+		Call(SCI_STYLESETHOTSPOT, STYLE_URL, TRUE);
+
+		Call(SCI_SETHOTSPOTACTIVEUNDERLINE, TRUE);
+	}
 
 	if (recolorize)
 		Call(SCI_COLOURISE, 0, -1);
@@ -286,6 +326,7 @@ void CSciEdit::Init(LONG lLanguage)
 		Call(SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITERETAIN);
 		Call(SCI_SETBUFFEREDDRAW, 0);
 	}
+	m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { OnSysColorChange(); });
 }
 
 
@@ -410,6 +451,10 @@ CStringA CSciEdit::StringForControl(const CString& text)
 
 void CSciEdit::SetText(const CString& sText)
 {
+	auto readonly = m_bReadOnly;
+	SCOPE_EXIT { SetReadOnly(readonly); };
+	SetReadOnly(false);
+
 	CStringA sTextA = StringForControl(sText);
 	Call(SCI_SETTEXT, 0, reinterpret_cast<LPARAM>(static_cast<LPCSTR>(sTextA)));
 
@@ -427,6 +472,10 @@ void CSciEdit::SetText(const CString& sText)
 
 void CSciEdit::InsertText(const CString& sText, bool bNewLine)
 {
+	auto readonly = m_bReadOnly;
+	SCOPE_EXIT { SetReadOnly(readonly); };
+	SetReadOnly(false);
+
 	CStringA sTextA = StringForControl(sText);
 	Call(SCI_REPLACESEL, 0, reinterpret_cast<LPARAM>(static_cast<LPCSTR>(sTextA)));
 	if (bNewLine)
@@ -611,6 +660,9 @@ BOOL CSciEdit::IsMisspelled(const CString& sWord)
 
 void CSciEdit::CheckSpelling(Sci_Position startpos, Sci_Position endpos)
 {
+	if (m_bReadOnly)
+		return;
+
 	if (!pChecker && !m_SpellChecker)
 		return;
 
@@ -955,7 +1007,17 @@ BOOL CSciEdit::OnChildNotify(UINT message, WPARAM wParam, LPARAM lParam, LRESULT
 BEGIN_MESSAGE_MAP(CSciEdit, CWnd)
 	ON_WM_KEYDOWN()
 	ON_WM_CONTEXTMENU()
+	ON_WM_SYSCOLORCHANGE()
 END_MESSAGE_MAP()
+
+void CSciEdit::OnSysColorChange()
+{
+	__super::OnSysColorChange();
+	CTheme::Instance().OnSysColorChanged();
+	SetColors(true);
+	if (m_bUDiffmode)
+		SetUDiffStyle();
+}
 
 void CSciEdit::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
@@ -1153,7 +1215,7 @@ void CSciEdit::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
 			break;	// no command selected
 		case SCI_SELECTALL:
 			bRestoreCursor = false;
-			// fall through
+			[[fallthrough]];
 		case SCI_UNDO:
 		case SCI_REDO:
 		case SCI_CUT:
@@ -1675,33 +1737,25 @@ void CSciEdit::SetAStyle(int style, COLORREF fore, COLORREF back, int size, cons
 
 void CSciEdit::SetUDiffStyle()
 {
+	m_bUDiffmode = true;
 	m_bDoStyle = false;
-	SetAStyle(STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOWTEXT), ::GetSysColor(COLOR_WINDOW),
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffFontSize", 10),
-		CUnicodeUtils::StdGetUTF8(CRegStdString(L"Software\\TortoiseGit\\UDiffFontName", L"Consolas")).c_str());
+	Call(SCI_CLEARDOCUMENTSTYLE);
 	Call(SCI_SETTABWIDTH, CRegStdDWORD(L"Software\\TortoiseGit\\UDiffTabSize", 4));
 
-	Call(SCI_SETREADONLY, TRUE);
-	//LRESULT pix = Call(SCI_TEXTWIDTH, STYLE_LINENUMBER, reinterpret_cast<LPARAM>("_99999"));
-	//Call(SCI_SETMARGINWIDTHN, 0, pix);
-	//Call(SCI_SETMARGINWIDTHN, 1);
-	//Call(SCI_SETMARGINWIDTHN, 2);
+	SetReadOnly(true);
+
 	//Set the default windows colors for edit controls
 	SetColors(false);
 
 	//SendEditor(SCI_SETREADONLY, FALSE);
 	Call(SCI_CLEARALL);
-	Call(EM_EMPTYUNDOBUFFER);
+	Call(SCI_EMPTYUNDOBUFFER);
 	Call(SCI_SETSAVEPOINT);
 	Call(SCI_CANCEL);
 	Call(SCI_SETUNDOCOLLECTION, 0);
 
-	Call(SCI_SETUNDOCOLLECTION, 1);
 	Call(SCI_SETWRAPMODE,SC_WRAP_NONE);
 
-	//::SetFocus(m_hWndEdit);
-	Call(EM_EMPTYUNDOBUFFER);
-	Call(SCI_SETSAVEPOINT);
 	Call(SCI_GOTOPOS, 0);
 
 	Call(SCI_SETVIEWWS, 1);
@@ -1711,44 +1765,119 @@ void CSciEdit::SetUDiffStyle()
 
 	Call(SCI_CLEARDOCUMENTSTYLE, 0, 0);
 
-	HIGHCONTRAST highContrast = { 0 };
-	highContrast.cbSize = sizeof(HIGHCONTRAST);
-	if (SystemParametersInfo(SPI_GETHIGHCONTRAST, 0, &highContrast, 0) == TRUE && (highContrast.dwFlags & HCF_HIGHCONTRASTON))
+	if (CTheme::Instance().IsDarkTheme())
 	{
+		Call(SCI_STYLESETFORE, STYLE_DEFAULT, UDiffTextColorDark);
+		Call(SCI_STYLESETBACK, STYLE_DEFAULT, UDiffBackColorDark);
+		Call(SCI_SETSELFORE, TRUE, CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_HIGHLIGHTTEXT)));
+		Call(SCI_SETSELBACK, TRUE, CTheme::Instance().GetThemeColor(::GetSysColor(COLOR_HIGHLIGHT)));
+		Call(SCI_SETCARETFORE, UDiffTextColorDark);
+		Call(SCI_SETWHITESPACEFORE, true, RGB(180, 180, 180));
+		SetAStyle(STYLE_DEFAULT, UDiffTextColorDark, UDiffBackColorDark,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffFontSize", 10),
+				  CUnicodeUtils::StdGetUTF8(CRegStdString(L"Software\\TortoiseGit\\UDiffFontName", L"Consolas")).c_str());
+		SetAStyle(SCE_DIFF_DEFAULT, UDiffTextColorDark, UDiffBackColorDark,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffFontSize", 10),
+				  CUnicodeUtils::StdGetUTF8(CRegStdString(L"Software\\TortoiseGit\\UDiffFontName", L"Consolas")).c_str());
+		Call(SCI_STYLECLEARALL);
+		SetAStyle(SCE_DIFF_COMMAND,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffForeCommandColor", UDIFF_COLORFORECOMMAND_DARK),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffBackCommandColor", UDIFF_COLORBACKCOMMAND_DARK));
+		SetAStyle(SCE_DIFF_POSITION,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffForePositionColor", UDIFF_COLORFOREPOSITION_DARK),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffBackPositionColor", UDIFF_COLORBACKPOSITION_DARK));
+		SetAStyle(SCE_DIFF_HEADER,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffForeHeaderColor", UDIFF_COLORFOREHEADER_DARK),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffBackHeaderColor", UDIFF_COLORBACKHEADER_DARK));
+		SetAStyle(SCE_DIFF_COMMENT,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffForeCommentColor", UDIFF_COLORFORECOMMENT_DARK),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffBackCommentColor", UDIFF_COLORBACKCOMMENT_DARK));
+		for (int style : { SCE_DIFF_ADDED, SCE_DIFF_PATCH_ADD, SCE_DIFF_PATCH_DELETE })
+		{
+			SetAStyle(style,
+					  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffForeAddedColor", UDIFF_COLORFOREADDED_DARK),
+					  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffBackAddedColor", UDIFF_COLORBACKADDED_DARK));
+		}
+		for (int style : { SCE_DIFF_DELETED, SCE_DIFF_REMOVED_PATCH_ADD, SCE_DIFF_REMOVED_PATCH_DELETE })
+		{
+			SetAStyle(style,
+					  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffForeRemovedColor", UDIFF_COLORFOREREMOVED_DARK),
+					  CRegStdDWORD(L"Software\\TortoiseGit\\DarkUDiffBackRemovedColor", UDIFF_COLORBACKREMOVED_DARK));
+		}
+	}
+	else
+	{
+		Call(SCI_STYLESETFORE, STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOWTEXT));
+		Call(SCI_STYLESETBACK, STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOW));
+		Call(SCI_SETSELFORE, TRUE, ::GetSysColor(COLOR_HIGHLIGHTTEXT));
+		Call(SCI_SETSELBACK, TRUE, ::GetSysColor(COLOR_HIGHLIGHT));
+		Call(SCI_SETCARETFORE, ::GetSysColor(COLOR_WINDOWTEXT));
+		Call(SCI_SETWHITESPACEFORE, true, ::GetSysColor(COLOR_3DSHADOW));
+		SetAStyle(STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOWTEXT), ::GetSysColor(COLOR_WINDOW),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffFontSize", 10),
+				  CUnicodeUtils::StdGetUTF8(CRegStdString(L"Software\\TortoiseGit\\UDiffFontName", L"Consolas")).c_str());
+		SetAStyle(SCE_DIFF_DEFAULT, ::GetSysColor(COLOR_WINDOWTEXT), ::GetSysColor(COLOR_WINDOW),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffFontSize", 10),
+				  CUnicodeUtils::StdGetUTF8(CRegStdString(L"Software\\TortoiseGit\\UDiffFontName", L"Consolas")).c_str());
+		Call(SCI_STYLECLEARALL);
+		SetAStyle(SCE_DIFF_COMMAND,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeCommandColor", UDIFF_COLORFORECOMMAND),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackCommandColor", UDIFF_COLORBACKCOMMAND));
+		SetAStyle(SCE_DIFF_POSITION,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForePositionColor", UDIFF_COLORFOREPOSITION),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackPositionColor", UDIFF_COLORBACKPOSITION));
+		SetAStyle(SCE_DIFF_HEADER,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeHeaderColor", UDIFF_COLORFOREHEADER),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackHeaderColor", UDIFF_COLORBACKHEADER));
+		SetAStyle(SCE_DIFF_COMMENT,
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeCommentColor", UDIFF_COLORFORECOMMENT),
+				  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackCommentColor", UDIFF_COLORBACKCOMMENT));
+		for (int style : { SCE_DIFF_ADDED, SCE_DIFF_PATCH_ADD, SCE_DIFF_PATCH_DELETE })
+		{
+			SetAStyle(style,
+					  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeAddedColor", UDIFF_COLORFOREADDED),
+					  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackAddedColor", UDIFF_COLORBACKADDED));
+		}
+		for (int style : { SCE_DIFF_DELETED, SCE_DIFF_REMOVED_PATCH_ADD, SCE_DIFF_REMOVED_PATCH_DELETE })
+		{
+			SetAStyle(style,
+					  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeRemovedColor", UDIFF_COLORFOREREMOVED),
+					  CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackRemovedColor", UDIFF_COLORBACKREMOVED));
+		}
+
+		Call(SCI_SETFOLDMARGINCOLOUR, true, RGB(240, 240, 240));
+		Call(SCI_SETFOLDMARGINHICOLOUR, true, RGB(255, 255, 255));
+		Call(SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(109, 109, 109));
+		Call(SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(230, 230, 230));
+	}
+	Call(SCI_STYLESETFORE, STYLE_BRACELIGHT, RGB(0, 150, 0));
+	Call(SCI_STYLESETBOLD, STYLE_BRACELIGHT, 1);
+	Call(SCI_STYLESETFORE, STYLE_BRACEBAD, RGB(255, 0, 0));
+	Call(SCI_STYLESETBOLD, STYLE_BRACEBAD, 1);
+	if (CTheme::Instance().IsDarkTheme() || CTheme::Instance().IsHighContrastModeDark())
+	{
+		Call(SCI_SETFOLDMARGINCOLOUR, true, UDiffTextColorDark);
+		Call(SCI_SETFOLDMARGINHICOLOUR, true, CTheme::darkBkColor);
+		Call(SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(140, 140, 140));
+		Call(SCI_STYLESETBACK, STYLE_LINENUMBER, UDiffBackColorDark);
+	}
+
+	auto curlexer = Call(SCI_GETLEXER);
+	if (CTheme::Instance().IsHighContrastMode() && curlexer != SCLEX_NULL)
+	{
+		Call(SCI_CLEARDOCUMENTSTYLE, 0, 0);
 		Call(SCI_SETLEXER, SCLEX_NULL);
-		return;
+		Call(SCI_COLOURISE, 0, -1);
 	}
-
-	//SetAStyle(SCE_DIFF_DEFAULT, RGB(0, 0, 0));
-	SetAStyle(SCE_DIFF_COMMAND,
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeCommandColor", UDIFF_COLORFORECOMMAND),
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackCommandColor", UDIFF_COLORBACKCOMMAND));
-	SetAStyle(SCE_DIFF_POSITION,
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForePositionColor", UDIFF_COLORFOREPOSITION),
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackPositionColor", UDIFF_COLORBACKPOSITION));
-	SetAStyle(SCE_DIFF_HEADER,
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeHeaderColor", UDIFF_COLORFOREHEADER),
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackHeaderColor", UDIFF_COLORBACKHEADER));
-	SetAStyle(SCE_DIFF_COMMENT,
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeCommentColor", UDIFF_COLORFORECOMMENT),
-		CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackCommentColor", UDIFF_COLORBACKCOMMENT));
-	Call(SCI_STYLESETBOLD, SCE_DIFF_COMMENT, TRUE);
-	for (int style : { SCE_DIFF_ADDED, SCE_DIFF_PATCH_ADD, SCE_DIFF_PATCH_DELETE })
+	else if (!CTheme::Instance().IsHighContrastMode() && curlexer != SCLEX_DIFF)
 	{
-		SetAStyle(style,
-			CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeAddedColor", UDIFF_COLORFOREADDED),
-			CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackAddedColor", UDIFF_COLORBACKADDED));
+		Call(SCI_CLEARDOCUMENTSTYLE, 0, 0);
+		Call(SCI_STYLESETBOLD, SCE_DIFF_COMMENT, TRUE);
+		Call(SCI_SETLEXER, SCLEX_DIFF);
+		Call(SCI_STYLESETBOLD, SCE_DIFF_COMMENT, TRUE);
+		Call(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>("revision"));
+		Call(SCI_COLOURISE, 0, -1);
 	}
-	for (int style : { SCE_DIFF_DELETED, SCE_DIFF_REMOVED_PATCH_ADD, SCE_DIFF_REMOVED_PATCH_DELETE })
-	{
-		SetAStyle(style,
-			CRegStdDWORD(L"Software\\TortoiseGit\\UDiffForeRemovedColor", UDIFF_COLORFOREREMOVED),
-			CRegStdDWORD(L"Software\\TortoiseGit\\UDiffBackRemovedColor", UDIFF_COLORBACKREMOVED));
-	}
-
-	Call(SCI_SETLEXER, SCLEX_DIFF);
-	Call(SCI_SETKEYWORDS, 0, reinterpret_cast<LPARAM>("revision"));
-	Call(SCI_COLOURISE, 0, -1);
 }
 
 int CSciEdit::LoadFromFile(CString &filename)
@@ -1756,6 +1885,13 @@ int CSciEdit::LoadFromFile(CString &filename)
 	CAutoFILE fp = _wfsopen(filename, L"rb", _SH_DENYWR);
 	if (!fp)
 		return -1;
+
+	auto readonly = m_bReadOnly;
+	SCOPE_EXIT { SetReadOnly(readonly); };
+	SetReadOnly(false);
+
+	Call(SCI_CLEARALL);
+	Call(SCI_CANCEL);
 
 	char data[4096] = { 0 };
 	size_t lenFile = fread(data, 1, sizeof(data), fp);
@@ -1782,4 +1918,23 @@ void CSciEdit::RestyleBugIDs()
 ULONG CSciEdit::GetGestureStatus(CPoint /*ptTouch*/)
 {
 	return 0;
+}
+
+BOOL CSciEdit::EnableWindow(BOOL bEnable /*= TRUE*/)
+{
+	auto ret = __super::EnableWindow(bEnable);
+	SetColors(true);
+	return ret;
+}
+
+void CSciEdit::SetReadOnly(bool bReadOnly)
+{
+	m_bReadOnly = bReadOnly;
+	Call(SCI_SETREADONLY, m_bReadOnly);
+}
+
+void CSciEdit::ClearUndoBuffer()
+{
+	Call(SCI_EMPTYUNDOBUFFER);
+	Call(SCI_SETSAVEPOINT);
 }

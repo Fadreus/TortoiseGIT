@@ -20,6 +20,7 @@
 //
 #include "stdafx.h"
 #include "TortoiseMerge.h"
+#include "resource.h"
 #include "OpenDlg.h"
 #include "SysProgressDlg.h"
 #include "Settings.h"
@@ -36,6 +37,11 @@
 #include "TaskbarUUID.h"
 #include "RegexFiltersDlg.h"
 #include "DPIAware.h"
+#include "Theme.h"
+#include "StringUtils.h"
+#include "Windows10Colors.h"
+#include "DarkModeHelper.h"
+#include "ThemeMFCVisualManager.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -178,6 +184,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_INDICATOR_LEFTTABMODESTART, ID_INDICATOR_LEFTTABMODESTART+19, &CMainFrame::OnUpdateTabModeLeft)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_INDICATOR_RIGHTTABMODESTART, ID_INDICATOR_RIGHTTABMODESTART+19, &CMainFrame::OnUpdateTabModeRight)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_INDICATOR_BOTTOMTABMODESTART, ID_INDICATOR_BOTTOMTABMODESTART+19, &CMainFrame::OnUpdateTabModeBottom)
+	ON_WM_SETTINGCHANGE()
+	ON_WM_SYSCOLORCHANGE()
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -222,6 +230,7 @@ CMainFrame::CMainFrame()
 	, m_regUseRibbons(L"Software\\TortoiseGitMerge\\UseRibbons", TRUE)
 	, m_regIgnoreComments(L"Software\\TortoiseGitMerge\\IgnoreComments", FALSE)
 	, m_regexIndex(-1)
+	, m_themeCallbackId(0)
 {
 	m_bOneWay = (0 != (static_cast<DWORD>(m_regOneWay)));
 	m_bCollapsed = !!static_cast<DWORD>(m_regCollapsed);
@@ -273,6 +282,10 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			TRACE(L"Failed to load ribbon UI (%08x)\n", hr);
 			return -1; // fail to create
 		}
+
+		m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme()); });
+		SetTheme(CTheme::Instance().IsDarkTheme());
+
 		BuildRegexSubitems();
 		if (!m_wndRibbonStatusBar.Create(this))
 		{
@@ -350,6 +363,9 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			return -1;		// fail to create
 		}
 		m_wndStatusBar.EnablePaneDoubleClick();
+
+		m_themeCallbackId = CTheme::Instance().RegisterThemeChangeCallback([this]() { SetTheme(CTheme::Instance().IsDarkTheme());});
+		SetTheme(CTheme::Instance().IsDarkTheme());
 	}
 
 	if (!m_wndLocatorBar.Create(this, IDD_DIFFLOCATOR,
@@ -388,6 +404,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 void CMainFrame::OnDestroy()
 {
+	CTheme::Instance().RemoveRegisteredCallback(m_themeCallbackId);
 	if (m_pRibbonFramework)
 		m_pRibbonFramework->Destroy();
 
@@ -1278,6 +1295,89 @@ void CMainFrame::ShowDiffBar(bool bShow)
 	}
 }
 
+// Implementation helper only,
+// use CTheme::Instance::SetDarkTheme to actually set the theme.
+#ifndef UI_PKEY_DarkModeRibbon
+DEFINE_UIPROPERTYKEY(UI_PKEY_DarkModeRibbon, VT_BOOL, 2004);
+DEFINE_UIPROPERTYKEY(UI_PKEY_ApplicationButtonColor, VT_UI4, 2003);
+#endif
+void CMainFrame::SetTheme(bool bDark)
+{
+	if (m_bUseRibbons)
+		SetAccentColor();
+
+	if (bDark)
+	{
+		CComPtr<IPropertyStore> spPropertyStore;
+		if (m_bUseRibbons && SUCCEEDED(m_pRibbonFramework->QueryInterface(&spPropertyStore)))
+		{
+			DarkModeHelper::Instance().AllowDarkModeForApp(TRUE);
+			DarkModeHelper::Instance().AllowDarkModeForWindow(GetSafeHwnd(), TRUE);
+			PROPVARIANT propvarDarkMode;
+			InitPropVariantFromBoolean(1, &propvarDarkMode);
+			spPropertyStore->SetValue(UI_PKEY_DarkModeRibbon, propvarDarkMode);
+			spPropertyStore->Commit();
+		}
+		SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetStockObject(BLACK_BRUSH)));
+		BOOL darkFlag = TRUE;
+		DarkModeHelper::WINDOWCOMPOSITIONATTRIBDATA data = { DarkModeHelper::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkFlag, sizeof(darkFlag) };
+		DarkModeHelper::Instance().SetWindowCompositionAttribute(*this, &data);
+		DarkModeHelper::Instance().FlushMenuThemes();
+		DarkModeHelper::Instance().RefreshImmersiveColorPolicyState();
+	}
+	else
+	{
+		DarkModeHelper::Instance().AllowDarkModeForApp(FALSE);
+		DarkModeHelper::Instance().AllowDarkModeForWindow(GetSafeHwnd(), FALSE);
+		CComPtr<IPropertyStore> spPropertyStore;
+		if (m_bUseRibbons && SUCCEEDED(m_pRibbonFramework->QueryInterface(&spPropertyStore)))
+		{
+			PROPVARIANT propvarDarkMode;
+			InitPropVariantFromBoolean(false, &propvarDarkMode);
+			spPropertyStore->SetValue(UI_PKEY_DarkModeRibbon, propvarDarkMode);
+			spPropertyStore->Commit();
+		}
+		SetClassLongPtr(GetSafeHwnd(), GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetSysColorBrush(COLOR_3DFACE)));
+		BOOL darkFlag = FALSE;
+		DarkModeHelper::WINDOWCOMPOSITIONATTRIBDATA data = { DarkModeHelper::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkFlag, sizeof(darkFlag) };
+		DarkModeHelper::Instance().SetWindowCompositionAttribute(*this, &data);
+		DarkModeHelper::Instance().FlushMenuThemes();
+		DarkModeHelper::Instance().RefreshImmersiveColorPolicyState();
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+	}
+	if (bDark || CTheme::Instance().IsHighContrastModeDark())
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CThemeMFCVisualManager));
+	::RedrawWindow(GetSafeHwnd(), nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ERASE | RDW_INTERNALPAINT | RDW_ALLCHILDREN | RDW_UPDATENOW);
+}
+
+void CMainFrame::SetAccentColor()
+{
+	if (!m_bUseRibbons)
+		return;
+
+	// set the accent color for the main button
+	if (m_pRibbonFramework)
+	{
+		Win10Colors::AccentColor accentColor;
+		if (SUCCEEDED(Win10Colors::GetAccentColor(accentColor)))
+		{
+			BYTE h, s, b;
+			CTheme::RGBToHSB(accentColor.accent, h, s, b);
+			UI_HSBCOLOR aColor = UI_HSB(h, s, b);
+
+			CComPtr<IPropertyStore> spPropertyStore;
+			HRESULT hr = m_pRibbonFramework->QueryInterface(&spPropertyStore);
+			if (SUCCEEDED(hr))
+			{
+				PROPVARIANT propvarAccentColor;
+				InitPropVariantFromUInt32(aColor, &propvarAccentColor);
+				spPropertyStore->SetValue(UI_PKEY_ApplicationButtonColor, propvarAccentColor);
+				spPropertyStore->Commit();
+			}
+		}
+	}
+}
+
 int CMainFrame::CheckResolved()
 {
 	//only in three way diffs can be conflicts!
@@ -1791,6 +1891,7 @@ void CMainFrame::OnViewOptions()
 	sTemp.LoadString(IDS_SETTINGSTITLE);
 	CSettings dlg(sTemp);
 	dlg.DoModal();
+	CTheme::Instance().SetDarkTheme(dlg.IsDarkMode());
 	if (dlg.IsReloadNeeded())
 	{
 		if (CheckForSave(CHFSR_OPTIONS)==IDCANCEL)
@@ -2037,11 +2138,12 @@ void CMainFrame::ActivateFrame(int nCmdShow)
 		// and finally, bring to top after showing
 		BringToTop(nCmdShow);
 	}
+	CTheme::Instance().SetDarkTheme(CTheme::Instance().IsDarkTheme());
 }
 
 BOOL CMainFrame::ReadWindowPlacement(WINDOWPLACEMENT * pwp)
 {
-	CRegString placement = CRegString(L"Software\\TortoiseGitMerge\\WindowPos");
+	CRegString placement = CRegString(CString(L"Software\\TortoiseGitMerge\\WindowPos_") + GetMonitorSetupHash().c_str());
 	CString sPlacement = placement;
 	if (sPlacement.IsEmpty())
 		return FALSE;
@@ -2062,7 +2164,7 @@ BOOL CMainFrame::ReadWindowPlacement(WINDOWPLACEMENT * pwp)
 
 void CMainFrame::WriteWindowPlacement(WINDOWPLACEMENT * pwp)
 {
-	CRegString placement(L"Software\\TortoiseGitMerge\\WindowPos");
+	CRegString placement(CString(L"Software\\TortoiseGitMerge\\WindowPos_") + GetMonitorSetupHash().c_str());
 	TCHAR szBuffer[_countof("-32767")*8 + sizeof("65535")*2];
 
 	CDPIAware::Instance().UnscaleWindowPlacement(pwp);
@@ -2870,15 +2972,15 @@ void CMainFrame::OnViewComparewhitespaces()
 	if (CheckForSave(CHFSR_OPTIONS)==IDCANCEL)
 		return;
 	CRegDWORD regIgnoreWS(L"Software\\TortoiseGitMerge\\IgnoreWS");
-	regIgnoreWS = 0;
+	regIgnoreWS = static_cast<int>(IgnoreWS::None);
 	LoadViews(-1);
 }
 
 void CMainFrame::OnUpdateViewComparewhitespaces(CCmdUI *pCmdUI)
 {
 	CRegDWORD regIgnoreWS(L"Software\\TortoiseGitMerge\\IgnoreWS");
-	DWORD dwIgnoreWS = regIgnoreWS;
-	pCmdUI->SetCheck(dwIgnoreWS == 0);
+	IgnoreWS ignoreWs = static_cast<IgnoreWS>(static_cast<DWORD>(regIgnoreWS));
+	pCmdUI->SetCheck(ignoreWs == IgnoreWS::None);
 }
 
 void CMainFrame::OnViewIgnorewhitespacechanges()
@@ -2886,15 +2988,15 @@ void CMainFrame::OnViewIgnorewhitespacechanges()
 	if (CheckForSave(CHFSR_OPTIONS)==IDCANCEL)
 		return;
 	CRegDWORD regIgnoreWS(L"Software\\TortoiseGitMerge\\IgnoreWS");
-	regIgnoreWS = 2;
+	regIgnoreWS = static_cast<int>(IgnoreWS::WhiteSpaces);
 	LoadViews(-1);
 }
 
 void CMainFrame::OnUpdateViewIgnorewhitespacechanges(CCmdUI *pCmdUI)
 {
 	CRegDWORD regIgnoreWS(L"Software\\TortoiseGitMerge\\IgnoreWS");
-	DWORD dwIgnoreWS = regIgnoreWS;
-	pCmdUI->SetCheck(dwIgnoreWS == 2);
+	IgnoreWS ignoreWs = static_cast<IgnoreWS>(static_cast<DWORD>(regIgnoreWS));
+	pCmdUI->SetCheck(ignoreWs == IgnoreWS::WhiteSpaces);
 }
 
 void CMainFrame::OnViewIgnoreallwhitespacechanges()
@@ -2902,15 +3004,15 @@ void CMainFrame::OnViewIgnoreallwhitespacechanges()
 	if (CheckForSave(CHFSR_OPTIONS)==IDCANCEL)
 		return;
 	CRegDWORD regIgnoreWS(L"Software\\TortoiseGitMerge\\IgnoreWS");
-	regIgnoreWS = 1;
+	regIgnoreWS = static_cast<int>(IgnoreWS::AllWhiteSpaces);
 	LoadViews(-1);
 }
 
 void CMainFrame::OnUpdateViewIgnoreallwhitespacechanges(CCmdUI *pCmdUI)
 {
 	CRegDWORD regIgnoreWS(L"Software\\TortoiseGitMerge\\IgnoreWS");
-	DWORD dwIgnoreWS = regIgnoreWS;
-	pCmdUI->SetCheck(dwIgnoreWS == 1);
+	IgnoreWS ignoreWs = static_cast<IgnoreWS>(static_cast<DWORD>(regIgnoreWS));
+	pCmdUI->SetCheck(ignoreWs == IgnoreWS::AllWhiteSpaces);
 }
 
 void CMainFrame::OnViewMovedBlocks()
@@ -3685,7 +3787,7 @@ void CMainFrame::OnUpdateColumnStatusBar(CCmdUI* pCmdUI)
 			column = m_pwndRightView->GetCaretPosition().x;
 	}
 	CString sColumn;
-	sColumn.Format(IDS_INDICATOR_COLUMN, column);
+	sColumn.Format(IDS_INDICATOR_COLUMN, column + 1);
 	pCmdUI->SetText(sColumn);
 	pCmdUI->Enable(true);
 }
@@ -3702,4 +3804,20 @@ void CMainFrame::OnRegexNoFilter()
 void CMainFrame::OnUpdateRegexNoFilter(CCmdUI * pCmdUI)
 {
 	pCmdUI->SetCheck(m_regexIndex < 0);
+}
+
+void CMainFrame::OnSettingChange(UINT uFlags, LPCTSTR lpszSection)
+{
+	__super::OnSettingChange(uFlags, lpszSection);
+
+	SetAccentColor();
+}
+
+void CMainFrame::OnSysColorChange()
+{
+	__super::OnSysColorChange();
+
+	CTheme::Instance().OnSysColorChanged();
+	CTheme::Instance().SetDarkTheme(CTheme::Instance().IsDarkTheme(), true);
+	SetAccentColor();
 }

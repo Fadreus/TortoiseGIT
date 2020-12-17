@@ -40,8 +40,8 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\Resources;$InputDir;..\..\ext\ResizableLib;..\Git;..\Utils;..\..\ext\scintilla\include;..\Utils\TreePropSheet;..\Utils\MiscUI;..\TortoiseShell;..\..\ext\gitdll;..\..\ext\libgit2\include;..\..\ext\zlib;..\..\ext\OGDF\include;..\..\ext\build\ogdf;..\AsyncFramework;..\TortoiseMerge;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>HUNSPELL_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Resources;$InputDir;..\..\ext\ResizableLib;..\Git;..\Utils;..\..\ext\json\include;..\..\ext\scintilla\include;..\Utils\TreePropSheet;..\Utils\MiscUI;..\TortoiseShell;..\..\ext\gitdll;..\..\ext\libgit2\include;..\..\ext\zlib;..\..\ext\OGDF\include;..\..\ext\build\ogdf;..\AsyncFramework;..\TortoiseMerge;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>HUNSPELL_STATIC;TGIT_LFS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
     </ClCompile>
     <ResourceCompile>
@@ -69,10 +69,12 @@
     <ClCompile Include="..\Utils\CmdLineParser.cpp" />
     <ClCompile Include="..\Utils\COMError.cpp" />
     <ClCompile Include="..\Utils\CommonAppUtils.cpp" />
+    <ClCompile Include="..\Utils\DarkModeHelper.cpp" />
     <ClCompile Include="..\Utils\DebugOutput.cpp" />
     <ClCompile Include="..\Utils\DirFileEnum.cpp" />
     <ClCompile Include="..\Utils\DragDropImpl.cpp" />
     <ClCompile Include="..\Utils\Graphviz.cpp" />
+    <ClCompile Include="..\Utils\Hash.cpp" />
     <ClCompile Include="..\Utils\Hooks.cpp" />
     <ClCompile Include="..\Utils\HwSMTP.cpp" />
     <ClCompile Include="..\Utils\IconExtractor.cpp" />
@@ -99,8 +101,11 @@
     <ClCompile Include="..\Utils\MiscUI\SplitterControl.cpp" />
     <ClCompile Include="..\Utils\MiscUI\SVG.cpp" />
     <ClCompile Include="..\Utils\MiscUI\SysProgressDlg.cpp" />
+    <ClCompile Include="..\Utils\MiscUI\ThemeControls.cpp" />
+    <ClCompile Include="..\Utils\MiscUI\ThemeMFCVisualManager.cpp" />
     <ClCompile Include="..\Utils\MiscUI\Tooltip.cpp" />
     <ClCompile Include="..\Utils\MiscUI\WaterEffect.cpp" />
+    <ClCompile Include="..\Utils\Monitor.cpp" />
     <ClCompile Include="..\Utils\PathUtils.cpp" />
     <ClCompile Include="..\Utils\PathWatcher.cpp" />
     <ClCompile Include="..\Utils\PersonalDictionary.cpp" />
@@ -113,6 +118,7 @@
     <ClCompile Include="..\Utils\SysInfo.cpp" />
     <ClCompile Include="..\Utils\TaskbarUUID.cpp" />
     <ClCompile Include="..\Utils\TempFile.cpp" />
+    <ClCompile Include="..\Utils\Theme.cpp" />
     <ClCompile Include="..\Utils\TreePropSheet\PropPageFrame.cpp" />
     <ClCompile Include="..\Utils\TreePropSheet\PropPageFrameDefault.cpp" />
     <ClCompile Include="..\Utils\TreePropSheet\TreePropSheet.cpp" />
@@ -127,6 +133,7 @@
     <ClCompile Include="ColumnManager.cpp" />
     <ClCompile Include="Commands\CommitIsOnRefsCommand.cpp" />
     <ClCompile Include="Commands\DaemonCommand.cpp" />
+    <ClCompile Include="Commands\LFSCommands.cpp" />
     <ClCompile Include="CommitIsOnRefsDlg.cpp" />
     <ClCompile Include="CreateChangelistDlg.cpp" />
     <ClCompile Include="FilterHelper.cpp" />
@@ -140,11 +147,13 @@
     <ClCompile Include="FirstStartWizardUser.cpp" />
     <ClCompile Include="GitTagCompareList.cpp" />
     <ClCompile Include="GravatarPictureBox.cpp" />
+    <ClCompile Include="LFSLocksDlg.cpp" />
     <ClCompile Include="LogDlgFileFilter.cpp" />
     <ClCompile Include="LogDlgFilter.cpp" />
     <ClCompile Include="MergeAbortDlg.cpp" />
     <ClCompile Include="GitRefCompareList.cpp" />
     <ClCompile Include="ProgressCommands\AddProgressCommand.cpp" />
+    <ClCompile Include="ProgressCommands\LFSSetLockedProgressCommand.cpp" />
     <ClCompile Include="ProgressCommands\CloneProgressCommand.cpp" />
     <ClCompile Include="ProgressCommands\FetchProgressCommand.cpp" />
     <ClCompile Include="ProgressCommands\RemoteProgressCommand.cpp" />
@@ -352,10 +361,12 @@
     <ClInclude Include="..\Utils\COMError.h" />
     <ClInclude Include="..\Utils\CommonAppUtils.h" />
     <ClInclude Include="..\Utils\CreateProcessHelper.h" />
+    <ClInclude Include="..\Utils\DarkModeHelper.h" />
     <ClInclude Include="..\Utils\DebugOutput.h" />
     <ClInclude Include="..\Utils\DirFileEnum.h" />
     <ClInclude Include="..\Utils\DragDropImpl.h" />
     <ClInclude Include="..\Utils\Graphviz.h" />
+    <ClInclude Include="..\Utils\Hash.h" />
     <ClInclude Include="..\Utils\Hooks.h" />
     <ClInclude Include="..\Utils\HwSMTP.h" />
     <ClInclude Include="..\Utils\I18NHelper.h" />
@@ -391,8 +402,11 @@
     <ClInclude Include="..\Utils\MiscUI\SplitterControl.h" />
     <ClInclude Include="..\Utils\MiscUI\SVG.h" />
     <ClInclude Include="..\Utils\MiscUI\SysProgressDlg.h" />
+    <ClInclude Include="..\Utils\MiscUI\ThemeControls.h" />
+    <ClInclude Include="..\Utils\MiscUI\ThemeMFCVisualManager.h" />
     <ClInclude Include="..\Utils\MiscUI\Tooltip.h" />
     <ClInclude Include="..\Utils\MiscUI\WaterEffect.h" />
+    <ClInclude Include="..\Utils\Monitor.h" />
     <ClInclude Include="..\Utils\PathUtils.h" />
     <ClInclude Include="..\Utils\PathWatcher.h" />
     <ClInclude Include="..\Utils\PersonalDictionary.h" />
@@ -407,6 +421,7 @@
     <ClInclude Include="..\Utils\SysInfo.h" />
     <ClInclude Include="..\Utils\TaskbarUUID.h" />
     <ClInclude Include="..\Utils\TempFile.h" />
+    <ClInclude Include="..\Utils\Theme.h" />
     <ClInclude Include="..\Utils\TreePropSheet\PropPageFrame.h" />
     <ClInclude Include="..\Utils\TreePropSheet\PropPageFrameDefault.h" />
     <ClInclude Include="..\Utils\TreePropSheet\TreePropSheet.h" />
@@ -423,6 +438,7 @@
     <ClInclude Include="Commands\CommitIsOnRefsCommand.h" />
     <ClInclude Include="Commands\DaemonCommand.h" />
     <ClInclude Include="Commands\HelpCommand.h" />
+    <ClInclude Include="Commands\LFSCommands.h" />
     <ClInclude Include="Commands\RTFMCommand.h" />
     <ClInclude Include="CommitIsOnRefsDlg.h" />
     <ClInclude Include="ConfigureGitExe.h" />
@@ -438,11 +454,13 @@
     <ClInclude Include="FirstStartWizardUser.h" />
     <ClInclude Include="GitTagCompareList.h" />
     <ClInclude Include="GravatarPictureBox.h" />
+    <ClInclude Include="LFSLocksDlg.h" />
     <ClInclude Include="LogDlgFileFilter.h" />
     <ClInclude Include="LogDlgFilter.h" />
     <ClInclude Include="MergeAbortDlg.h" />
     <ClInclude Include="GitRefCompareList.h" />
     <ClInclude Include="ProgressCommands\AddProgressCommand.h" />
+    <ClInclude Include="ProgressCommands\LFSSetLockedProgressCommand.h" />
     <ClInclude Include="ProgressCommands\CloneProgressCommand.h" />
     <ClInclude Include="ProgressCommands\FetchProgressCommand.h" />
     <ClInclude Include="ProgressCommands\RemoteProgressCommand.h" />
@@ -666,6 +684,7 @@
     <Image Include="..\Resources\lineadded.ico" />
     <Image Include="..\Resources\lineconflicted.ico" />
     <Image Include="..\Resources\lineremoved.ico" />
+    <Image Include="..\Resources\LockBackground.ico" />
     <Image Include="..\Resources\logfilter.ico" />
     <Image Include="..\Resources\lookandfeel.ico" />
     <Image Include="..\Resources\menuabout.ico" />
@@ -714,6 +733,7 @@
     <Image Include="..\Resources\saveddata.ico" />
     <Image Include="..\Resources\snippet.ico" />
     <Image Include="..\Resources\spell.ico" />
+    <Image Include="..\Resources\UnlockBackground.ico" />
     <Image Include="..\Resources\UpdateBackground.ico" />
     <Image Include="..\Resources\switch.ico" />
     <Image Include="..\Resources\SwitchBackground.ico" />

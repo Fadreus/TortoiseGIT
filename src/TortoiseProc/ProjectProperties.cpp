@@ -23,6 +23,7 @@
 #include "UnicodeUtils.h"
 #include "TempFile.h"
 #include <WinInet.h>
+#include "SysInfo.h"
 
 struct num_compare
 {
@@ -251,9 +252,9 @@ void ProjectProperties::FetchHookString(CAutoConfig& gitconfig, const CString& s
 	boolval = false;
 	gitconfig.GetBool(sBase + L"show", boolval);
 	if (boolval)
-		sHook += L"true";
+		sHook += L"show";
 	else
-		sHook += L"false";
+		sHook += L"hide";
 }
 
 std::vector<CHARRANGE> ProjectProperties::FindBugIDPositions(const CString& msg)
@@ -427,7 +428,7 @@ bool ProjectProperties::MightContainABugID()
 
 CString ProjectProperties::GetBugIDUrl(const CString& sBugID)
 {
-	CString ret;
+	CString ret = sUrl;
 	if (sUrl.IsEmpty())
 		return ret;
 	if (!sMessage.IsEmpty() || !sCheckRe.IsEmpty())
@@ -439,10 +440,24 @@ void ProjectProperties::ReplaceBugIDPlaceholder(CString& url, const CString& sBu
 {
 	CString parameter;
 	DWORD size = INTERNET_MAX_URL_LENGTH;
-	UrlEscape(sBugID, CStrBuf(parameter, size + 1), &size, URL_ESCAPE_SEGMENT_ONLY | URL_ESCAPE_PERCENT | URL_ESCAPE_AS_UTF8);
-	// UrlEscape does not escape + and =, starting with Win8 the URL_ESCAPE_ASCII_URI_COMPONENT flag could be used and the following two lines would not be necessary
-	parameter.Replace(L"+", L"%2B");
-	parameter.Replace(L"=", L"%3D");
+	if (SysInfo::Instance().IsWin8OrLater())
+		UrlEscape(sBugID, CStrBuf(parameter, size + 1), &size, URL_ESCAPE_SEGMENT_ONLY | URL_ESCAPE_PERCENT | URL_ESCAPE_AS_UTF8 | URL_ESCAPE_ASCII_URI_COMPONENT);
+	else
+	{
+		UrlEscape(sBugID, CStrBuf(parameter, size + 1), &size, URL_ESCAPE_SEGMENT_ONLY | URL_ESCAPE_PERCENT | URL_ESCAPE_AS_UTF8);
+		parameter.Replace(L"!", L"%21");
+		parameter.Replace(L"$", L"%24");
+		parameter.Replace(L"'", L"%27");
+		parameter.Replace(L"(", L"%28");
+		parameter.Replace(L")", L"%29");
+		parameter.Replace(L"*", L"%2A");
+		parameter.Replace(L"+", L"%2B");
+		parameter.Replace(L",", L"%2C");
+		parameter.Replace(L":", L"%3A");
+		parameter.Replace(L";", L"%3B");
+		parameter.Replace(L"=", L"%3D");
+		parameter.Replace(L"@", L"%40");
+	}
 	url.Replace(L"%BUGID%", parameter);
 }
 

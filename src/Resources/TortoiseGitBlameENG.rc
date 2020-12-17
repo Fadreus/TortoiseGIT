@@ -280,6 +280,8 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Color by age, &continuous",   ID_VIEW_COLORBYAGE
         MENUITEM "Enable syntax highlighting",  ID_VIEW_ENABLELEXER
+        MENUITEM "&Dark Mode",                  ID_VIEW_DARKMODE
+        MENUITEM SEPARATOR
         MENUITEM "Wrap long lines",             ID_VIEW_WRAPLONGLINES
     END
     POPUP "&Help"
@@ -337,7 +339,7 @@ END
 IDD_ABOUTBOX DIALOGEX 0, 0, 357, 116
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About TortoiseGitBlame"
-FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x1
 BEGIN
     ICON            IDR_TORTOISE_GIT_BLAME_MAINFRAME,IDC_STATIC,14,14,20,20
     LTEXT           "TortoiseGitBlame",IDC_VERSION,42,14,308,8,SS_NOPREFIX
@@ -350,7 +352,7 @@ END
 IDD_GOTODLG DIALOGEX 0, 0, 127, 52
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Go to line"
-FONT 9, "MS Shell Dlg 2", 400, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x1
 BEGIN
     LTEXT           "Line:",IDC_STATIC,7,10,57,8
     EDITTEXT        IDC_LINENUMBER,36,7,84,14,ES_AUTOHSCROLL | ES_NUMBER
@@ -392,7 +394,7 @@ END
 STRINGTABLE
 BEGIN
     IDR_TORTOISE_GIT_BLAME_MAINFRAME 
-                            "TortoiseGitBlame\n\nTortoiseGitBlam\n\n\nTortoiseGitBlame.Document\nTortoiseGitBlame.Document"
+                            "TortoiseGitBlame\n\nTortoiseGitBlame\n\n\nTortoiseGitBlame.Document\nTortoiseGitBlame.Document"
     IDS_VERSION             "TortoiseGitBlame, Version %d.%d.%d.%d"
     IDS_APPNAME             "TortoiseGitBlame"
     IDS_CANNOTBLAMENOGIT    "Cannot show blame. ""%s"" is not under version control by git."

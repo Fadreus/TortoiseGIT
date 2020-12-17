@@ -1,11 +1,5 @@
 <?xml version="1.0"?>
 <!--
-============================================================ 
- $Date: 2008-12-14 09:06:16 +0800 (Sun, 14 Dec 2008) $
- $Author: simonlarge $
- $Rev: 14835 $
-============================================================ 
-
 NAnt build script for the TortoiseGit documentation
 
 All project specific configuration is stored in doc.build.include.
@@ -17,7 +11,7 @@ All user/site specific configuration is stored in doc.build.user.
 	<description>
 		Builds the Documentation in all languages and all output formats
 	</description>
-	
+
 	<!-- default: we don't clean first -->
 	<property name="cleanup" value="" overwrite="false" />
 
@@ -27,7 +21,7 @@ All user/site specific configuration is stored in doc.build.user.
 <!-- Loop over all languages                                                -->
 <!-- ====================================================================== -->
 
-	<target name="all" 
+	<target name="all"
 		description="Loop over all languages, output formats and applications and build documentation"
 		depends="prepare" >
 
@@ -41,7 +35,7 @@ All user/site specific configuration is stored in doc.build.user.
 			<call target="doit" failonerror="${critical or lang.base==lang.target}"/>
 		</foreach>
 	</target>
-	
+
 <!-- ====================================================================== -->
 <!-- Loop over all applications and output formats                          -->
 <!-- ====================================================================== -->
@@ -52,7 +46,7 @@ All user/site specific configuration is stored in doc.build.user.
 			<property name="doc.source.file" value="source/${lang.base}/${app}.xml"/>
 			<property name="doc.base.name" value="${app}_${lang.base}"/>
 			<property name="doc.base.work" value="output/${doc.base.name}"/>
-					
+
 			<property name="doc.target.name" value="${app}_${lang.target}"/>
 			<property name="doc.target.work" value="output/${doc.target.name}"/>
 			<property name="doc.target.source" value="source/${lang.target}/${app}/${app}.xml"/>
@@ -69,16 +63,16 @@ All user/site specific configuration is stored in doc.build.user.
 				<call target="UpdateVersionInfo"/>
 
 				<call target="spellcheck" if="${property::exists('spellcheck') and spellcheck=='true'}"/>
-				<call target="copyimages"/>
 
 				<property name="xslt.source" value="${doc.target.source}"/>
 				<foreach item="String" in="${docformats}" delim="," property="docformat">
+					<call target="copyimages"/>
 					<call target="${docformat}"/>
 				</foreach>
 			</if>
 		</foreach>
 	</target>
-	
+
 <!-- ====================================================================== -->
 <!-- ====================================================================== -->
 
@@ -87,7 +81,7 @@ All user/site specific configuration is stored in doc.build.user.
 			<delete dir="output" failonerror="false"/>
 		</if>
 	</target>
-	
+
 <!-- ====================================================================== -->
 <!-- ====================================================================== -->
 
@@ -95,31 +89,15 @@ All user/site specific configuration is stored in doc.build.user.
 		<mkdir dir="output"/>
 		<call target="prepare.custom" if="${target::exists('prepare.custom')}"/>
 
-		<!-- find the path to the fonts -->
-		<script language="C#">			
-			<code>
-				<![CDATA[
-					public static void ScriptMain(Project project)
-					{
-						string linuxPath = "/usr/share/fonts/truetype/";
-						if (Directory.Exists(linuxPath)) {
-							project.Properties.Add("fontpath", linuxPath);
-							return;
-						}
-						string systemPath = Environment.GetFolderPath(Environment.SpecialFolder.System);
-						string fontsPath = Path.GetDirectoryName(systemPath) + Path.DirectorySeparatorChar + "FONTS";
-						fontsPath = fontsPath.Replace('\\','/');
-						project.Properties.Add("fontpath", fontsPath );
-					}
-				]]>
-			</code>
-		</script>
+		<property name="fontpath" value="/usr/share/fonts/truetype/" if="${platform::is-unix() and not property::exists('fontpath')}"/>
+		<property name="fontpath" value="${string::replace(environment::get-variable('windir'), '\', '/')}/Fonts/" if="${platform::is-windows() and not property::exists('fontpath')}"/>
+		<fail unless="${directory::exists(fontpath)}">fontpath '${fontpath}' does not exist</fail>
 
 		<!-- ensure "Version" translation invariant -->
 		<copy file="source/${lang.base}/Version.in" tofile="source/${lang.base}/version.xml" overwrite="true"/>
 
 		<!-- tune path to xsltproc.exe in aspell.bat -->
-		<copy file="Aspell/aspell.in" tofile="Aspell/aspell.bat" overwrite="true">
+		<copy file="Aspell/aspell.bat.in" tofile="Aspell/aspell.bat" overwrite="true" unless="${platform::is-unix()}">
 			<filterchain>
 				<replacetokens begintoken="$" endtoken="$">
 					<token key="XSLTProcPath" value="${path.bin}" />
@@ -135,15 +113,35 @@ All user/site specific configuration is stored in doc.build.user.
 	<target name="copyimages" description="Copy images">
 		<delete dir="${doc.target.work}/images" failonerror="false"/>
 		<mkdir dir="${doc.target.work}/images"/>
+		<mkdir dir="${doc.target.work}/images/callouts" if="${app=='TortoiseGit'}"/>
+
+		<property name="xslt.params" value="${xsl.pdf.params}"/>
+		<property name="xslt.target" value="${path::get-temp-file-name()}"/>
+		<exec program="xsltproc"
+					commandline="${xslt.params} --output ${xslt.target} images/extract-images.xsl ${xslt.source}"
+					basedir="${path.bin}"
+					verbose="false"/>
+		<foreach item="Line" in="${xslt.target}" property="filename" trim="Both">
+			<property name="destname" value="${doc.target.work}/images/${filename}"/>
+			<copy file="images/${lang.target}/${filename}" tofile="${destname}" if="${file::exists(path::combine('images', path::combine(lang.target, filename)))}"/>
+			<copy file="images/${lang.base}/${filename}" tofile="${destname}" unless="${file::exists(destname)}"/>
+		</foreach>
+
 		<copy todir="${doc.target.work}/images">
 			<fileset basedir="images/${lang.base}">
-				<include name="*"/>
+				<include name="caution.png"/>
+				<include name="warning.png"/>
+				<include name="important.png"/>
+				<include name="tip.png"/>
+				<include name="note.png"/>
+				<include name="link.png"/>
 			</fileset>
 		</copy>
 
-		<copy todir="${doc.target.work}/images" unless="${lang.base==lang.target}" overwrite="true">
-			<fileset basedir="images/${lang.target}">
-				<include name="*"/>
+		<copy todir="${doc.target.work}/images/callouts" if="${app=='TortoiseGit'}">
+			<fileset basedir="images/${lang.base}/callouts">
+				<include name="*.png" unless="${docformat=='pdf'}"/>
+				<include name="*.svg" if="${docformat=='pdf'}"/>
 			</fileset>
 		</copy>
 	</target>
@@ -185,12 +183,19 @@ All user/site specific configuration is stored in doc.build.user.
 
 		<echo message="Stylesheet: ${xslt.file}" />
 		<echo message="Parameters: ${xslt.params}" />
+		<property name="xslt.output.file" value="${path::get-temp-file-name()}"/>
 		<exec program="xsltproc"
 					commandline="${xslt.params} --output ${xslt.target} ${xslt.file} ${xslt.source}"
 					basedir="${path.bin}"
+					output="${xslt.output.file}"
 					verbose="false"/>
+		<loadfile file="${xslt.output.file}" property="xsltproc.output" />
+		<fail if="${string::contains(xsltproc.output, ': parser error :')}">"Parser error" found</fail>
+		<fail if="${string::contains(xsltproc.output, 'Error: no ID for constraint linkend:')}">"Error: no ID for constraint linkend:" found</fail>
+		<fail if="${string::contains(xsltproc.output, 'ERROR: xref linking to ')}">"ERROR: xref linking to" found</fail>
+		<fail if="${string::contains(xsltproc.output, ', but no template matches.')}">unknown element found (look for "Element X encountered in Y, but no template matches.")</fail>
 	</target>
-	
+
 <!-- ====================================================================== -->
 <!-- Profile source into a single file                                      -->
 <!-- ====================================================================== -->
@@ -222,7 +227,7 @@ All user/site specific configuration is stored in doc.build.user.
 
 	<target name="potfile" description="Create po template from sources">
 		<property name="lang.target" value="${lang.base}"/>
-		
+
 		<!-- ensure "Version" translation invariant -->
 		<copy file="source\${lang.base}\version.in" tofile="source\${lang.base}\version.xml" overwrite="true"/>
 
@@ -263,7 +268,7 @@ All user/site specific configuration is stored in doc.build.user.
 		<property name="lang.pofile" value="po/${app}_${lang.target}.po"/>
 
 		<echo message="Translating: '${app} ${lang.target}' This may take a few minutes"/>
-		
+
 		<exec program="msgfmt"
 					commandline="${lang.pofile} -o ${lang.target}.mo"
 					basedir="${path.gettext}"
@@ -326,7 +331,7 @@ All user/site specific configuration is stored in doc.build.user.
 	<target name="UpdateVersionInfo" description="Updates the version file with version info">
 
 		<copy
-			file="source/${lang.target}/Version.in" 
+			file="source/${lang.target}/Version.in"
 			tofile="source/${lang.target}/version.xml"
 			overwrite="true">
 
@@ -347,38 +352,40 @@ All user/site specific configuration is stored in doc.build.user.
 
 	<target name="spellcheck" description="Run spellchecker on files">
 		<echo message="Spellchecking: '${app} ${lang.target}' This may take a few minutes"/>
-		<property name="spellcheck.log" value="ASpell/${app}_${lang.target}.log"/>
-		<mkdir dir="ASpell/${app}_${lang.target}"/>
-		
-		<echo message="--- Spellchecking: '${lang.target}'"
-			file="${spellcheck.log}"
-			failonerror="false"/>
+		<property name="spellcheck.log" value="Aspell/${app}_${lang.target}.log"/>
+		<property name="script.extension" value=".bat" if="${platform::is-windows()}"/>
+		<property name="script.extension" value=".sh" if="${platform::is-unix()}"/>
+		<mkdir dir="Aspell/${app}_${lang.target}"/>
 
-		<copy file="Aspell/TortoiseGit.tmpl.pws" tofile="Aspell/Temp.pws" overwrite="true">
+		<delete dir="${spellcheck.log}" failonerror="false"/>
+
+		<copy file="Aspell/TortoiseGit.tmpl.pws" tofile="Aspell/Temp.pws" overwrite="true" inputencoding="utf-8" outputencoding="utf-8">
 			<filterchain>
 				<replacetokens begintoken="$" endtoken="$">
 					<token key="LANG" value="${lang.target}" />
 				</replacetokens>
 			</filterchain>
 		</copy>
+		<exec program="sed" commandline=" -i '1s/^\xEF\xBB\xBF//' ./Aspell/Temp.pws" if="${platform::is-unix()}"/> <!-- outputencoding="utf-8" inserts BOM, aspell doesn't like that -->
 
 		<foreach item="File" property="file.base">
 			<in>
 				<items>
+					<exclude name="source/${lang.base}/TortoiseGit/git_doc/*.xml"/>
 					<include name="source/${lang.base}/${app}/**/*.xml"/>
 					<include name="source/${lang.base}/glossary.xml"/>
 					<include name="source/${lang.base}/wishlist.xml"/>
 				</items>
 			</in>
 			<do>
-				<property name="file.target" value="${string::replace(file.base,'\'+lang.base+'\','\'+lang.target+'\')}"/>
-				<property name="file.log" value="ASpell\${app}_${lang.target}\${path::get-file-name(file.target)}.log"/>
+				<property name="file.target" value="${string::replace(file.base, '/' + lang.base + '/', '/' + lang.target + '/')}"/>
+				<property name="file.log" value="Aspell/${app}_${lang.target}/${path::get-file-name(file.target)}.log"/>
 
 				<uptodate property="file.target.uptodate">
 					<sourcefiles>
 						<include name="${file.target}"/>
-						<include name="ASpell/${lang.target}.pws"/>
-						<include name="ASpell/TortoiseGit.tmpl.pws"/>
+						<include name="Aspell/${lang.target}.pws"/>
+						<include name="Aspell/TortoiseGit.tmpl.pws"/>
 					</sourcefiles>
 					<targetfiles>
 						<include name="${file.log}"/>
@@ -387,22 +394,22 @@ All user/site specific configuration is stored in doc.build.user.
 
 				<if test="${not file.target.uptodate}">
 					<echo message="Checking: ${path::get-file-name(file.target)}"/>
-					<exec program="Aspell/aspell.bat"
-						commandline="${path.spellcheck} ${lang.target} ${file.target} ${file.log}"
+					<exec program="Aspell/aspell${script.extension}"
+						commandline="&quot;${path.spellcheck}&quot; &quot;${lang.target}&quot; &quot;${file.target}&quot; &quot;${file.log}&quot;"
 						failonerror="false"/>
 				</if>
-				<exec program="Aspell/append.bat"
+				<exec program="Aspell/append${script.extension}"
 					commandline="${file.log} ${spellcheck.log}"/>
 			</do>
 		</foreach>
 	</target>
-	
+
 <!-- ====================================================================== -->
 <!-- Create PDF documentation                                               -->
 <!-- ====================================================================== -->
 
 	<target name="pdf" description="Create PDF documentation">
-		
+
 		<property name="file.target" value="output/${app}-${docverstring}-${lang.target}.pdf"/>
 		<call target="uptodate"/>
 
@@ -451,7 +458,7 @@ All user/site specific configuration is stored in doc.build.user.
 <!-- ====================================================================== -->
 
 	<target name="chm" description="Create CHM documentation">
-	
+
 		<property name="file.target" value="${doc.target.work}.chm"/>
 		<call target="uptodate"/>
 
@@ -461,7 +468,7 @@ All user/site specific configuration is stored in doc.build.user.
 			<property name="xslt.target" value="${doc.target.work}/${doc.target.name}"/>
 
 			<call target="xsltproc" />
-			
+
 			<!-- The CHM helpcontext target resides in an external build file -->
 			<call target="help.prepare" if="${target::exists('help.prepare')}"/>
 
@@ -527,38 +534,6 @@ All user/site specific configuration is stored in doc.build.user.
 			<call target="xsltproc" />
 
 		</if>
-	</target>
-
-<!-- ====================================================================== -->
-<!-- Create the API documentation                                           -->
-<!-- ====================================================================== -->
-
-	<target name="apidoc" depends="GitAPIdoc,TortoiseGitAPIdoc" />
-
-	<target name="GitAPIdoc">
-		<loadfile file="API\DoxyfileSVN" property="GitDoxyFile" />
-		<echo file="Doxyfile" message="${GitDoxyFile}" />
-		<echo file="Doxyfile" message="HHC_LOCATION=${environment::get-variable('HHLOC')}" append="true" />
-		<mkdir dir="output" />
-		<exec program="doxygen.exe">
-			<arg value="Doxyfile" />
-		</exec>
-		<move file="output\doxygen\html\GitAPI.chm" tofile="output\GitAPI.chm" overwrite="true" />
-		<delete dir="output\doxygen" />
-		<delete file="Doxyfile" />
-	</target>
-
-	<target name="TortoiseGitAPIdoc">
-		<loadfile file="API\Doxyfile" property="TortoiseGitDoxyFile" />
-		<echo file="Doxyfile" message="${TortoiseGitDoxyFile}" />
-		<echo file="Doxyfile" message="HHC_LOCATION=${environment::get-variable('HHLOC')}" append="true" />
-		<mkdir dir="output" />
-		<exec program="doxygen.exe">
-			<arg value="Doxyfile" />
-		</exec>
-		<move file="output\doxygen\html\TortoiseAPI.chm" tofile="output\TortoiseGitAPI.chm" overwrite="true" />
-		<delete dir="output\doxygen" />
-		<delete file="Doxyfile" />
 	</target>
 
 </project>

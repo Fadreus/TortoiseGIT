@@ -30,6 +30,7 @@
 #define IDD_TOOLASSOC                   171
 #define IDD_CHECKFORUPDATES             174
 #define IDD_REVERT                      175
+#define IDD_LFS_LOCKS                   176
 #define IDD_STATGRAPH                   179
 #define IDD_SETOVERLAYICONS             184
 #define IDI_SET_OVERLAYS                190
@@ -999,6 +1000,7 @@
 #define IDS_DIFFOPTION_IGNOREALLSPACE   1491
 #define IDC_OTHER_RD                    1492
 #define IDS_DIFFOPTION_IGNORBLANKLINES  1492
+#define IDC_STATIC_PUSHOPTION           1492
 #define IDC_OTHER                       1493
 #define IDC_BRANCH_SOURCE               1493
 #define IDS_SELECTUPSTREAM              1493
@@ -1011,6 +1013,7 @@
 #define IDC_REMOTE                      1496
 #define IDS_REPOBROWSEASKSUBMODULEUPDATE 1496
 #define IDS_TRACKEDBRANCH               1497
+#define IDC_PUSHOPTION                  1497
 #define IDS_REBASE_AUTOSKIPPED          1498
 #define IDC_FORCE_WITH_LEASE            1498
 #define IDC_TAGS                        1499
@@ -1411,14 +1414,20 @@
 #define IDC_BLAME_ONLYFIRSTPARENT       1677
 #define IDS_CONFIGUREDEFAULT            1677
 #define IDC_FROMSUBJECT                 1678
+#define IDS_DARKTHEME_TT                1678
 #define IDC_TOHASH                      1679
+#define IDS_COMMITDLG_NOTEDITEDTEMPLATE 1679
 #define IDC_TOSUBJECT                   1680
+#define IDS_PROGS_LFS_FORCEUNLOCK       1680
 #define IDC_CHECK_NEWBRANCH             1681
 #define IDC_TOGROUP2                    1681
+#define IDS_SYSTEM_GCMCORE              1681
 #define IDC_CHECK_CHERRYPICKED_FROM     1682
 #define IDC_THEIRSHASH                  1682
+#define IDS_GLOBAL_GCMCORE              1682
 #define IDC_CREATELIB                   1683
 #define IDC_THEIRSSUBJECT               1683
+#define IDS_LOCAL_GCMCORE               1683
 #define IDC_BUTTON_REVISION             1684
 #define IDC_RUNFIRSTSTARTWIZARD         1684
 #define IDC_REPOBROWSER_URL             1685
@@ -1439,6 +1448,7 @@
 #define IDC_GROUP_CHANGELOG             1697
 #define IDC_GROUP_DOWNLOADS             1698
 #define IDC_LOG3                        1698
+#define IDC_DARKTHEME                   1699
 #define IDC_SELECTLABEL                 1700
 #define IDS_ABOUTVERSION                1700
 #define IDC_CHECKALL                    1701
@@ -1627,7 +1637,9 @@
 #define IDC_MERGEBLOCK                  1852
 #define IDS_LOG_FILTER_MESSAGES         1853
 #define IDC_TRUSTEXITCODE               1853
+#define IDC_DIFFVIEWER_CROSSLINK        1853
 #define IDS_LOG_FILTER_REVS             1854
+#define IDC_BRANCH                      1854
 #define IDS_LOG_FILTER_REGEX            1855
 #define IDS_LOG_FILTER_BUGIDS           1856
 #define IDS_LOG_FILTER_CASESENSITIVE    1857
@@ -1754,6 +1766,7 @@
 #define IDS_STATUSLIST_COLREVISION      3313
 #define IDS_STATUSLIST_COLMODIFICATIONDATE 3316
 #define IDS_STATUSLIST_COLFILENAME      3317
+#define IDS_STATUSLIST_COLLFSLOCK       3318
 #define IDS_STATUSLIST_SWITCHEDTO       3323
 #define IDS_STATUSLIST_CONTEXT_ADD      3330
 #define IDS_STATUSLIST_CONTEXT_EXPLORE  3331
@@ -2073,14 +2086,22 @@
 #define ID_VIEW_ARROW_POINT_TO_MERGES   32876
 #define IDS_ERR_CHANGELIST_LOAD         32900
 #define IDS_ERR_CHANGELIST_SAVE         32901
+#define IDS_PROGRS_TITLE_LFS_LOCK       32920
+#define IDS_PROGRS_TITLE_LFS_UNLOCK     32921
+#define IDS_PROGRS_CMD_LFS_LOCK         32922
+#define IDS_PROGRS_CMD_LFS_UNLOCK       32923
+#define IDI_LOCK_BKG                    32924
+#define IDI_UNLOCK_BKG                  32925
+#define IDC_LOCKSLIST                   32926
+#define IDC_LFS_UNLOCK                  32927
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        363
+#define _APS_NEXT_RESOURCE_VALUE        364
 #define _APS_NEXT_COMMAND_VALUE         32875
-#define _APS_NEXT_CONTROL_VALUE         1853
+#define _APS_NEXT_CONTROL_VALUE         1855
 #define _APS_NEXT_SYMED_VALUE           201
 #endif
 #endif

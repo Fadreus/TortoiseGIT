@@ -147,7 +147,6 @@ BEGIN_MESSAGE_MAP(CCommitDlg, CResizableStandAloneDialog)
 	ON_REGISTERED_MESSAGE(WM_UPDATEDATAFALSE, OnUpdateDataFalse)
 	ON_WM_TIMER()
 	ON_WM_SIZE()
-	ON_WM_SYSCOLORCHANGE()
 	ON_BN_CLICKED(IDC_SIGNOFF, &CCommitDlg::OnBnClickedSignOff)
 	ON_BN_CLICKED(IDC_COMMIT_AMEND, &CCommitDlg::OnBnClickedCommitAmend)
 	ON_BN_CLICKED(IDC_COMMIT_MESSAGEONLY, &CCommitDlg::OnBnClickedCommitMessageOnly)
@@ -167,8 +166,9 @@ BEGIN_MESSAGE_MAP(CCommitDlg, CResizableStandAloneDialog)
 	ON_BN_CLICKED(IDC_COMMIT_SETAUTHOR, &CCommitDlg::OnBnClickedCommitSetauthor)
 END_MESSAGE_MAP()
 
-int GetCommitTemplate(CString &msg)
+static int GetCommitTemplate(CString &msg)
 {
+	msg.Empty();
 	CString tplFilename = g_Git.GetConfigValue(L"commit.template");
 	if (tplFilename.IsEmpty())
 		return -1;
@@ -193,7 +193,10 @@ int GetCommitTemplate(CString &msg)
 	tplFilename.Replace(L'/', L'\\');
 
 	if (!CGit::LoadTextFile(tplFilename, msg))
+	{
+		MessageBox(nullptr, L"Could not open and load commit.template file: " + tplFilename, L"TortoiseGit", MB_ICONERROR);
 		return -1;
+	}
 	return 0;
 }
 
@@ -202,10 +205,11 @@ BOOL CCommitDlg::OnInitDialog()
 	CResizableStandAloneDialog::OnInitDialog();
 	CAppUtils::MarkWindowAsUnpinnable(m_hWnd);
 
+	GetCommitTemplate(m_sLogTemplate);
 	if (m_sLogMessage.IsEmpty())
 	{
 		if (!m_bForceCommitAmend)
-			GetCommitTemplate(m_sLogMessage);
+			m_sLogMessage = m_sLogTemplate;
 
 		CString dotGitPath;
 		GitAdminDir::GetWorktreeAdminDirPath(g_Git.m_CurrentDir, dotGitPath);
@@ -563,7 +567,7 @@ static void DoPush(HWND hWnd, bool usePushDlg)
 		return;
 	}
 
-	CAppUtils::DoPush(hWnd, CAppUtils::IsSSHPutty(), false, false, false, false, false, head, remote, remotebranch, false, 0);
+	CAppUtils::DoPush(hWnd, CAppUtils::IsSSHPutty(), false, false, false, false, false, head, remote, remotebranch, false, 0, L"");
 }
 
 void CCommitDlg::OnOK()
@@ -643,6 +647,14 @@ void CCommitDlg::OnOK()
 	{
 		if (CMessageBox::Show(this->m_hWnd, IDS_COMMITDLG_NOISSUEWARNING, IDS_APPNAME, MB_YESNO | MB_ICONWARNING)!=IDYES)
 			return;
+	}
+	if (!m_sLogTemplate.IsEmpty() && m_sLogTemplate == m_sLogMessage)
+	{
+		if (CMessageBox::ShowCheck(GetSafeHwnd(), IDS_COMMITDLG_NOTEDITEDTEMPLATE, IDS_APPNAME, 2, IDI_WARNING, IDS_PROCEEDBUTTON, IDS_MSGBOX_NO, 0, L"CommitMessageTemplateNotEdited", IDS_MSGBOX_DONOTSHOWAGAIN) != 1)
+		{
+			CMessageBox::RemoveRegistryKey(L"CommitMessageTemplateNotEdited"); // only remember "proceed anyway"
+			return;
+		}
 	}
 
 	if (m_ProjectProperties.bWarnNoSignedOffBy == TRUE && m_cLogMessage.GetText().Find(GetSignedOffByLine()) == -1)
@@ -1202,15 +1214,18 @@ void CCommitDlg::OnOK()
 					m_History.Save();
 				}
 
-				this->m_sLogMessage.Empty();
-				GetCommitTemplate(m_sLogMessage);
+				GetCommitTemplate(m_sLogTemplate);
+				m_sLogMessage = m_sLogTemplate;
 				m_cLogMessage.SetText(m_sLogMessage);
+				m_cLogMessage.ClearUndoBuffer();
 				if (m_bCreateNewBranch)
 				{
 					GetDlgItem(IDC_COMMIT_TO)->ShowWindow(SW_SHOW);
 					GetDlgItem(IDC_NEWBRANCH)->ShowWindow(SW_HIDE);
 				}
 				m_bCreateNewBranch = FALSE;
+				m_bCommitMessageOnly = FALSE;
+				m_ListCtrl.EnableWindow(TRUE);
 				m_ListCtrl.Clear();
 				if (!RunStartCommitHook())
 					bCloseCommitDlg = true;
@@ -1399,6 +1414,8 @@ UINT CCommitDlg::StatusThread()
 			m_ListCtrl.Show(dwShow,dwShow&(~CTGitPath::LOGACTIONS_UNVER));
 		}
 	}
+
+	GetDlgItem(IDC_MERGEACTIVE)->ShowWindow(PathFileExists(dotGitPath + L"MERGE_HEAD") ? SW_SHOW : SW_HIDE);
 
 	SetDlgTitle();
 
@@ -2123,7 +2140,7 @@ bool CCommitDlg::HandleMenuItemClick(int cmd, CSciEdit * pSciEdit)
 			{
 				CString status = entry->GetActionName();
 				if(entry->m_Action & CTGitPath::LOGACTIONS_UNVER)
-					status = L"Add"; // I18N TODO
+					status = CTGitPath::GetActionName(CTGitPath::LOGACTIONS_ADDED);
 
 				//git_wc_status_kind status = entry->status;
 				WORD langID = static_cast<WORD>(CRegStdDWORD(L"Software\\TortoiseGit\\LanguageID", GetUserDefaultLangID()));
@@ -2800,6 +2817,8 @@ void CCommitDlg::OnBnClickedCheckNewBranch()
 	{
 		GetDlgItem(IDC_COMMIT_TO)->ShowWindow(SW_HIDE);
 		GetDlgItem(IDC_NEWBRANCH)->ShowWindow(SW_SHOW);
+		GetDlgItem(IDC_NEWBRANCH)->SetFocus();
+		GetDlgItem(IDC_NEWBRANCH)->SendMessage(EM_SETSEL, 0, -1);
 	}
 	else
 	{
@@ -2891,11 +2910,4 @@ bool CCommitDlg::RunStartCommitHook()
 		}
 	}
 	return true;
-}
-
-void CCommitDlg::OnSysColorChange()
-{
-	__super::OnSysColorChange();
-	m_cLogMessage.SetColors(true);
-	m_cLogMessage.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
 }

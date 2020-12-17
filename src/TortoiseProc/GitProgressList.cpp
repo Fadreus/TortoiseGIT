@@ -26,6 +26,8 @@
 #include "StringUtils.h"
 #include "LogFile.h"
 #include "LoglistUtils.h"
+#include "Theme.h"
+#include "TempFile.h"
 
 BOOL	CGitProgressList::m_bAscending = FALSE;
 int		CGitProgressList::m_nSortedColumn = -1;
@@ -384,7 +386,7 @@ void CGitProgressList::ReportError(const CString& sError)
 {
 	if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
 		PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
-	ReportString(sError, CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), m_Colors.GetColor(CColors::Conflict));
+	ReportString(sError, CString(MAKEINTRESOURCE(IDS_ERR_ERROR)), true, m_Colors.GetColor(CColors::Conflict));
 	m_bErrorsOccurred = true;
 }
 
@@ -392,22 +394,22 @@ void CGitProgressList::ReportWarning(const CString& sWarning)
 {
 	if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
 		PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMDEFAULT), nullptr, SND_ALIAS_ID | SND_ASYNC);
-	ReportString(sWarning, CString(MAKEINTRESOURCE(IDS_WARN_WARNING)), m_Colors.GetColor(CColors::Conflict));
+	ReportString(sWarning, CString(MAKEINTRESOURCE(IDS_WARN_WARNING)), true, m_Colors.GetColor(CColors::Conflict));
 }
 
 void CGitProgressList::ReportNotification(const CString& sNotification)
 {
 	if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
 		PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMDEFAULT), nullptr, SND_ALIAS_ID | SND_ASYNC);
-	ReportString(sNotification, CString(MAKEINTRESOURCE(IDS_WARN_NOTE)));
+	ReportString(sNotification, CString(MAKEINTRESOURCE(IDS_WARN_NOTE)), false);
 }
 
 void CGitProgressList::ReportCmd(const CString& sCmd)
 {
-	ReportString(sCmd, CString(MAKEINTRESOURCE(IDS_PROGRS_CMDINFO)), m_Colors.GetColor(CColors::Cmd));
+	ReportString(sCmd, CString(MAKEINTRESOURCE(IDS_PROGRS_CMDINFO)), true, m_Colors.GetColor(CColors::Cmd));
 }
 
-void CGitProgressList::ReportString(CString sMessage, const CString& sMsgKind, COLORREF color)
+void CGitProgressList::ReportString(CString sMessage, const CString& sMsgKind, bool colorIsDirect, COLORREF color)
 {
 	// instead of showing a dialog box with the error message or notification,
 	// just insert the error text into the list control.
@@ -426,6 +428,7 @@ void CGitProgressList::ReportString(CString sMessage, const CString& sMsgKind, C
 			data->sPathColumnText = sMessage;
 		data->sPathColumnText.Trim(L"\n\r");
 		data->color = color;
+		data->colorIsDirect = colorIsDirect;
 		if (sMessage.Find('\n')>=0)
 		{
 			sMessage = sMessage.Mid(sMessage.Find('\n'));
@@ -533,15 +536,25 @@ UINT CGitProgressList::ProgressThread()
 	if (!m_bFinishedItemAdded)
 	{
 		CString log, str;
+		COLORREF color;
 		if (bSuccess)
+		{
 			str.LoadString(IDS_SUCCESS);
+			if (CTheme::Instance().IsHighContrastMode())
+				color = ::GetSysColor(COLOR_WINDOWTEXT);
+			else
+				color = CTheme::Instance().IsDarkTheme() ? RGB(0, 178, 255) : RGB(0, 0, 255);
+		}
 		else
+		{
 			str.LoadString(IDS_FAIL);
+			color = CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0);
+		}
 		log.Format(L"%s (%lu ms @ %s)", static_cast<LPCTSTR>(str), time, static_cast<LPCTSTR>(CLoglistUtils::FormatDateAndTime(CTime::GetCurrentTime(), DATE_SHORTDATE, true, false)));
 
 		// there's no "finished: xxx" line at the end. We add one here to make
 		// sure the user sees that the command is actually finished.
-		ReportString(log, CString(MAKEINTRESOURCE(IDS_PROGRS_FINISHED)), bSuccess? RGB(0,0,255) : RGB(255,0,0));
+		ReportString(log, CString(MAKEINTRESOURCE(IDS_PROGRS_FINISHED)), !(CTheme::Instance().IsHighContrastMode() && bSuccess), color);
 	}
 
 	int count = GetItemCount();
@@ -650,7 +663,7 @@ void CGitProgressList::OnNMCustomdrawSvnprogress(NMHDR *pNMHDR, LRESULT *pResult
 			return;
 
 		// Store the color back in the NMLVCUSTOMDRAW struct.
-		pLVCD->clrText = data->color;
+		pLVCD->clrText = CTheme::Instance().GetThemeColor(data->color, data->colorIsDirect);
 	}
 }
 
@@ -700,7 +713,10 @@ bool CGitProgressList::NotificationDataIsAux(const NotificationData* pData)
 void CGitProgressList::AddNotify(NotificationData* data, CColors::Colors color)
 {
 	if (color != CColors::COLOR_END)
+	{
 		data->color = m_Colors.GetColor(color);
+		data->colorIsDirect = true;
+	}
 	else
 		data->SetColorCode(m_Colors);
 
@@ -1111,6 +1127,12 @@ CGitProgressList::WC_File_NotificationData::WC_File_NotificationData(const CTGit
 	case git_wc_notify_checkout:
 		sActionColumnText.LoadString(IDS_PROGRS_CMD_CHECKOUT);
 		break;
+	case git_wc_notify_lfs_lock:
+		sActionColumnText.LoadString(IDS_PROGRS_CMD_LFS_LOCK);
+		break;
+	case git_wc_notify_lfs_unlock:
+		sActionColumnText.LoadString(IDS_PROGRS_CMD_LFS_UNLOCK);
+		break;
 	default:
 		break;
 	}
@@ -1120,9 +1142,11 @@ void CGitProgressList::WC_File_NotificationData::SetColorCode(CColors& colors)
 {
 	switch (action)
 	{
-	case git_wc_notify_checkout: // fall-through
+	case git_wc_notify_checkout:
+		[[fallthrough]];
 	case git_wc_notify_add:
 		color = colors.GetColor(CColors::Added);
+		colorIsDirect = true;
 		break;
 
 	default:
@@ -1135,7 +1159,9 @@ void CGitProgressList::WC_File_NotificationData::GetContextMenu(CIconMenu& popup
 	if ((action == git_wc_notify_add) ||
 		(action == git_wc_notify_revert) ||
 		(action == git_wc_notify_resolved) ||
-		(action == git_wc_notify_checkout))
+		(action == git_wc_notify_checkout) ||
+		(action == git_wc_notify_lfs_lock) ||
+		(action == git_wc_notify_lfs_unlock))
 	{
 		actions.push_back([&]()
 		{
@@ -1157,6 +1183,32 @@ void CGitProgressList::WC_File_NotificationData::GetContextMenu(CIconMenu& popup
 
 		actions.push_back([&]{ CAppUtils::ExploreTo(nullptr, g_Git.CombinePath(path)); });
 		popup.AppendMenuIcon(actions.size(), IDS_STATUSLIST_CONTEXT_EXPLORE, IDI_EXPLORER);
+
+		if ((action == git_wc_notify_lfs_lock) ||
+			(action == git_wc_notify_lfs_unlock))
+		{
+			popup.AppendMenu(MF_SEPARATOR, NULL);
+
+			CTGitPathList pathList(path);
+
+			actions.push_back([&] {
+				CString tempfilename = CTempFiles::Instance().GetTempFilePath(false).GetWinPathString();
+				VERIFY(pathList.WriteToFile(tempfilename));
+				CString sCmd;
+				sCmd.Format(L"/command:lfslock /pathfile:\"%s\" /deletepathfile", static_cast<LPCTSTR>(tempfilename));
+				CAppUtils::RunTortoiseGitProc(sCmd);
+			});
+			popup.AppendMenuIcon(actions.size(), IDS_PROGRS_TITLE_LFS_LOCK, IDI_LFSLOCK);
+
+			actions.push_back([&] {
+				CString tempfilename = CTempFiles::Instance().GetTempFilePath(false).GetWinPathString();
+				VERIFY(pathList.WriteToFile(tempfilename));
+				CString sCmd;
+				sCmd.Format(L"/command:lfsunlock /pathfile:\"%s\" /deletepathfile", static_cast<LPCTSTR>(tempfilename));
+				CAppUtils::RunTortoiseGitProc(sCmd);
+			});
+			popup.AppendMenuIcon(actions.size(), IDS_PROGRS_TITLE_LFS_UNLOCK, IDI_LFSUNLOCK);
+		}
 	}
 }
 
@@ -1174,6 +1226,7 @@ void CGitProgressList::WC_File_NotificationData::HandleDblClick() const
 void CGitProgressList::OnSysColorChange()
 {
 	__super::OnSysColorChange();
+	CTheme::Instance().OnSysColorChanged();
 }
 
 ULONG CGitProgressList::GetGestureStatus(CPoint /*ptTouch*/)

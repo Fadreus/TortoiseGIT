@@ -63,7 +63,7 @@ public:
 	void SetItemCountTotal(long count) { if(count) m_itemCountTotal = count; }
 	void SetItemProgress(long count) { m_itemCount = count;} // do not use SetItemCount here as this overrides the ListBox method
 	bool SetBackgroundImage(UINT nID);
-	bool DidErrorsOccur() {return m_bErrorsOccurred;}
+	bool DidErrorsOccur() const { return m_bErrorsOccurred; }
 	bool			m_bErrorsOccurred;
 	CWnd			*m_pProgressLabelCtrl;
 	CWnd			*m_pInfoCtrl;
@@ -71,8 +71,8 @@ public:
 	CProgressCtrl	*m_pProgControl;
 	ProgressCommand	*m_Command;
 	void			Cancel();
-	volatile BOOL IsCancelled()	{return m_bCancelled;}
-	volatile LONG IsRunning()	{return m_bThreadRunning;}
+	volatile BOOL IsCancelled() const { return m_bCancelled; }
+	volatile LONG IsRunning() const { return m_bThreadRunning; }
 	CWinThread*				m_pThread;
 	CWnd			*m_pPostWnd;
 	bool					m_bSetTitle;
@@ -90,6 +90,7 @@ public:
 	public:
 		NotificationData()
 		: color(::GetSysColor(COLOR_WINDOWTEXT))
+		, colorIsDirect(false)
 		, bAuxItem(false)
 		{};
 
@@ -110,6 +111,7 @@ public:
 		CString					sActionColumnText;
 		CTGitPath				path;
 		COLORREF				color;
+		bool					colorIsDirect;
 		bool					bAuxItem;					// Set if this item is not a true 'Git action'
 		CString					sPathColumnText;
 	};
@@ -123,6 +125,8 @@ public:
 			git_wc_notify_resolved,
 			git_wc_notify_revert,
 			git_wc_notify_checkout,
+			git_wc_notify_lfs_lock,
+			git_wc_notify_lfs_unlock,
 		} git_wc_notify_action_t;
 
 		WC_File_NotificationData(const CTGitPath& path, git_wc_notify_action_t action);
@@ -173,7 +177,7 @@ public:
 	void		ReportWarning(const CString& sWarning);
 	void		ReportNotification(const CString& sNotification);
 	void		ReportCmd(const CString& sCmd);
-	void		ReportString(CString sMessage, const CString& sMsgKind, COLORREF color = ::GetSysColor(COLOR_WINDOWTEXT));
+	void		ReportString(CString sMessage, const CString& sMsgKind, bool colorIsDirect, COLORREF color = CTheme::Instance().IsDarkTheme() ? CTheme::darkTextColor : GetSysColor(COLOR_WINDOWTEXT));
 
 private:
 	void		AddItemToList();
@@ -243,7 +247,7 @@ public:
 	: m_PostCmdCallback(nullptr)
 	{}
 
-	void SetPathList(CTGitPathList& pathList) { m_targetPathList = pathList; }
+	void SetPathList(const CTGitPathList& pathList) { m_targetPathList = pathList; }
 	virtual bool Run(CGitProgressList* list, CString& sWindowTitle, int& m_itemCountTotal, int& m_itemCount) = 0;
 	virtual bool ShowInfo(CString& /*info*/) { return false; }
 	virtual ~ProgressCommand() {}

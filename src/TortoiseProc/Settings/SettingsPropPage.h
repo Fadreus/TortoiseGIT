@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // Copyright (C) 2016 - TortoiseGit
-// Copyright (C) 2007-2010, 2015 - TortoiseSVN
+// Copyright (C) 2007-2010, 2015, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
 #include "MessageBox.h"
 #include "Tooltip.h"
 #include "CommonDialogFunctions.h"
+#include "Theme.h"
 
 /**
  * \ingroup TortoiseProc
@@ -58,13 +59,14 @@ public:
 	/**
 	 * Returns the restart code
 	 */
-	virtual SettingsRestart GetRestart() {return m_restart;}
+	virtual SettingsRestart GetRestart() const { return m_restart; }
 
 protected:
 	virtual BOOL OnInitDialog() override
 	{
 		CPropertyPage::OnInitDialog();
 		m_tooltips.Create(this);
+		CTheme::Instance().SetThemeForDialog(GetSafeHwnd(), CTheme::Instance().IsDarkTheme());
 		return FALSE;
 	}
 	virtual BOOL PreTranslateMessage(MSG* pMsg) override

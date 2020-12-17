@@ -687,38 +687,6 @@ BOOL CAppUtils::CheckForEmptyDiff(const CTGitPath& sDiffPath)
 	return FALSE;
 }
 
-CString CAppUtils::GetLogFontName()
-{
-	return CRegString(L"Software\\TortoiseGit\\LogFontName", L"Consolas");
-}
-
-DWORD CAppUtils::GetLogFontSize()
-{
-	return CRegDWORD(L"Software\\TortoiseGit\\LogFontSize", 9);
-}
-
-void CAppUtils::CreateFontForLogs(CFont& fontToCreate)
-{
-	LOGFONT logFont;
-	HDC hScreenDC = ::GetDC(nullptr);
-	logFont.lfHeight = -CDPIAware::Instance().PointsToPixelsY(GetLogFontSize());
-	::ReleaseDC(nullptr, hScreenDC);
-	logFont.lfWidth				= 0;
-	logFont.lfEscapement		= 0;
-	logFont.lfOrientation		= 0;
-	logFont.lfWeight			= FW_NORMAL;
-	logFont.lfItalic			= 0;
-	logFont.lfUnderline			= 0;
-	logFont.lfStrikeOut			= 0;
-	logFont.lfCharSet			= DEFAULT_CHARSET;
-	logFont.lfOutPrecision		= OUT_DEFAULT_PRECIS;
-	logFont.lfClipPrecision		= CLIP_DEFAULT_PRECIS;
-	logFont.lfQuality			= DRAFT_QUALITY;
-	logFont.lfPitchAndFamily	= FF_DONTCARE | FIXED_PITCH;
-	wcsncpy_s(logFont.lfFaceName, static_cast<LPCTSTR>(GetLogFontName()), _TRUNCATE);
-	VERIFY(fontToCreate.CreateFontIndirect(&logFont));
-}
-
 bool CAppUtils::LaunchPAgent(HWND hWnd, const CString* keyfile, const CString* pRemote)
 {
 	CString key,remote;
@@ -2767,7 +2735,7 @@ bool CAppUtils::Fetch(HWND hWnd, const CString& remoteName, bool allRemotes)
 	return false;
 }
 
-bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, bool allBranches, bool force, bool forceWithLease, const CString& localBranch, const CString& remote, const CString& remoteBranch, bool setUpstream, int recurseSubmodules)
+bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, bool allBranches, bool force, bool forceWithLease, const CString& localBranch, const CString& remote, const CString& remoteBranch, bool setUpstream, int recurseSubmodules, const CString& pushOption)
 {
 	CString error;
 	DWORD exitcode = 0xFFFFFFFF;
@@ -2812,6 +2780,18 @@ bool CAppUtils::DoPush(HWND hWnd, bool autoloadKey, bool tags, bool allRemotes, 
 		arg += L"--recurse-submodules=check ";
 	if (recurseSubmodules == 2 && recurseSubmodules != iRecurseSubmodules)
 		arg += L"--recurse-submodules=on-demand ";
+	if (!pushOption.IsEmpty())
+	{
+		if (pushOption.Find(L'"') < 0)
+			arg += L"--push-option=\"" + pushOption + L"\" ";
+		else
+		{
+			CString escaped = pushOption;
+			escaped.Replace(L"\\\"", L"\\\\\"");
+			escaped.Replace(L"\"", L"\\\"");
+			arg += L"--push-option=\"" + escaped + L"\" ";
+		}
+	}
 
 	arg += L"--progress ";
 
@@ -2918,7 +2898,7 @@ bool CAppUtils::Push(HWND hWnd, const CString& selectLocalBranch)
 	dlg.m_BranchSourceName = selectLocalBranch;
 
 	if (dlg.DoModal() == IDOK)
-		return DoPush(hWnd, !!dlg.m_bAutoLoad, !!dlg.m_bTags, !!dlg.m_bPushAllRemotes, !!dlg.m_bPushAllBranches, !!dlg.m_bForce, !!dlg.m_bForceWithLease, dlg.m_BranchSourceName, dlg.m_URL, dlg.m_BranchRemoteName, !!dlg.m_bSetUpstream, dlg.m_RecurseSubmodules);
+		return DoPush(hWnd, !!dlg.m_bAutoLoad, !!dlg.m_bTags, !!dlg.m_bPushAllRemotes, !!dlg.m_bPushAllBranches, !!dlg.m_bForce, !!dlg.m_bForceWithLease, dlg.m_BranchSourceName, dlg.m_URL, dlg.m_BranchRemoteName, !!dlg.m_bSetUpstream, dlg.m_RecurseSubmodules, dlg.m_sPushOption);
 
 	return FALSE;
 }

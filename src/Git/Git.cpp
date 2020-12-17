@@ -89,7 +89,7 @@ static CString FindFileOnPath(const CString& filename, LPCTSTR env, bool wantDir
 		{
 			if (wantDirectory)
 				pfin[1] = L'\0';
-			return buf;
+			return CString(buf);
 		}
 	}
 
@@ -245,14 +245,11 @@ CGit::~CGit(void)
 
 bool CGit::IsBranchNameValid(const CString& branchname)
 {
-	if (CStringUtils::StartsWith(branchname, L"-")) // branch names starting with a dash are discouraged when used with git.exe, see https://github.com/git/git/commit/6348624010888bd2353e5cebdc2b5329490b0f6d
-		return false;
 	if (branchname.FindOneOf(L"\"|<>") >= 0) // not valid on Windows
 		return false;
-	if (branchname == L"HEAD") // Branch name HEAD is discouraged since Git v2.16.0, see https://github.com/git/git/commit/a625b092cc59940521789fe8a3ff69c8d6b14eb2
-		return false;
-	CStringA branchA = CUnicodeUtils::GetUTF8(L"refs/heads/" + branchname);
-	return !!git_reference_is_valid_name(branchA);
+	int valid = 0;
+	git_branch_name_is_valid(&valid, CUnicodeUtils::GetUTF8(branchname));
+	return valid == 1;
 }
 
 int CGit::RunAsync(CString cmd, PROCESS_INFORMATION* piOut, HANDLE* hReadOut, HANDLE* hErrReadOut, const CString* StdioFile)
@@ -990,7 +987,8 @@ CString CGit::GetLogCmd(CString range, const CTGitPath* path, int mask, CFilterD
 	if(mask& CGit::LOG_INFO_ALL_BRANCH)
 	{
 		param += L" --all";
-		range.Empty();
+		if ((mask & LOG_INFO_ALWAYS_APPLY_RANGE) == 0)
+			range.Empty();
 	}
 
 	if (mask& CGit::LOG_INFO_BASIC_REFS)
@@ -1000,13 +998,15 @@ CString CGit::GetLogCmd(CString range, const CTGitPath* path, int mask, CFilterD
 		param += L" --remotes";
 		param += L" --glob=stas[h]"; // require at least one glob operator
 		param += L" --glob=bisect";
-		range.Empty();
+		if ((mask & LOG_INFO_ALWAYS_APPLY_RANGE) == 0)
+			range.Empty();
 	}
 
 	if(mask & CGit::LOG_INFO_LOCAL_BRANCHES)
 	{
 		param += L" --branches";
-		range.Empty();
+		if ((mask & LOG_INFO_ALWAYS_APPLY_RANGE) == 0)
+			range.Empty();
 	}
 
 	if(mask& CGit::LOG_INFO_DETECT_COPYRENAME)
@@ -1886,6 +1886,8 @@ int CGit::GetRemoteRefs(const CString& remote, REF_VECTOR& list, bool includeTag
 			}
 			if (includeTags && includeBranches)
 				list.emplace_back(TGitRef{ ref, hash });
+			else if (includeTags && CStringUtils::EndsWith(ref, L"^{}"))
+				list.emplace_back(TGitRef{ shortname + L"^{}", hash });
 			else
 				list.emplace_back(TGitRef{ shortname, hash });
 		},
@@ -1998,7 +2000,7 @@ int libgit2_addto_map_each_ref_fn(git_reference *ref, void *payload)
 	{
 		str += L"^{}"; // deref tag
 		CAutoObject derefedTag;
-		if (git_object_peel(derefedTag.GetPointer(), gitObject, GIT_OBJECT_ANY))
+		if (git_tag_target(derefedTag.GetPointer(), reinterpret_cast<git_tag*>(static_cast<git_object*>(gitObject))))
 			return 1;
 		gitObject.Swap(derefedTag);
 	}

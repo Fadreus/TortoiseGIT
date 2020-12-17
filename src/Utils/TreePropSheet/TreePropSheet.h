@@ -197,6 +197,11 @@ public:
 	*/
 	CTreeCtrl* GetPageTreeControl();
 
+	/**
+	 * set the dark theme mode
+	 */
+	void SetTheme(bool bDark);
+
 // Public helpers
 public:
 	//@{
@@ -427,7 +432,7 @@ protected:
 		{
 			const DLGTEMPLATE* pResource = ppsp->pResource;
 			CDialogTemplate dlgTemplate(pResource);
-			dlgTemplate.SetFont(L"MS Shell Dlg 2", 9);
+			dlgTemplate.SetFont(L"Segoe UI", 9);
 			HGLOBAL hNew = GlobalAlloc(GPTR, dlgTemplate.m_dwTemplateSize);
 			ppsp->pResource = static_cast<DLGTEMPLATE*>(GlobalLock(hNew));
 			Checked::memcpy_s(const_cast<void*>(static_cast<const void*>(ppsp->pResource)), dlgTemplate.m_dwTemplateSize, dlgTemplate.m_hTemplate, dlgTemplate.m_dwTemplateSize);
@@ -493,6 +498,8 @@ private:
 
 	/** The width of the page tree control in pixels. */
 	int m_nPageTreeWidth;
+
+	bool m_bDark = false;
 
 // Static Properties
 private:

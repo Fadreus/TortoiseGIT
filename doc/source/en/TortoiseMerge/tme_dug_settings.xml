@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE chapter SYSTEM "../../dtd/dblite.dtd">
 <sect1 id="tmerge-dug-settings">
 	<title>Settings</title>
@@ -41,9 +41,9 @@
 		</para>
 		<para>
 			<guilabel>EditorConfig</guilabel>
-			when set, it will detect <literal>.editorconfig</literal> files.
+			when set, it will detect <filename>.editorconfig</filename> files.
 			Currently, it supports indent_style(space/tab) and indent_size properties.
-			See <ulink url="http://editorconfig.org/"><citetitle>EditorConfig</citetitle></ulink> website for more details.
+			See <ulink url="https://editorconfig.org/"><citetitle>EditorConfig</citetitle></ulink> website for more details.
 		</para>
 		<para>
 			<guilabel>Max line length for inline diffs</guilabel>
@@ -70,7 +70,7 @@
 		</para>
 	</sect2>
 	<sect2 id="tmerge-dug-settings-color">
-		<title>Colour Settings Page</title>
+		<title>color Settings Page</title>
 		<?dbhh topicname="HIDD_SETCOLORPAGE"?>
 		<figure id="tmerge-dug-dia-setcolor">
 			<title>The Settings Color Page</title>
@@ -103,11 +103,11 @@
 				<term>Modified</term>
 				<listitem>
 					Lines which have relatively small changes, and are shown using inline diff.
-					This colour is used for the <emphasis>unchanged</emphasis> portion of
+					This color is used for the <emphasis>unchanged</emphasis> portion of
 					the line content. Changed portions will be shown using the inline
-					added and deleted colours described below.
-					If <guilabel>Colour code in-line changes</guilabel> is not enabled,
-					this colour will not be used and changed lines will always be shown
+					added and deleted colors described below.
+					If <guilabel>color code in-line changes</guilabel> is not enabled,
+					this color will not be used and changed lines will always be shown
 					as replacements.
 				</listitem>
 			</varlistentry>
@@ -134,20 +134,27 @@
 			<varlistentry>
 				<term>Inline added text</term>
 				<listitem>
-					When inline diffs are shown, added text is shown in this colour.
+					When inline diffs are shown, added text is shown in this color.
 				</listitem>
 			</varlistentry>
 			<varlistentry>
 				<term>Inline removed text</term>
 				<listitem>
-					When inline diffs are shown, deleted text is shown in this colour.
+					When inline diffs are shown, deleted text is shown in this color.
 				</listitem>
 			</varlistentry>
 			<varlistentry>
 				<term>Misc whitespaces</term>
 				<listitem>
-					Characters used to indicate Whitespace are shown in a different colour
+					Characters used to indicate Whitespace are shown in a different color
 					from normal text.
+				</listitem>
+			</varlistentry>
+			<varlistentry>
+				<term>Use dark mode</term>
+				<listitem>
+					Enables a dark mode for the UI. This requires at least Windows 10 1809.
+					This feature also requires that dark mode for applications is enabled in the Windows 10 settings.
 				</listitem>
 			</varlistentry>
 		</variablelist>

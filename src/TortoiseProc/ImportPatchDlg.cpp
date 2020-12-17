@@ -28,6 +28,7 @@
 #include "SmartHandle.h"
 #include "LoglistCommonResource.h"
 #include "DPIAware.h"
+#include "ThemeMFCVisualManager.h"
 
 // CImportPatchDlg dialog
 
@@ -127,7 +128,9 @@ BOOL CImportPatchDlg::OnInitDialog()
 	pwnd->GetWindowRect(&rectDummy);
 	this->ScreenToClient(rectDummy);
 
-	if (!m_ctrlTabCtrl.Create(CMFCTabCtrl::STYLE_FLAT, rectDummy, this, IDC_AM_TAB))
+	if (CTheme::Instance().IsDarkTheme())
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CThemeMFCVisualManager));
+	if (!m_ctrlTabCtrl.Create(CTheme::Instance().IsDarkTheme() ? CMFCTabCtrl::STYLE_3D : CMFCTabCtrl::STYLE_FLAT, rectDummy, this, IDC_AM_TAB))
 	{
 		TRACE0("Failed to create output tab window\n");
 		return FALSE;      // fail to create
@@ -141,8 +144,9 @@ BOOL CImportPatchDlg::OnInitDialog()
 		return FALSE;
 	}
 	m_PatchCtrl.Init(-1);
-	m_PatchCtrl.Call(SCI_SETREADONLY, TRUE);
 	m_PatchCtrl.SetUDiffStyle();
+	m_PatchCtrl.Call(SCI_SETSCROLLWIDTH, 1);
+	m_PatchCtrl.Call(SCI_SETSCROLLWIDTHTRACKING, TRUE);
 
 	if (!m_wndOutput.Create(L"Scintilla", L"source", 0, rectDummy, &m_ctrlTabCtrl, 0, 0))
 	{
@@ -150,7 +154,11 @@ BOOL CImportPatchDlg::OnInitDialog()
 		return -1;      // fail to create
 	}
 	m_wndOutput.Init(-1);
-	m_wndOutput.Call(SCI_SETREADONLY, TRUE);
+	m_wndOutput.Call(SCI_SETUNDOCOLLECTION, 0);
+	m_wndOutput.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
+	m_wndOutput.SetReadOnly(true);
+	m_wndOutput.Call(SCI_SETSCROLLWIDTH, 1);
+	m_wndOutput.Call(SCI_SETSCROLLWIDTHTRACKING, TRUE);
 
 	m_tooltips.AddTool(IDC_CHECK_3WAY,IDS_AM_3WAY_TT);
 	m_tooltips.AddTool(IDC_CHECK_IGNORE_SPACE,IDS_AM_IGNORE_SPACE_TT);
@@ -218,8 +226,6 @@ BEGIN_MESSAGE_MAP(CImportPatchDlg, CResizableStandAloneDialog)
 	ON_BN_CLICKED(IDC_BUTTON_REMOVE, &CImportPatchDlg::OnBnClickedButtonRemove)
 	ON_BN_CLICKED(IDOK, &CImportPatchDlg::OnBnClickedOk)
 	ON_WM_SIZE()
-	ON_WM_SYSCOLORCHANGE()
-	ON_WM_THEMECHANGED()
 	ON_BN_CLICKED(IDCANCEL, &CImportPatchDlg::OnBnClickedCancel)
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_PATCH, &CImportPatchDlg::OnHdnItemchangedListPatch)
 	ON_REGISTERED_MESSAGE(TaskBarButtonCreated, OnTaskbarBtnCreated)
@@ -678,15 +684,9 @@ void CImportPatchDlg::OnHdnItemchangedListPatch(NMHDR * /*pNMHDR*/, LRESULT *pRe
 	*pResult = 0;
 
 	if(this->m_cList.GetSelectedCount() != 1)
-	{
-		m_PatchCtrl.SendMessage(SCI_SETREADONLY, FALSE);
 		m_PatchCtrl.SetText(CString());
-		m_PatchCtrl.SendMessage(SCI_SETREADONLY, TRUE);
-	}
 	else
 	{
-		CString text;
-
 		POSITION pos;
 		pos = m_cList.GetFirstSelectedItemPosition();
 		int selected = m_cList.GetNextSelectedItem(pos);
@@ -694,18 +694,11 @@ void CImportPatchDlg::OnHdnItemchangedListPatch(NMHDR * /*pNMHDR*/, LRESULT *pRe
 		if(selected>=0&& selected< m_cList.GetItemCount())
 		{
 			CString str = m_cList.GetItemText(selected,0);
-			m_PatchCtrl.SendMessage(SCI_SETREADONLY, FALSE);
-			m_PatchCtrl.SetText(text);
 			m_PatchCtrl.LoadFromFile(str);
-			m_PatchCtrl.SendMessage(SCI_SETREADONLY, TRUE);
 
 		}
 		else
-		{
-			m_PatchCtrl.SendMessage(SCI_SETREADONLY, FALSE);
-			m_PatchCtrl.SetText(text);
-			m_PatchCtrl.SendMessage(SCI_SETREADONLY, TRUE);
-		}
+			m_PatchCtrl.SetText(L"");
 	}
 }
 
@@ -716,16 +709,19 @@ LRESULT CImportPatchDlg::OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam)
 	return __super::OnTaskbarButtonCreated(wParam, lParam);
 }
 
-void CImportPatchDlg::OnSysColorChange()
+void CImportPatchDlg::SetTheme(bool bDark)
 {
-	__super::OnSysColorChange();
-	m_PatchCtrl.SetUDiffStyle();
-	m_wndOutput.SetColors(true);
-	CAppUtils::SetListCtrlBackgroundImage(m_cList.GetSafeHwnd(), IDI_IMPORTPATHCES_BKG);
-}
-
-LRESULT CImportPatchDlg::OnThemeChanged()
-{
+	__super::SetTheme(bDark);
 	CMFCVisualManager::GetInstance()->DestroyInstance();
-	return 0;
+	if (bDark)
+	{
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CThemeMFCVisualManager));
+		m_ctrlTabCtrl.ModifyTabStyle(CMFCTabCtrl::STYLE_3D);
+	}
+	else
+	{
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+		m_ctrlTabCtrl.ModifyTabStyle(CMFCTabCtrl::STYLE_FLAT);
+	}
+	CMFCVisualManager::RedrawAll();
 }

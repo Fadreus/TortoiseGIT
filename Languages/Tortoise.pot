@@ -460,6 +460,14 @@ msgstr ""
 msgid "&Custom"
 msgstr ""
 
+#. Resource IDs: (ID_VIEW_DARKMODE - Menu)
+msgid "&Dark Mode"
+msgstr ""
+
+#. Resource IDs: (ID_VIEW_DARKMODE - Menu)
+msgid "&Dark Mode\tD"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_SETTINGSOVERLAY: Control id 1269)
 msgid "&Default"
 msgstr ""
@@ -1231,6 +1239,10 @@ msgstr ""
 msgid "&Unknown drives"
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_LFS_LOCKS: Control id 32927)
+msgid "&Unlock"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_APPLY_PATCH_LIST: Control id 1386)
 msgid "&Up"
 msgstr ""
@@ -1926,10 +1938,6 @@ msgstr ""
 msgid "Auto CrLf convert"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
-msgid "Auto Crlf:"
-msgstr ""
-
 #. Resource IDs: (Dialog IDD_SETTINGIT_CONFIG: Control id 65535)
 msgid "Auto&CrLf:"
 msgstr ""
@@ -1952,6 +1960,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_SETTINGS_AUTOCOMPLETION_TT)
 msgid "Auto-complete suggests words (usually class or member names)\nfrom the files that you have changed as you type a log message."
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
+msgid "AutoCrLf:"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_PULLFETCH: Control id 1505)
@@ -2241,7 +2253,7 @@ msgstr ""
 msgid "Can't copy \n%1!s!\nto\n%2!s!"
 msgstr ""
 
-#. Resource IDs: (Dialog AFX_IDD_NEWTYPEDLG: Control id 2, Dialog AFX_IDD_PRINTDLG: Control id 2, Dialog IDD_ADD: Control id 2, Dialog IDD_ADD_REMOTE: Control id 2, Dialog IDD_BISECTSTART: Control id 2, Dialog IDD_BROWSE_REFS: Control id 2, Dialog IDD_BUGTRAQREGEXTESTER: Control id 2, Dialog IDD_CERTCHECK: Control id 2, Dialog IDD_CLEAN: Control id 2, Dialog IDD_CLONE: Control id 2, Dialog IDD_COMMITDLG: Control id 2, Dialog IDD_CREATECHANGELIST: Control id 2, Dialog IDD_CREATEREPO: Control id 2, Dialog IDD_ENCODING: Control id 2, Dialog IDD_EXPORT: Control id 2, Dialog IDD_FIND: Control id 2, Dialog IDD_FORMAT_PATCH: Control id 2, Dialog IDD_GITSWITCH: Control id 2, Dialog IDD_GOTO: Control id 2, Dialog IDD_GOTODLG: Control id 2, Dialog IDD_HISTORYDLG: Control id 2, Dialog IDD_IGNORE: Control id 2, Dialog IDD_INPUTDLG: Control id 2, Dialog IDD_LOGMESSAGE: Control id 2, Dialog IDD_LOGORDERING: Control id 2, Dialog IDD_MERGE: Control id 2, Dialog IDD_MERGEABORT: Control id 2, Dialog IDD_NEW_BRANCH_TAG: Control id 2, Dialog IDD_OPEN: Control id 2, Dialog IDD_OPENDLG: Control id 2, Dialog IDD_PROMPT: Control id 2, Dialog IDD_PULLFETCH: Control id 2, Dialog IDD_PUSH: Control id 2, Dialog IDD_REFLOG: Control id 2, Dialog IDD_REGEXFILTER: Control id 2, Dialog IDD_REGEXFILTERS: Control id 2, Dialog IDD_RENAME: Control id 2, Dialog IDD_REPOSITORY_BROWSER: Control id 2, Dialog IDD_REQUESTPULL: Control id 2, Dialog IDD_RESET: Control id 2, Dialog IDD_RESOLVE: Control id 2, Dialog IDD_REVERT: Control id 2, Dialog IDD_REVGRAPHFILTER: Control id 2, Dialog IDD_SELECTREMOTEREF: Control id 2, Dialog IDD_SENDMAIL: Control id 2, Dialog IDD_SETTINGSBUGTRAQADV: Control id 2, Dialog IDD_SETTINGSHOOKCONFIG: Control id 2, Dialog IDD_SETTINGSPROGSADV: Control id 2, Dialog IDD_SIMPLEPROMPT: Control id 2, Dialog IDD_STASH: Control id 2, Dialog IDD_SUBMODULE_ADD: Control id 2, Dialog IDD_SUBMODULE_UPDATE: Control id 2, Dialog IDD_SVNDCOMMITTYPE: Control id 2, Dialog IDD_SVNIGNORE: Control id 2, Dialog IDD_SVNPROGRESS: Control id 2, Dialog IDD_TOOLASSOC: Control id 2, Dialog IDD_URL: Control id 2, Dialog IDD_USER_PASSWD: Control id 2, IDS_MSGBOX_CANCEL, IDS_PROC_OVERWRITEEXPORT_CANCEL)
+#. Resource IDs: (Dialog AFX_IDD_NEWTYPEDLG: Control id 2, Dialog AFX_IDD_PRINTDLG: Control id 2, Dialog IDD_ADD: Control id 2, Dialog IDD_ADD_REMOTE: Control id 2, Dialog IDD_BISECTSTART: Control id 2, Dialog IDD_BROWSE_REFS: Control id 2, Dialog IDD_BUGTRAQREGEXTESTER: Control id 2, Dialog IDD_CERTCHECK: Control id 2, Dialog IDD_CLEAN: Control id 2, Dialog IDD_CLONE: Control id 2, Dialog IDD_COMMITDLG: Control id 2, Dialog IDD_CREATECHANGELIST: Control id 2, Dialog IDD_CREATEREPO: Control id 2, Dialog IDD_ENCODING: Control id 2, Dialog IDD_EXPORT: Control id 2, Dialog IDD_FIND: Control id 2, Dialog IDD_FORMAT_PATCH: Control id 2, Dialog IDD_GITSWITCH: Control id 2, Dialog IDD_GOTO: Control id 2, Dialog IDD_GOTODLG: Control id 2, Dialog IDD_HISTORYDLG: Control id 2, Dialog IDD_IGNORE: Control id 2, Dialog IDD_INPUTDLG: Control id 2, Dialog IDD_LFS_LOCKS: Control id 2, Dialog IDD_LOGMESSAGE: Control id 2, Dialog IDD_LOGORDERING: Control id 2, Dialog IDD_MERGE: Control id 2, Dialog IDD_MERGEABORT: Control id 2, Dialog IDD_NEW_BRANCH_TAG: Control id 2, Dialog IDD_OPEN: Control id 2, Dialog IDD_OPENDLG: Control id 2, Dialog IDD_PROMPT: Control id 2, Dialog IDD_PULLFETCH: Control id 2, Dialog IDD_PUSH: Control id 2, Dialog IDD_REFLOG: Control id 2, Dialog IDD_REGEXFILTER: Control id 2, Dialog IDD_REGEXFILTERS: Control id 2, Dialog IDD_RENAME: Control id 2, Dialog IDD_REPOSITORY_BROWSER: Control id 2, Dialog IDD_REQUESTPULL: Control id 2, Dialog IDD_RESET: Control id 2, Dialog IDD_RESOLVE: Control id 2, Dialog IDD_REVERT: Control id 2, Dialog IDD_REVGRAPHFILTER: Control id 2, Dialog IDD_SELECTREMOTEREF: Control id 2, Dialog IDD_SENDMAIL: Control id 2, Dialog IDD_SETTINGSBUGTRAQADV: Control id 2, Dialog IDD_SETTINGSHOOKCONFIG: Control id 2, Dialog IDD_SETTINGSPROGSADV: Control id 2, Dialog IDD_SIMPLEPROMPT: Control id 2, Dialog IDD_STASH: Control id 2, Dialog IDD_SUBMODULE_ADD: Control id 2, Dialog IDD_SUBMODULE_UPDATE: Control id 2, Dialog IDD_SVNDCOMMITTYPE: Control id 2, Dialog IDD_SVNIGNORE: Control id 2, Dialog IDD_SVNPROGRESS: Control id 2, Dialog IDD_TOOLASSOC: Control id 2, Dialog IDD_URL: Control id 2, Dialog IDD_USER_PASSWD: Control id 2, IDS_MSGBOX_CANCEL, IDS_PROC_OVERWRITEEXPORT_CANCEL)
 msgid "Cancel"
 msgstr ""
 
@@ -2989,7 +3001,7 @@ msgid "Could not find Super-project"
 msgstr ""
 
 #. Resource IDs: (IDS_ERR_GITNEEDHACKS)
-msgid "Could not find \"msysgit\" or \"windows\" in versionstring of git.exe.\nIf you are using git of the cygwin or msys2 environment you need to enable special hacks.\nFor more information see the help file for the keyword \"cygwin git\" or \"msys2 git\"."
+msgid "Could not find \"msysgit\" or \"windows\" in version string of git.exe.\nIf you are using git of the Cygwin or MSYS2 environment you need to enable special hacks.\nFor more information see the help file for the keyword \"Cygwin Git\" or \"NSYS2 Git\"."
 msgstr ""
 
 #. Resource IDs: (IDS_ERR_GITNOVALIDOUTPUT)
@@ -3252,6 +3264,14 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENUDAEMON)
 msgid "Daemon"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETTINGSCOLORS_1: Control id 1699)
+msgid "Dark theme"
+msgstr ""
+
+#. Resource IDs: (IDS_DARKTHEME_TT)
+msgid "Dark theme requires at least Win10 1803, and it must be enabled in the Windows system settings."
 msgstr ""
 
 #. Resource IDs: (IDS_LOG_DATE, IDS_STATUSLIST_COLDATE)
@@ -4597,6 +4617,10 @@ msgstr ""
 msgid "Force the rebase even if the current branch is a descendant of the commit you are rebasing onto.\nNormally the command will exit with the message \"Current branch is up to date\" in such a situation."
 msgstr ""
 
+#. Resource IDs: (IDS_PROGS_LFS_FORCEUNLOCK)
+msgid "Force unlock"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_PUSH: Control id 1796)
 msgid "Force: May discard"
 msgstr ""
@@ -4615,11 +4639,11 @@ msgid "Forward %d"
 msgstr ""
 
 #. Resource IDs: (IDS_ERR_GITUNNEEDEDHACKS)
-msgid "Found \"msysgit\" or \"windows\" in versionstring of git.exe, however, you have git.exe hacks enabled. These hacks must be disabled for proper operation with Git for Windows!\nYou can find more information in the help file for the keyword \"cygwin git\" or \"msys2 git\"."
+msgid "Found \"msysgit\" or \"windows\" in version string of git.exe, however, you have git.exe hacks enabled. These hacks must be disabled for proper operation with Git for Windows!\nYou can find more information in the help file for the keyword \"Cygwin Git\" or \"MSYS2 Git\"."
 msgstr ""
 
 #. Resource IDs: (IDS_REBASELOCKFILEFOUND)
-msgid "Found a lock file indicating that a TortoiseGit rebase process is running. This blocks this operation.\n\nIf you are not runnig a TortoiseGit rebase process right now, you can remove the stale lock file in order to continue."
+msgid "Found a lock file indicating that a TortoiseGit rebase process is running. This blocks this operation.\n\nIf you are not running a TortoiseGit rebase process right now, you can remove the stale lock file in order to continue."
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_REBASE_EMPTYCOMMITMSG)
@@ -4959,7 +4983,7 @@ msgstr ""
 msgid "Hebrew"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_ADD: Control id 9, Dialog IDD_ADD_REMOTE: Control id 9, Dialog IDD_APPLY_PATCH_LIST: Control id 9, Dialog IDD_BISECTSTART: Control id 9, Dialog IDD_BROWSE_REFS: Control id 9, Dialog IDD_CLEAN: Control id 9, Dialog IDD_CLONE: Control id 9, Dialog IDD_COMMITDLG: Control id 9, Dialog IDD_CREATEREPO: Control id 9, Dialog IDD_EXPORT: Control id 9, Dialog IDD_FORMAT_PATCH: Control id 9, Dialog IDD_GITSWITCH: Control id 9, Dialog IDD_IGNORE: Control id 9, Dialog IDD_LOGMESSAGE: Control id 9, Dialog IDD_MERGE: Control id 9, Dialog IDD_MERGEABORT: Control id 9, Dialog IDD_NEW_BRANCH_TAG: Control id 9, Dialog IDD_OPENDLG: Control id 9, Dialog IDD_PULLFETCH: Control id 9, Dialog IDD_PUSH: Control id 9, Dialog IDD_REBASE: Control id 9, Dialog IDD_REFLOG: Control id 9, Dialog IDD_REPOSITORY_BROWSER: Control id 9, Dialog IDD_REQUESTPULL: Control id 9, Dialog IDD_RESET: Control id 9, Dialog IDD_RESOLVE: Control id 9, Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 9, Dialog IDD_RESOLVE_CONFLICT: Control id 9, Dialog IDD_REVERT: Control id 9, Dialog IDD_SENDMAIL: Control id 9, Dialog IDD_SETTINGSBUGTRAQADV: Control id 9, Dialog IDD_SETTINGSHOOKCONFIG: Control id 9, Dialog IDD_STASH: Control id 9, Dialog IDD_SUBMODULE_ADD: Control id 9, Dialog IDD_SUBMODULE_UPDATE: Control id 9, Dialog IDD_SVNDCOMMITTYPE: Control id 9, Dialog IDD_SYNC: Control id 9, IDS_MSGBOX_HELP)
+#. Resource IDs: (Dialog IDD_ADD: Control id 9, Dialog IDD_ADD_REMOTE: Control id 9, Dialog IDD_APPLY_PATCH_LIST: Control id 9, Dialog IDD_BISECTSTART: Control id 9, Dialog IDD_BROWSE_REFS: Control id 9, Dialog IDD_CLEAN: Control id 9, Dialog IDD_CLONE: Control id 9, Dialog IDD_COMMITDLG: Control id 9, Dialog IDD_CREATEREPO: Control id 9, Dialog IDD_EXPORT: Control id 9, Dialog IDD_FORMAT_PATCH: Control id 9, Dialog IDD_GITSWITCH: Control id 9, Dialog IDD_IGNORE: Control id 9, Dialog IDD_LFS_LOCKS: Control id 9, Dialog IDD_LOGMESSAGE: Control id 9, Dialog IDD_MERGE: Control id 9, Dialog IDD_MERGEABORT: Control id 9, Dialog IDD_NEW_BRANCH_TAG: Control id 9, Dialog IDD_OPENDLG: Control id 9, Dialog IDD_PULLFETCH: Control id 9, Dialog IDD_PUSH: Control id 9, Dialog IDD_REBASE: Control id 9, Dialog IDD_REFLOG: Control id 9, Dialog IDD_REPOSITORY_BROWSER: Control id 9, Dialog IDD_REQUESTPULL: Control id 9, Dialog IDD_RESET: Control id 9, Dialog IDD_RESOLVE: Control id 9, Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 9, Dialog IDD_RESOLVE_CONFLICT: Control id 9, Dialog IDD_REVERT: Control id 9, Dialog IDD_SENDMAIL: Control id 9, Dialog IDD_SETTINGSBUGTRAQADV: Control id 9, Dialog IDD_SETTINGSHOOKCONFIG: Control id 9, Dialog IDD_STASH: Control id 9, Dialog IDD_SUBMODULE_ADD: Control id 9, Dialog IDD_SUBMODULE_UPDATE: Control id 9, Dialog IDD_SVNDCOMMITTYPE: Control id 9, Dialog IDD_SYNC: Control id 9, IDS_MSGBOX_HELP)
 msgid "Help"
 msgstr ""
 
@@ -5130,6 +5154,10 @@ msgstr ""
 
 #. Accelerator Entry for Menu ID:32818; 'Fit image &heights\tH'
 msgid "ID:32818:V   +H"
+msgstr ""
+
+#. Accelerator Entry for Menu ID:32819; '&Dark Mode\tD'
+msgid "ID:32819:V   +D"
 msgstr ""
 
 #. Accelerator Entry for Menu ID:32822; ''
@@ -5480,7 +5508,7 @@ msgid "Importing file %s"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_SYNC_INCHANGELIST)
-msgid "In ChangeList"
+msgid "In Changelist"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_SYNC_INCOMMITS)
@@ -5545,7 +5573,7 @@ msgid "Insert Clipboard contents\nPaste"
 msgstr ""
 
 #. Resource IDs: (IDS_CLONE_BRANCH_TT)
-msgid "Instead of pointing the newly created HEAD to the branch pointed to by the cloned repository’s HEAD, point to specific branch instead."
+msgid "Instead of pointing the newly created HEAD to the branch pointed to by the cloned repository's HEAD, point to specific branch instead."
 msgstr ""
 
 #. Resource IDs: (IDS_CLONE_ORIGIN_NAME_TT)
@@ -5624,8 +5652,24 @@ msgstr ""
 msgid "L"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_CLONE: Control id 1847)
+#. Resource IDs: (Dialog IDD_CLONE: Control id 1847, IDS_MENULFS)
 msgid "LFS"
+msgstr ""
+
+#. Resource IDs: (IDS_PROGRS_TITLE_LFS_LOCK)
+msgid "LFS Lock"
+msgstr ""
+
+#. Resource IDs: (IDS_STATUSLIST_COLLFSLOCK)
+msgid "LFS Lock Owner"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_LFS_LOCKS: Control id 176)
+msgid "LFS Locks"
+msgstr ""
+
+#. Resource IDs: (IDS_PROGRS_TITLE_LFS_UNLOCK)
+msgid "LFS Unlock"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSCOLORS_3: Control id 65535)
@@ -5662,6 +5706,10 @@ msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSDIALOGS3: Control id 65535)
 msgid "Language:"
+msgstr ""
+
+#. Resource IDs: (IDS_MENUDESCLFS)
+msgid "Large file storage"
 msgstr ""
 
 #. Resource IDs: (IDS_LAST_N_COMMITS)
@@ -5837,6 +5885,14 @@ msgstr ""
 
 #. Resource IDs: (cmdViewLocatorBar_LabelTitle_RESID)
 msgid "Locator bar"
+msgstr ""
+
+#. Resource IDs: (IDS_MENULFSLOCK, IDS_PROGRS_CMD_LFS_LOCK)
+msgid "Lock"
+msgstr ""
+
+#. Resource IDs: (IDS_MENUDESCLFSLOCK)
+msgid "Locks a file using LFS"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSTBLAME: Control id 65535, IDS_LOG)
@@ -6386,7 +6442,7 @@ msgid "Note that if you choose to recover the auto-saved documents, you must exp
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSUDIFF: Control id 65535)
-msgid "Note: These settings also apply to the Patch Viewer dialog."
+msgid "Note: These settings also apply to the Patch Viewer dialog.\nTo select whether you would like to use the build-in or any alternative diff viewer program go to \"Diff Viewer\" preferences section in the leftward tree."
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_REVERT: Control id 1481)
@@ -6659,7 +6715,7 @@ msgid "Others"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_SYNC_OUTCHANGELIST)
-msgid "Out ChangeList"
+msgid "Out Changelist"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_SYNC_OUTCOMMITS)
@@ -7117,6 +7173,10 @@ msgstr ""
 msgid "Push"
 msgstr ""
 
+#. Resource IDs: (Dialog IDD_PUSH: Control id 1492)
+msgid "Push &option:"
+msgstr ""
+
 #. Resource IDs: (Dialog IDD_SETTINREMOTE: Control id 1786)
 msgid "Push Default"
 msgstr ""
@@ -7304,12 +7364,16 @@ msgstr ""
 msgid "Ref List"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_REVGRAPHFILTER: Control id 1354, Dialog IDD_REVGRAPHFILTER: Control id 1729, IDS_REFBROWSE)
-msgid "RefBrowse"
+#. Resource IDs: (Dialog IDD_REVGRAPHFILTER: Control id 1354, Dialog IDD_REVGRAPHFILTER: Control id 1729)
+msgid "RefBrowser"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_REFLOG: Control id 1588, IDS_REFLOG)
 msgid "RefLog"
+msgstr ""
+
+#. Resource IDs: (IDS_REFBROWSE)
+msgid "Reference Browser"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_COMMITISONREFS: Control id 4596)
@@ -7856,7 +7920,7 @@ msgid "Sa&feCrLf:"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_PROPPAGE: Control id 65535)
-msgid "Safe Crlf:"
+msgid "SafeCrLf:"
 msgstr ""
 
 #. Resource IDs: (IDS_SAME, IDS_TAGCOMPARE_SAME)
@@ -8145,7 +8209,7 @@ msgstr ""
 msgid "Select what file you want to save as\nNote: There is unresolved conflict!"
 msgstr ""
 
-#. Resource IDs: (Dialog IDD_ADD: Control id 1067, Dialog IDD_DELETEREMOTETAG: Control id 1067, Dialog IDD_RESOLVE: Control id 1067, Dialog IDD_REVERT: Control id 1067, Dialog IDD_SETTINGSEXTMENU: Control id 1067, Dialog IDD_SETTINGSLOOKANDFEEL: Control id 1067, Dialog IDD_SUBMODULE_UPDATE: Control id 1067)
+#. Resource IDs: (Dialog IDD_ADD: Control id 1067, Dialog IDD_DELETEREMOTETAG: Control id 1067, Dialog IDD_LFS_LOCKS: Control id 1067, Dialog IDD_RESOLVE: Control id 1067, Dialog IDD_REVERT: Control id 1067, Dialog IDD_SETTINGSEXTMENU: Control id 1067, Dialog IDD_SETTINGSLOOKANDFEEL: Control id 1067, Dialog IDD_SUBMODULE_UPDATE: Control id 1067)
 msgid "Select/deselect &all"
 msgstr ""
 
@@ -8254,7 +8318,7 @@ msgid "Show"
 msgstr ""
 
 #. Resource IDs: (IDS_MENUREFLOG)
-msgid "Show &Reflog"
+msgid "Show &RefLog"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_COMMITDLG: Control id 1073, IDS_PROC_LOG_SHOWUNVERSIONED)
@@ -8414,7 +8478,11 @@ msgid "Show la&beled commits only"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETMAINPAGE: Control id 1063)
-msgid "Show linenumber&s"
+msgid "Show line number&s"
+msgstr ""
+
+#. Resource IDs: (IDS_MENULFSLOCKS)
+msgid "Show locked files"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_COMMITISONREFS: Control id 1132, Dialog IDD_DIFFFILES: Control id 1132, Dialog IDD_DIFFSUBMODULE: Control id 1132, Dialog IDD_DIFFSUBMODULE: Control id 1695, Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 1132, Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 1695, Dialog IDD_RESOLVESUBMODULECONFLICT: Control id 1698, Dialog IDD_RESOLVE_CONFLICT: Control id 1132, Dialog IDD_RESOLVE_CONFLICT: Control id 1695, IDS_BLAME_POPUP_LOG, IDS_FILEDIFF_LOG)
@@ -8530,6 +8598,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_MENUDESCREVISIONGRAPH)
 msgid "Shows a graphical representation of copies/tags/branches"
+msgstr ""
+
+#. Resource IDs: (IDS_MENUDESCLFSLOCKS)
+msgid "Shows a list of all files locked using LFS"
 msgstr ""
 
 #. Resource IDs: (IDS_MENUDESCSHOWCHANGED)
@@ -9468,7 +9540,7 @@ msgid "TortoiseGitBlame, Version %d.%d.%d.%d"
 msgstr ""
 
 #. Resource IDs: (1)
-msgid "TortoiseGitBlame\n\nTortoiseGitBlam\n\n\nTortoiseGitBlame.Document\nTortoiseGitBlame.Document"
+msgid "TortoiseGitBlame\n\nTortoiseGitBlame\n\n\nTortoiseGitBlame.Document\nTortoiseGitBlame.Document"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_ABOUT: Control id 153, IDS_APP_TITLE)
@@ -9560,7 +9632,7 @@ msgid "Trim right"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSPROGSMERGE: Control id 1853)
-msgid "Trust the exitcode of the external mege tool for auto resolving"
+msgid "Trust the exitcode of the external merge tool for auto resolving"
 msgstr ""
 
 #. Resource IDs: (IDS_SVNERR_CLEANUPORFRESHCHECKOUT)
@@ -9697,6 +9769,14 @@ msgstr ""
 msgid "Unknown ref-types"
 msgstr ""
 
+#. Resource IDs: (IDS_MENULFSUNLOCK, IDS_PROGRS_CMD_LFS_UNLOCK)
+msgid "Unlock"
+msgstr ""
+
+#. Resource IDs: (IDS_MENUDESCLFSUNLOCK)
+msgid "Unlocks a file using LFS"
+msgstr ""
+
 #. Resource IDs: (IDS_VIEWCONTEXTMENU_UNMARKBLOCK)
 msgid "Unmark this block"
 msgstr ""
@@ -9783,7 +9863,7 @@ msgid "Use .mailmap"
 msgstr ""
 
 #. Resource IDs: (IDS_PROC_USELFS_TT)
-msgid "Use Git LFS"
+msgid "Use Git LFS (only required for Git < 2.15 and Git LFS < 2.3)"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_SETTINGSCREDENTIAL: Control id 1761)
@@ -9848,6 +9928,10 @@ msgstr ""
 
 #. Resource IDs: (IDS_SMTP_CONFIGURED)
 msgid "Use configured server"
+msgstr ""
+
+#. Resource IDs: (Dialog IDD_SETCOLORPAGE: Control id 1513)
+msgid "Use dark mode"
 msgstr ""
 
 #. Resource IDs: (ID_EDIT_USELEFTBLOCK - Menu, cmdUseLeftBlock_LabelTitle_RESID)
@@ -10290,6 +10374,10 @@ msgstr ""
 msgid "You cannot change the type of this ref with a rename."
 msgstr ""
 
+#. Resource IDs: (IDS_COMMITDLG_NOTEDITEDTEMPLATE)
+msgid "You did not edit the message template.\nProceed without individual commit message?"
+msgstr ""
+
 #. Resource IDs: (IDS_PROC_OLDMSYSGIT)
 #, c-format
 msgid "You have an old unsupported version of Git installed.\n\nYou should consider an upgrade to %s."
@@ -10624,6 +10712,18 @@ msgstr ""
 
 #. Resource IDs: (IDS_LOCAL_GCM)
 msgid "manager - this repository only"
+msgstr ""
+
+#. Resource IDs: (IDS_SYSTEM_GCMCORE)
+msgid "manager-core - all Windows users"
+msgstr ""
+
+#. Resource IDs: (IDS_GLOBAL_GCMCORE)
+msgid "manager-core - current Windows user"
+msgstr ""
+
+#. Resource IDs: (IDS_LOCAL_GCMCORE)
+msgid "manager-core - this repository only"
 msgstr ""
 
 #. Resource IDs: (Dialog IDD_PULLFETCH: Control id 1494)

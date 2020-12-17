@@ -21,7 +21,10 @@ using std::min;
 // turns off MFC's hiding of some common and often safely ignored warning messages
 #define _AFX_ALL_WARNINGS
 
+#pragma warning(push)
+#pragma warning(disable : 4459)
 #include <afx.h>
+#pragma warning(pop)
 #include <ShlObj.h>
 #include <Shlwapi.h>
 
@@ -46,3 +49,5 @@ using std::min;
 #else
 #   define APP_X64_STRING ""
 #endif
+
+#define REGSTRING_DARKTHEME L"Software\\TortoiseGit\\IDiffDarkTheme"

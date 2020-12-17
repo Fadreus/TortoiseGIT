@@ -78,6 +78,10 @@ CSettingsAdvanced::CSettingsAdvanced()
 	settings[i].type	= CSettingsAdvanced::SettingTypeNumber;
 	settings[i++].def.l	= 50;
 
+	settings[i].sName	= L"DownloadAnimation";
+	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
+	settings[i++].def.b	= true;
+
 	settings[i].sName	= L"FullRowSelect";
 	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
 	settings[i++].def.b	= true;
@@ -89,6 +93,14 @@ CSettingsAdvanced::CSettingsAdvanced()
 	settings[i].sName	= L"GroupTaskbarIconsPerRepoOverlay";
 	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
 	settings[i++].def.b	= true;
+
+	settings[i].sName	= L"LogFontForFileListCtrl";
+	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
+	settings[i++].def.b	= false;
+
+	settings[i].sName	= L"LogFontForLogCtrl";
+	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;
+	settings[i++].def.b	= false;
 
 	settings[i].sName	= L"LogIncludeBoundaryCommits";
 	settings[i].type	= CSettingsAdvanced::SettingTypeBoolean;

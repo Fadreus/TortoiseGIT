@@ -1,15 +1,66 @@
-﻿= Release 2.11.0 =
+﻿= Release 2.12.0 =
 Released: unreleased
+
+== Changes ==
+ * Fixed issue #3631: Log: filtering commits by file path does not work if slash is used as path separator
+   The Log Dialog now uses only the Git path (with slashes) for filtering. This is now consistent with other path filters in TortoiseGit.
+
+== Features ==
+ * Fixed issue #3654: Allow to completely disable the turtle animation, added TortoiseGit advanced setting "DownloadAnimation"
+ * Update libgit to 2.29.2 based on Git for Windows sources
+ * Update libgit2 to 1.1.0
+ * Update Scintilla to 4.4.6
+
+== Bug Fixes ==
+ * Fixed issue #3649: "multi-project pull/fetch/push" not working
+ * Fixed issue #3652: Clone: Auto fill from clipboard with URLs with quotes fails
+ * Fixed issue #3651: View Patch window shrinks each time it opens with high DPI
+ * TortoiseGitMerge: Make column index 1 based as most editors are 1-based instead of instead of 0 based
+ * Fixed issue #3662: LogDlg: The "Compare change sets" command is not shown when two commits are adjacent on the list
+ * Fixed issue #3664: revert dialog in dark mode shows file list black
+ * Fixed issue #3668: "Revert to revision" fails for added files
+ * Fixed issue #3678: Remove deprecated git lfs clone option from clone dialog
+ * Fixed issue #3674: Missing "Add to ignore list" menu on the "Show Log" dialog
+ * Fixed issue #3517: Revision graph filter does not work
+
+= Release 2.11.0 =
+Released: 2020-10-10
 
 == Bug Fixes ==
  * Fixed issue #3593: Statistics dialog - misaligned controls
+ * Fixed issue #3598: TGitCache blocks repository directory to be truly deleted
+ * Fixed issue #3619: Hook settings always reset "Hide the script while running" to checked for hooks stored in .tgitconfig
+ * Fixed issue #3617: 'Saving config failed (key: "fetch.prune", value: "")' in remote repository definition when `fetch.prune` is set in global config
+ * Fixed issue #3632: Log dialog: Message box with the text "git_get_commit_from_hash failed for 00...00" appears in certain situations
+ * Fixed issue #3638: Better handling of trying to set an upstream branch not set to be fetched in the remote
 
 == Features ==
- * Update Scintilla to 4.3.3
+ * Update Scintilla to 4.4.5
  * Fixed issue #3348: Showing line and column number in the status line of TortoiseGitMerge
  * Fixed issue #3408: TortoiseGitMerge: When double clicking on a word, mark the word only in the current view if also the Ctrl key is pressed
+ * TortoiseGitMerge: Show the number of marked words in the status bar
  * Fixed issue #2101: Tortoise(Git)Merge - 'find' workflow suggested enhancement: Add "Search next" and "Search previous" to the ribbon
  * Fixed issue #3568: Add support for Git repository version 1
+ * Fixed issue #3605: TortoiseGitProc branch command is not documented and does not handle /name parameter
+ * Update pcre2 to 10.35
+ * Fixed issue #3589: Added dark mode support to all TortoiseGit tools, needs to be separately enabled
+   Dark mode can only be enabled for Windows 10 1809 and later when Windows dark mode is activated.
+   This also improves the high contrast mode.
+ * Allow to diff a file in Log/RepositoryBrowser with file selected by "Diff later" in Explorer
+ * Fixed issue #3362: Ease searches in the log window (auto select text)
+ * Fixed issue #3539: doesn't abort commit if user doesn't modify the template commit message
+ * Fixed issue #3233: Change the dialog font to "Segoe UI", which is the default font for most Windows dialogs, including Explorer
+ * Fixed issue #1274: Allow log font to be used for LogListCtrl and FileListCtrl
+   Needs to be enabled explicitly in TortoiseGit advanced settings using LogFontForFileListCtrl resp. LogFontForLogCtrl
+ * Fixed issue #3282: Prefs and Docs - UDiff should have a link back to Diff Viewer section
+ * Update TortoiseGitPlink to PuTTY Plink 0.74
+ * Update shipped PuTTY binaries to 0.74
+ * Update libgit2 to 1.0
+ * Implement very simple multi-project pull/fetch/push
+ * Fixed issue #3183: Add support for git lfs lock/unlock
+ * Fixed issue #3636: Commit Window new branch should focus textbox
+ * Fixed issue #3312: Add --push-option to push dialog
+ * Fixed issue #3641: Remove default behavior to create a branch when switching to a tag
 
 = Release 2.10.0.2 =
 Released: 2020-03-24

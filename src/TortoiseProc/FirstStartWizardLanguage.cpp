@@ -25,6 +25,7 @@
 #include "../version.h"
 #include "I18NHelper.h"
 #include "FirstStartWizardLanguage.h"
+#include "Theme.h"
 
 #define DOWNLOAD_URL L"https://tortoisegit.org/download/"
 #define WM_SETPAGEFOCUS WM_APP+2
@@ -70,6 +71,8 @@ static void AppendStringResource(CString& text, UINT resouceID)
 BOOL CFirstStartWizardLanguage::OnInitDialog()
 {
 	CFirstStartWizardBasePage::OnInitDialog();
+
+	CTheme::Instance().SetThemeForDialog(GetSafeHwnd(), CTheme::Instance().IsDarkTheme());
 
 	CString hinttext;
 	hinttext.LoadString(IDS_FIRSTSTART_LANGUAGEHINT1);

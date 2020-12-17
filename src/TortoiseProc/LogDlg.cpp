@@ -312,9 +312,7 @@ BOOL CLogDlg::OnInitDialog()
 
 	// set the font to use in the log message view, configured in the settings dialog
 	CAppUtils::CreateFontForLogs(m_logFont);
-	GetDlgItem(IDC_MSGVIEW)->SetFont(&m_logFont);
-	// make the log message rich edit control send a message when the mouse pointer is over a link
-	GetDlgItem(IDC_MSGVIEW)->SendMessage(EM_SETEVENTMASK, NULL, ENM_LINK | ENM_SCROLL);
+	SetupLogMessageViewControl();
 
 	// "unrelated paths" should be in gray color
 	m_iHidePaths = 2;
@@ -330,7 +328,7 @@ BOOL CLogDlg::OnInitDialog()
 	if (m_bWholeProject)
 		m_LogList.m_Path.Reset();
 
-	m_ChangedFileListCtrl.Init(GITSLC_COLEXT | GITSLC_COLSTATUS | GITSLC_COLADD | GITSLC_COLDEL, L"LogDlg", (GITSLC_POPALL ^ (GITSLC_POPIGNORE | GITSLC_POPRESTORE | GITSLC_POPCHANGELISTS)), false, m_LogList.m_hasWC, GITSLC_COLEXT | GITSLC_COLSTATUS | GITSLC_COLADD | GITSLC_COLDEL);
+	m_ChangedFileListCtrl.Init(GITSLC_COLEXT | GITSLC_COLSTATUS | GITSLC_COLADD | GITSLC_COLDEL, L"LogDlg", (GITSLC_POPALL ^ (GITSLC_POPRESTORE | GITSLC_POPCHANGELISTS)), false, m_LogList.m_hasWC, GITSLC_COLEXT | GITSLC_COLSTATUS | GITSLC_COLADD | GITSLC_COLDEL);
 
 	GetDlgItem(IDC_LOGLIST)->UpdateData(FALSE);
 
@@ -735,7 +733,7 @@ BOOL FindGitHash(const CString& msg, int offset, CWnd *pWnd)
 	return positions.empty() ? FALSE : TRUE;
 }
 
-static int DescribeCommit(CGitHash& hash, CString& result)
+static int DescribeCommit(const CGitHash& hash, CString& result)
 {
 	CAutoRepository repo(g_Git.GetGitRepository());
 	if (!repo)
@@ -1918,9 +1916,9 @@ void CLogDlg::OnEnLinkMsgview(NMHDR *pNMHDR, LRESULT *pResult)
 		msg.Replace(L"\r\n", L"\n");
 		url = msg.Mid(pEnLink->chrg.cpMin, pEnLink->chrg.cpMax-pEnLink->chrg.cpMin);
 		auto findResult = m_LogList.m_ProjectProperties.FindBugIDPositions(msg);
-		if (std::find_if(findResult.cbegin(), findResult.cend(),
+		if (std::any_of(findResult.cbegin(), findResult.cend(),
 			[=] (const CHARRANGE &cr) -> bool { return cr.cpMin == pEnLink->chrg.cpMin && cr.cpMax == pEnLink->chrg.cpMax; }
-		) != findResult.cend())
+		))
 		{
 			url = m_LogList.m_ProjectProperties.GetBugIDUrl(url);
 			url = GetAbsoluteUrlFromRelativeUrl(url);
@@ -2583,7 +2581,7 @@ void CLogDlg::OnBnClickedJumpUp()
 	m_LogList.SetSelectionMark(-1);
 
 	auto hashMapSharedPtr = m_LogList.m_HashMap;
-	auto& hashMap = *hashMapSharedPtr;
+	const auto& hashMap = *hashMapSharedPtr;
 
 	for (int i = index - 1; i >= 0; i--)
 	{
@@ -2607,18 +2605,16 @@ void CLogDlg::OnBnClickedJumpUp()
 		}
 		else if (jumpType == JumpType_Tag || jumpType == JumpType_TagFF)
 		{
-			auto refList = hashMap.find(data->m_CommitHash);
-			if (refList != hashMap.cend())
-				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/tags/"); }) != (*refList).second.cend();
+			if (auto refList = hashMap.find(data->m_CommitHash); refList != hashMap.cend())
+				found = any_of((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/tags/"); });
 
 			if (found && jumpType == JumpType_TagFF)
 				found = g_Git.IsFastForward(hashValue.ToString(), data->m_CommitHash.ToString());
 		}
 		else if (jumpType == JumpType_Branch || jumpType == JumpType_BranchFF)
 		{
-			auto refList = hashMap.find(data->m_CommitHash);
-			if (refList != hashMap.cend())
-				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/heads/") || CStringUtils::StartsWith(ref, L"refs/remotes/"); }) != (*refList).second.cend();
+			if (auto refList = hashMap.find(data->m_CommitHash); refList != hashMap.cend())
+				found = any_of((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/heads/") || CStringUtils::StartsWith(ref, L"refs/remotes/"); });
 
 			if (found && jumpType == JumpType_BranchFF)
 				found = g_Git.IsFastForward(hashValue.ToString(), data->m_CommitHash.ToString());
@@ -2693,7 +2689,7 @@ void CLogDlg::OnBnClickedJumpDown()
 	m_LogList.SetSelectionMark(-1);
 
 	auto hashMapSharedPtr = m_LogList.m_HashMap;
-	auto& hashMap = *hashMapSharedPtr;
+	const auto& hashMap = *hashMapSharedPtr;
 
 	for (int i = index + 1; i < m_LogList.GetItemCount(); ++i)
 	{
@@ -2711,18 +2707,16 @@ void CLogDlg::OnBnClickedJumpDown()
 			found = data->m_CommitHash == hashValue;
 		else if (jumpType == JumpType_Tag || jumpType == JumpType_TagFF)
 		{
-			auto refList = hashMap.find(data->m_CommitHash);
-			if (refList != hashMap.cend())
-				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/tags/"); }) != (*refList).second.cend();
+			if (auto refList = hashMap.find(data->m_CommitHash); refList != hashMap.cend())
+				found = any_of((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/tags/"); });
 
 			if (found && jumpType == JumpType_TagFF)
 				found = g_Git.IsFastForward(data->m_CommitHash.ToString(), hashValue.ToString());
 		}
 		else if (jumpType == JumpType_Branch || jumpType == JumpType_BranchFF)
 		{
-			auto refList = hashMap.find(data->m_CommitHash);
-			if (refList != hashMap.cend())
-				found = find_if((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/heads/") || CStringUtils::StartsWith(ref, L"refs/remotes/"); }) != (*refList).second.cend();
+			if (auto refList = hashMap.find(data->m_CommitHash); refList != hashMap.cend())
+				found = any_of((*refList).second, [](const auto& ref) { return CStringUtils::StartsWith(ref, L"refs/heads/") || CStringUtils::StartsWith(ref, L"refs/remotes/"); });
 
 			if (found && jumpType == JumpType_BranchFF)
 				found = g_Git.IsFastForward(data->m_CommitHash.ToString(), hashValue.ToString());
@@ -2786,7 +2780,7 @@ void CLogDlg::SortByColumn(int /*nSortColumn*/, bool /*bAscending*/)
 				std::sort(m_logEntries.begin(), m_logEntries.end(), CLogDataVector::DescBugIDSort());
 			break;
 		}
-		// fall through here
+		[[fallthrough]];
 	case 5: // Message
 		{
 			if(bAscending)
@@ -3581,6 +3575,32 @@ void CLogDlg::OnNMCustomdrawChangedFileList(NMHDR* pNMHDR, LRESULT* pResult)
 void CLogDlg::OnSysColorChange()
 {
 	__super::OnSysColorChange();
-	SendDlgItemMessage(IDC_MSGVIEW, WM_SYSCOLORCHANGE, 0, 0);
+	SetupLogMessageViewControl();
 	CMFCVisualManager::GetInstance()->RedrawAll();
+	FillLogMessageCtrl();
+}
+
+void CLogDlg::SetupLogMessageViewControl()
+{
+	auto pWnd = GetDlgItem(IDC_MSGVIEW);
+	// set the font to use in the log message view, configured in the settings dialog
+	pWnd->SetFont(&m_logFont);
+	// make the log message rich edit control send a message when the mouse pointer is over a link
+	pWnd->SendMessage(EM_SETEVENTMASK, NULL, ENM_LINK | ENM_SCROLL);
+
+	CHARFORMAT2 format = { 0 };
+	format.cbSize = sizeof(CHARFORMAT2);
+	format.dwMask = CFM_COLOR | CFM_BACKCOLOR;
+	if (CTheme::Instance().IsDarkTheme())
+	{
+		format.crTextColor = CTheme::darkTextColor;
+		format.crBackColor = CTheme::darkBkColor;
+	}
+	else
+	{
+		format.crTextColor = ::GetSysColor(COLOR_WINDOWTEXT);
+		format.crBackColor = ::GetSysColor(COLOR_WINDOW);
+	}
+	pWnd->SendMessage(EM_SETCHARFORMAT, SCF_ALL, reinterpret_cast<LPARAM>(&format));
+	pWnd->SendMessage(EM_SETBKGNDCOLOR, 0, format.crBackColor);
 }

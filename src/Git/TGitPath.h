@@ -60,6 +60,9 @@ public:
 
 	CString m_StatAdd;
 	CString m_StatDel;
+#ifdef TGIT_LFS
+	CString m_LFSLockOwner;
+#endif
 	unsigned int		m_Action;
 	bool    m_Checked;
 	unsigned int ParserAction(BYTE action);
@@ -359,6 +362,14 @@ public:
 	int	ParserFromLog(BYTE_VECTOR &log, bool parseDeletes = false);
 	int ParserFromLsFile(BYTE_VECTOR &out,bool staged=true);
 	int FillUnRev(unsigned int Action, const CTGitPathList* filterlist = nullptr, CString* err = nullptr);
+#ifdef TGIT_LFS
+	int FillLFSLocks(unsigned int action, CString* err = nullptr);
+#ifndef GTEST_INCLUDE_GTEST_GTEST_H_
+private:
+#endif
+	int ParserFromLFSLocks(unsigned int action, const CString& output, CString* err = nullptr);
+#endif
+public:
 	int FillBasedOnIndexFlags(unsigned short flag, unsigned short flagextended, const CTGitPathList* filterlist = nullptr);
 	unsigned int GetAction();
 	/**
@@ -402,7 +413,7 @@ public:
 	/** Removes all paths which are on or in a git admin directory */
 	void RemoveAdminPaths();
 	void RemovePath(const CTGitPath& path);
-	void RemoveItem(CTGitPath &path);
+	void RemoveItem(const CTGitPath& path);
 	/**
 	 * Removes all child items and leaves only the top folders. Useful if you
 	 * create the list to remove them (i.e. if you remove a parent folder, the

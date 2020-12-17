@@ -134,11 +134,7 @@ BOOL CProgressDlg::OnInitDialog()
 	this->GetDlgItem(IDC_PROGRESS_BUTTON1)->ShowWindow(SW_HIDE);
 	m_Animate.Open(IDR_DOWNLOAD);
 
-	CFont m_logFont;
-	CAppUtils::CreateFontForLogs(m_logFont);
-	m_Log.SetFont(&m_logFont);
-	// make the log message rich edit control send a message when the mouse pointer is over a link
-	m_Log.SendMessage(EM_SETEVENTMASK, NULL, ENM_LINK | ENM_SCROLL);
+	SetupLogMessageViewControl();
 
 	CString InitialText;
 	if (!m_PreText.IsEmpty())
@@ -151,7 +147,7 @@ BOOL CProgressDlg::OnInitDialog()
 	m_CurrentWork.SetWindowText(L"");
 
 	if (!m_PreFailText.IsEmpty())
-		InsertColorText(this->m_Log, m_PreFailText, RGB(255, 0, 0));
+		InsertColorText(this->m_Log, m_PreFailText, CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0));
 
 	EnableSaveRestore(L"ProgressDlg");
 
@@ -340,7 +336,8 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 	if (wParam == MSG_PROGRESSDLG_START)
 	{
 		m_BufStart = 0;
-		m_Animate.Play(0, INT_MAX, INT_MAX);
+		if (CRegDWORD(L"Software\\TortoiseGit\\DownloadAnimation", TRUE) == TRUE)
+			m_Animate.Play(0, INT_MAX, INT_MAX);
 		DialogEnableWindow(IDCANCEL, TRUE);
 		if (m_pTaskbarList)
 		{
@@ -422,7 +419,7 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 			else
 				err.Format(L"\r\n\r\n%s\r\n", static_cast<LPCTSTR>(log));
 			if (!m_GitCmd.IsEmpty() || !m_GitCmdList.empty())
-				InsertColorText(this->m_Log, err, RGB(255, 0, 0));
+				InsertColorText(this->m_Log, err, CTheme::Instance().IsDarkTheme() ? RGB(207, 47, 47) : RGB(255, 0, 0));
 			if (CRegDWORD(L"Software\\TortoiseGit\\NoSounds", FALSE) == FALSE)
 				PlaySound(reinterpret_cast<LPCTSTR>(SND_ALIAS_SYSTEMEXCLAMATION), nullptr, SND_ALIAS_ID | SND_ASYNC);
 		}
@@ -436,7 +433,10 @@ LRESULT CProgressDlg::OnProgressUpdateUI(WPARAM wParam, LPARAM lParam)
 				log.Format(L"\r\n%s (%I64u ms @ %s)\r\n", static_cast<LPCTSTR>(temp), tickSpent, static_cast<LPCTSTR>(strEndTime));
 			else
 				log.Format(L"\r\n%s\r\n", static_cast<LPCTSTR>(temp));
-			InsertColorText(this->m_Log, log, RGB(0, 0, 255));
+			if (CTheme::Instance().IsHighContrastMode())
+				InsertColorText(this->m_Log, log, ::GetSysColor(COLOR_WINDOWTEXT));
+			else
+				InsertColorText(this->m_Log, log, CTheme::Instance().IsDarkTheme() ? RGB(0, 178, 255) : RGB(0, 0, 255));
 			this->DialogEnableWindow(IDCANCEL, FALSE);
 		}
 
@@ -962,4 +962,29 @@ void CProgressDlg::OnEnLinkLog(NMHDR* pNMHDR, LRESULT* pResult)
 void CProgressDlg::OnEnscrollLog()
 {
 	m_tooltips.DelTool(GetDlgItem(IDC_LOG), 1);
+}
+
+void CProgressDlg::SetupLogMessageViewControl()
+{
+	CFont logFont;
+	CAppUtils::CreateFontForLogs(logFont);
+	m_Log.SetFont(&logFont);
+	// make the log message rich edit control send a message when the mouse pointer is over a link
+	m_Log.SendMessage(EM_SETEVENTMASK, NULL, ENM_LINK | ENM_SCROLL);
+
+	CHARFORMAT2 format = { 0 };
+	format.cbSize = sizeof(CHARFORMAT2);
+	format.dwMask = CFM_COLOR | CFM_BACKCOLOR;
+	if (CTheme::Instance().IsDarkTheme())
+	{
+		format.crTextColor = CTheme::darkTextColor;
+		format.crBackColor = CTheme::darkBkColor;
+	}
+	else
+	{
+		format.crTextColor = ::GetSysColor(COLOR_WINDOWTEXT);
+		format.crBackColor = ::GetSysColor(COLOR_WINDOW);
+	}
+	m_Log.SendMessage(EM_SETCHARFORMAT, SCF_ALL, reinterpret_cast<LPARAM>(&format));
+	m_Log.SendMessage(EM_SETBKGNDCOLOR, 0, format.crBackColor);
 }

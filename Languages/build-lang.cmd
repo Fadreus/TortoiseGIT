@@ -28,15 +28,19 @@ call :nmake 1046 pt_BR
 call :nmake 1048 ro
 call :nmake 1049 ru
 call :nmake 1051 sk
+call :nmake 1052 sq
 call :nmake 1053 sv
 call :nmake 1055 tr
 call :nmake 1057 id
 call :nmake 1058 uk
+call :nmake 1060 sl
+call :nmake 1063 lt
 call :nmake 1065 fa
 call :nmake 1066 vi
 call :nmake 2052 zh_CN
 call :nmake 2070 pt_PT
 call :nmake 2074 sr@latin
+call :nmake 3098 sr@Cyrl
 goto :eof
 
 :nmake

@@ -1,7 +1,7 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
 // External Cache Copyright (C) 2005-2008, 2011-2012 - TortoiseSVN
-// Copyright (C) 2008-2017, 2019 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -147,13 +147,13 @@ bool CDirectoryWatcher::AddPath(const CTGitPath& path, bool bCloseInfoMap)
 	PTSTR pFound = StrStrI(path.GetWinPath(), L":\\RECYCLER");
 	if (pFound)
 	{
-		if ((*(pFound + 10) == '\0') || (*(pFound + 10) == '\\'))
+		if (*(pFound + wcslen(L":\\RECYCLER")) == L'\0' || *(pFound + wcslen(L":\\RECYCLER")) == L'\\')
 			return false;
 	}
 	pFound = StrStrI(path.GetWinPath(), L":\\$Recycle.Bin");
 	if (pFound)
 	{
-		if ((*(pFound + 14) == '\0') || (*(pFound + 14) == '\\'))
+		if (*(pFound + wcslen(L":\\$Recycle.Bin")) == L'\0' || *(pFound + wcslen(L":\\$Recycle.Bin")) == L'\\')
 			return false;
 	}
 
@@ -439,18 +439,18 @@ void CDirectoryWatcher::WorkerThread()
 							{
 								if ((pFound = StrStrI(buf, L"\\tmp")) != nullptr)
 								{
-									pFound += 4;
-									if (((*pFound) == '\\') || ((*pFound) == '\0'))
+									pFound += wcslen(L"\\tmp");
+									if (*pFound == L'\\' || *pFound == L'\0')
 										continue;
 								}
 								if ((pFound = StrStrI(buf, L":\\RECYCLER")) != nullptr)
 								{
-									if ((*(pFound + 10) == '\0') || (*(pFound + 10) == '\\'))
+									if (*(pFound + wcslen(L":\\RECYCLER")) == L'\0' || *(pFound + wcslen(L":\\RECYCLER")) == L'\\')
 										continue;
 								}
 								if ((pFound = StrStrI(buf, L":\\$Recycle.Bin")) != nullptr)
 								{
-									if ((*(pFound + 14) == '\0') || (*(pFound + 14) == '\\'))
+									if (*(pFound + wcslen(L":\\$Recycle.Bin")) == L'\0' || *(pFound + wcslen(L":\\$Recycle.Bin")) == L'\\')
 										continue;
 								}
 
@@ -525,7 +525,10 @@ void CDirectoryWatcher::WorkerThread()
 						// wait a while. We don't want to have this thread
 						// running using 100% CPU if something goes completely
 						// wrong.
+						pdi->CloseDirectoryHandle();
+						watchedPaths.RemovePath(pdi->m_DirName);
 						Sleep(200);
+						CloseCompletionPort();
 					}
 				}
 			}

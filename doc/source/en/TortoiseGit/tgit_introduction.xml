@@ -75,7 +75,7 @@
 		</para>
 		<para>
 			From August 2015, GoogleCode was shut down and the TortoiseGit project established their
-			website tortoisegit.org and migrated the main repository and issue tracker to GitLab.
+			website TortoiseGit.org and migrated the main repository and issue tracker to GitLab.
 		</para>
 		<para>
 			As Git became more stable it attracted more and more users
@@ -163,9 +163,9 @@
 						 development branches, and can be merged in the same way
 						 as a locally developed branch. Repositories can be easily
 						 accessed via the efficient Git protocol (optionally wrapped
-						 in ssh for authentication and security) or simply using
+						 in SSH for authentication and security) or simply using
 						 HTTP - you can publish your repository anywhere without
-						 any special webserver configuration required.
+						 any special web server configuration required.
 					</para>
 				</listitem>
 			</varlistentry>
@@ -270,7 +270,7 @@
 			</para>
 			<para>
 				One prerequisite of TortoiseGit is that it requires an already installed (command line) Git client which provides a <filename>git.exe</filename>.
-				<ulink url="https://git-for-windows.github.io/">Git for Windows</ulink> is recommended (Cygwin and Msys2 Git also work, see <xref linkend="tgit-dug-settings-main"/> for configuration. Please note that Cygwin and Msys2 Git are not officially supported by TortoiseGit as the developers only use Git for Windows. Bug reports, however, are welcome).
+				<ulink url="https://git-for-windows.github.io/">Git for Windows</ulink> is recommended (Cygwin and MSYS2 Git also work, see <xref linkend="tgit-dug-settings-main"/> for configuration. Please note that Cygwin and MSYS2 Git are not officially supported by TortoiseGit as the developers only use Git for Windows. Bug reports, however, are welcome).
 				Installation of Git for Windows can be done with preselected options, however, no need to install the "Windows Explorer integration".
 				If you know about CRLF and LF line endings and you have editors coping with that, you should select "Checkout as-is, commit as-is" in order to prevent automatic translations.
 			</para>
@@ -301,15 +301,15 @@
 				the team and <ulink url="https://tortoisegit.org/translate">submit your own translation</ulink> ;-)
 			</para>
 			<para>
-				Each language pack is packaged as a <literal>.msi</literal> installer.
+				Each language pack is packaged as a <filename>.msi</filename> installer.
 				Just run the install program after the installation of the main TortoiseGit package and follow the instructions.
 				After the installation finishes, the translation will be available and can be selected in settings dialog (cf. <xref linkend="tgit-dug-settings-main"/>).
 			</para>
 		</sect2>
 		<sect2 id="tgit-intro-instalsl-spell">
-			<title>Spellchecker</title>
+			<title>Spell checker</title>
 			<indexterm>
-				<primary>spellchecker</primary>
+				<primary>spell checker</primary>
 			</indexterm>
 			<indexterm>
 				<primary>dictionary</primary>
@@ -319,17 +319,17 @@
 				commit log messages. This is especially useful if the project language
 				is not your native language.
 				By default the spell checker uses the same dictionary files as
-				<ulink url="http://libreoffice.org">
+				<ulink url="https://www.libreoffice.org/">
 					<citetitle>LibreOffice</citetitle>
 				</ulink>,
-				<ulink url="http://openoffice.org">
-					<citetitle>OpenOffice</citetitle>
+				<ulink url="https://www.openoffice.org/">
+					<citetitle>OpenOffice.org</citetitle>
 				</ulink>
 				and
-				<ulink url="http://mozilla.org">
+				<ulink url="https://mozilla.org">
 					<citetitle>Mozilla</citetitle>
 				</ulink>.
-				TortoiseGit can also use the spell checker shipped with Windows 8+. However, this needs to be enabled manually in advanced settings (key "Win8SpellChecker") at the moment.
+				TortoiseGit can also use the spell checker shipped with Windows 8+. However, this needs to be enabled manually in advanced settings (key <literal>Win8SpellChecker</literal>) at the moment.
 			</para>
 			<para>
 				The installer by default automatically adds the US English dictionary.
@@ -341,16 +341,16 @@
 				When using the Windows spell checker, you need to install the dictionary in Windows first.
 			</para>
 			<para>
-				Or you can install the dictionaries yourself. If you have OpenOffice, LibreOffice or
+				Or you can install the dictionaries yourself. If you have OpenOffice.org, LibreOffice or
 				Mozilla installed, you can copy those dictionaries, which are located
 				in the installation folders for those applications.
 				Otherwise, you need to download the required dictionary files from
-				<ulink url="http://cgit.freedesktop.org/libreoffice/dictionaries/">
-					<citetitle>http://cgit.freedesktop.org/libreoffice/dictionaries/</citetitle>
+				<ulink url="https://cgit.freedesktop.org/libreoffice/dictionaries/">
+					<citetitle>https://cgit.freedesktop.org/libreoffice/dictionaries/</citetitle>
 				</ulink>
 				or
-				<ulink url="http://wiki.services.openoffice.org/wiki/Dictionaries">
-					<citetitle>http://wiki.services.openoffice.org/wiki/Dictionaries</citetitle>
+				<ulink url="https://wiki.openoffice.org/wiki/Dictionaries">
+					<citetitle>https://wiki.openoffice.org/wiki/Dictionaries</citetitle>
 				</ulink>
 			</para>
 			<para>
@@ -375,7 +375,7 @@
 				TortoiseGit will also search the <filename>Languages</filename> sub-folder of
 				the TortoiseGit installation folder (normally this will be <filename>C:\Program Files\TortoiseGit\Languages</filename>);
 				this is the place where the language packs put their files.
-				However, the %APPDATA%-folder doesn't require administrator privileges and, thus, has higher priority.
+				However, the <filename>%APPDATA%</filename>-folder doesn't require administrator privileges and, thus, has higher priority.
 				The next time you start TortoiseGit, the spell checker will be available.
 			</para>
 			<para>
@@ -386,7 +386,7 @@
 						<para>
 						Check the <literal>tgit.projectlanguage</literal> setting. This setting can be set using TortoiseGit Settings <guilabel>Dialogs 3</guilabel> page (<xref linkend="tgit-dug-settings-dialogs3"/>).
 						Refer to <xref linkend="git-config(1)"/> for information
-						about setting properties (use the <literal>LCID Dec</literal> value as <ulink url="http://msdn.microsoft.com/de-de/goglobal/bb964664.aspx">assigned by Microsoft</ulink>).
+						about setting properties (use the <literal>LCID Dec</literal> value as <ulink url="https://docs.microsoft.com/openspecs/windows_protocols/ms-lcid/a9eac961-e77d-41a6-90a5-ce1a8b0cdb9c">assigned by Microsoft</ulink>).
 						</para>
 					</listitem>
 					<listitem>
@@ -398,7 +398,7 @@
 					<listitem>
 						<para>
 						If the exact Windows locale doesn't work, try the
-						<quote>Base</quote> language, eg.
+						<quote>Base</quote> language, e.g.
 						<literal>de_CH</literal> (Swiss-German) falls back to
 						<literal>de_DE</literal> (German).
 						</para>

@@ -46,9 +46,9 @@ void for_each(Cont& c, Pred&& p)
 }
 
 template <typename Cont, typename Pred>
-auto find_if(Cont& c, Pred&& p)
+auto any_of(Cont& c, Pred&& p)
 {
-	return std::find_if(cbegin(c), cend(c), p);
+	return std::any_of(cbegin(c), cend(c), p);
 }
 
 // CGitLogList
@@ -423,7 +423,7 @@ public:
 	int  FillGitLog(std::unordered_set<CGitHash>& hashes);
 protected:
 	CString MessageDisplayStr(GitRev* pLogEntry);
-	bool ShouldShowFilter(GitRevLoglist* pRev, const std::unordered_map<CGitHash, std::unordered_set<CGitHash>>& commitChildren, MAP_HASH_NAME& hashMap);
+	bool ShouldShowFilter(GitRevLoglist* pRev, const std::unordered_map<CGitHash, std::unordered_set<CGitHash>>& commitChildren, const MAP_HASH_NAME& hashMap);
 public:
 	void ShowGraphColumn(bool bShow);
 	CString	GetTagInfo(GitRev* pLogEntry) const;
@@ -465,7 +465,7 @@ public:
 	void				GetTimeRange(CTime &oldest,CTime &latest);
 protected:
 	virtual void GetParentHashes(GitRev* pRev, GIT_REV_LIST& parentHash);
-	virtual void ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CMenu* menu, MAP_HASH_NAME& hashMap) = 0;
+	virtual void ContextMenuAction(int cmd, int FirstSelect, int LastSelect, CMenu* menu, const MAP_HASH_NAME& hashMap) = 0;
 	void UpdateSubmodulePointer()
 	{
 		m_superProjectHash.Empty();
@@ -588,12 +588,12 @@ protected:
 	 * pShortname OUT: the short name of that reference label
 	 * pIndex     OUT: the index value of label of that entry
 	 */
-	bool IsMouseOnRefLabel(const GitRevLoglist* pLogEntry, const POINT& pt, CGit::REF_TYPE& type, MAP_HASH_NAME& hashMap, CString* pShortname = nullptr, size_t* pIndex = nullptr);
-	bool IsMouseOnRefLabelFromPopupMenu(const GitRevLoglist* pLogEntry, const CPoint& pt, CGit::REF_TYPE& type, MAP_HASH_NAME& hashMap, CString* pShortname = nullptr, size_t* pIndex = nullptr);
+	bool IsMouseOnRefLabel(const GitRevLoglist* pLogEntry, const POINT& pt, CGit::REF_TYPE& type, const MAP_HASH_NAME& hashMap, CString* pShortname = nullptr, size_t* pIndex = nullptr);
+	bool IsMouseOnRefLabelFromPopupMenu(const GitRevLoglist* pLogEntry, const CPoint& pt, CGit::REF_TYPE& type, const MAP_HASH_NAME& hashMap, CString* pShortname = nullptr, size_t* pIndex = nullptr);
 
 	void FillBackGround(HDC hdc, DWORD_PTR Index, CRect &rect);
-	void DrawTagBranchMessage(NMLVCUSTOMDRAW* pLVCD, CRect& rect, INT_PTR index, std::vector<REFLABEL>& refList);
-	void DrawTagBranch(HDC hdc, CDC& W_Dc, HTHEME hTheme, CRect& rect, CRect& rt, LVITEM& rItem, GitRevLoglist* data, std::vector<REFLABEL>& refList);
+	void DrawTagBranchMessage(NMLVCUSTOMDRAW* pLVCD, const CRect& rect, INT_PTR index, const std::vector<REFLABEL>& refList);
+	void DrawTagBranch(HDC hdc, CDC& W_Dc, HTHEME hTheme, const CRect& rect, CRect& rt, LVITEM& rItem, GitRevLoglist* data, const std::vector<REFLABEL>& refList);
 	void DrawGraph(HDC,CRect &rect,INT_PTR index);
 	bool DrawListItemWithMatchesIfEnabled(std::shared_ptr<CLogDlgFilter> filter, DWORD selectedFilter, NMLVCUSTOMDRAW* pLVCD, LRESULT* pResult);
 	static void DrawListItemWithMatchesRect(NMLVCUSTOMDRAW* pLVCD, const std::vector<CHARRANGE>& ranges, CRect rect, const CString& text, CColors& colors, HTHEME hTheme = nullptr, int txtState = 0);
@@ -684,6 +684,7 @@ protected:
 	CAutoIcon m_hDeletedIcon;
 	CAutoIcon m_hFetchIcon;
 
+	CFont				m_Font;
 	CFont				m_boldFont;
 	CFont				m_FontItalics;
 	CFont				m_boldItalicsFont;
@@ -697,7 +698,6 @@ protected:
 	CString				m_CurrentBranch;
 	CGitHash			m_HeadHash;
 
-	COLORREF			m_LineColors[Lanes::COLORS_NUM];
 	DWORD				m_LineWidth;
 	DWORD				m_NodeSize;
 	DWORD				m_DateFormat;	// DATE_SHORTDATE or DATE_LONGDATE

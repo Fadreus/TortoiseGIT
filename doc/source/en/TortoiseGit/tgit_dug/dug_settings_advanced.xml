@@ -119,7 +119,7 @@
 					Set this to <literal>true</literal> if you want TortoiseGit
 					to print out debug messages during execution. The messages
 					can be captured with special debugging tools only (like
-					<ulink url="http://technet.microsoft.com/en-us/sysinternals/bb896647.aspx"><citetitle>Debug View</citetitle></ulink>
+					<ulink url="https://docs.microsoft.com/sysinternals/downloads/debugview"><citetitle>Debug View</citetitle></ulink>
 					from the SysInternals Suite).
 				</para>
 			</listitem>
@@ -149,6 +149,18 @@
 			</listitem>
 		</varlistentry>
 -->
+		<varlistentry>
+			<term condition="pot">DownloadAnimation</term>
+			<listitem>
+				<para>
+					When performing <filename>git.exe</filename> or remote operations TortoiseGit dialogs
+					play an animation with a flying turtle.
+					This setting allows to disable the playing of the animation by
+					setting it to <literal>false</literal>.
+					The default value is <literal>true</literal>.
+				</para>
+			</listitem>
+		</varlistentry>
 		<varlistentry>
 			<term condition="pot">FullRowSelect</term>
 			<listitem>
@@ -216,7 +228,7 @@
 								the setting set to <literal>3</literal> (grouping by application),
 								except that grouping takes place
 								independently of the working tree. This was the default
-								before TGit 1.8.1.2.
+								before TortoiseGit 1.8.1.2.
 							</para>
 						</listitem>
 						<listitem>
@@ -280,8 +292,8 @@
 			<term condition="pot">Msys2Hack</term>
 			<listitem>
 				<para>
-					This enables some workarounds which enables TortoiseGit to be used with Msys2 Git (do not enable this for the Git for Windows package!).
-					Msys2 Git, however, is not officially supported by TortoiseGit.
+					This enables some workarounds which enables TortoiseGit to be used with MSYS2 Git (do not enable this for the Git for Windows package!).
+					MSYS2 Git, however, is not officially supported by TortoiseGit.
 					See <xref linkend="tgit-dug-settings-main"/> for more information.
 					The default is <literal>false</literal>.
 				</para>
@@ -329,7 +341,7 @@
 			<term condition="pot">ProgressDlgLinesLimit</term>
 			<listitem>
 				<para>
-					The Git progress dialog shows the output of the executed git.exe commands.
+					The Git progress dialog shows the output of the executed <filename>git.exe</filename> commands.
 					The number of lines are limited for performance reasons. The default is <literal>50000</literal>, minimum is <literal>50</literal>.
 				</para>
 			</listitem>
@@ -342,7 +354,7 @@
 					TortoiseGit 1.7.10 added files which were not checked on a commit, were removed from
 					the index and unversioned after the commit. Set this value to <literal>false</literal>
 					to restore the old behavior.
-					Set this value to <literal>true</literal> to readd these files again after the commit (default).
+					Set this value to <literal>true</literal> to re-add these files again after the commit (default).
 				</para>
 			</listitem>
 		</varlistentry>
@@ -473,7 +485,7 @@
 					This option allows to restrict this behavior for files which do not exceed a specific size (in KiB).
 					The default maximum file size is 10 MiB (i.e., 10 * 1024 KiB = <literal>10240</literal> KiB).
 					Set this to 0 in order to make TGitCache only check the timestamps (as TortoiseGit 1.7.0 up to 1.7.12 did;
-					before TortoiseGit 1.9.0.0 this was controlled by TGitCacheCheckContent).
+					before TortoiseGit 1.9.0.0 this was controlled by <literal>TGitCacheCheckContent</literal>).
 					Disabling checking the file contents can lower disk access and CPU time of the TGitCache process, however, overlay
 					accuracy might not be as accurate as with checking of the file contents enabled.
 				</para>
@@ -484,7 +496,7 @@
 			<listitem>
 				<para>
 					The standard edit controls do not stop on forward slashes
-					like they're found in paths and urls. TortoiseGit uses
+					like they're found in paths and URLs. TortoiseGit uses
 					a custom word break procedure for the edit controls.
 					If you don't want that and use the default instead,
 					set this value to 0. If you only want the default

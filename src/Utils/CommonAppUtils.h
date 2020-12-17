@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2015-2019 - TortoiseGit
+// Copyright (C) 2008-2013, 2015-2020 - TortoiseGit
 // Copyright (C) 2003-2008,2010 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -95,6 +95,21 @@ public:
 	 */
 	static void SetCharFormat(CWnd* window, DWORD mask, DWORD effects, const std::vector<CHARRANGE>& positions);
 	static void SetCharFormat(CWnd* window, DWORD mask, DWORD effects);
+
+	/**
+	 * Returns font name which is used for log messages, etc.
+	 */
+	static CString GetLogFontName();
+
+	/**
+	 * Returns font size which is used for log messages, etc.
+	 */
+	static DWORD GetLogFontSize();
+
+	/**
+	 * Create a font which can is used for log messages, etc
+	 */
+	static void CreateFontForLogs(CFont& fontToCreate);
 
 	CCommonAppUtils() = delete;
 };

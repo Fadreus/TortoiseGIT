@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2017, 2019 - TortoiseGit
+// Copyright (C) 2008-2017, 2019-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -168,6 +168,8 @@ BOOL CCloneDlg::OnInitDialog()
 	{
 		CString str = CAppUtils::GetClipboardLink(L"git clone ");
 		str.Trim();
+		if (str.GetLength() > 2 && str[0] == L'"' && str[str.GetLength() - 1] == L'"')
+			str = str.Mid(1, str.GetLength() - 2);
 		if(str.IsEmpty())
 			m_URLCombo.SetCurSel(0);
 		else
@@ -194,10 +196,13 @@ BOOL CCloneDlg::OnInitDialog()
 
 	EnableSaveRestore(L"CloneDlg");
 
+	DialogEnableWindow(IDC_CHECK_LFS, g_Git.ms_LastMsysGitVersion < ConvertVersionToInt(2, 15, 0));
+
 	OnBnClickedCheckSvn();
 	OnBnClickedCheckDepth();
 	OnBnClickedCheckBranch();
 	OnBnClickedCheckOrigin();
+	SetTheme(CTheme::Instance().IsDarkTheme());
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -431,7 +436,7 @@ void CCloneDlg::OnBnClickedCheckSvn()
 	this->GetDlgItem(IDC_CHECK_BRANCH)->EnableWindow(!m_bSVN);
 	this->GetDlgItem(IDC_EDIT_BRANCH)->EnableWindow(!m_bSVN);
 	this->GetDlgItem(IDC_CHECK_NOCHECKOUT)->EnableWindow(!m_bSVN);
-	this->GetDlgItem(IDC_CHECK_LFS)->EnableWindow(!m_bSVN);
+	this->GetDlgItem(IDC_CHECK_LFS)->EnableWindow(!m_bSVN && g_Git.ms_LastMsysGitVersion < ConvertVersionToInt(2, 15, 0));
 	OnBnClickedCheckSvnTrunk();
 	OnBnClickedCheckSvnTag();
 	OnBnClickedCheckSvnBranch();

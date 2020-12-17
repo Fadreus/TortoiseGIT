@@ -1,6 +1,6 @@
 ﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2009, 2012-2019 - TortoiseGit
+// Copyright (C) 2008-2009, 2012-2020 - TortoiseGit
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -78,7 +78,7 @@ protected:
 	afx_msg void OnBnClickedButtonEmail();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnDestroy();
-	afx_msg LRESULT OnThemeChanged();
+	void SetTheme(bool bDark) override;
 
 	afx_msg LRESULT	OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam);
 	CComPtr<ITaskbarList3>	m_pTaskbarList;
@@ -185,7 +185,7 @@ protected:
 	}
 
 	void AddDiffFileList(CGitStatusListCtrl *pCtrlList, CTGitPathList *pGitList,
-							CGitHash& rev1, CGitHash& rev2)
+							const CGitHash& rev1, const CGitHash& rev2)
 	{
 		g_Git.GetCommitDiffList(rev1.ToString(), rev2.ToString(), *pGitList);
 		pCtrlList->m_Rev1 = rev1;

@@ -1,6 +1,6 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2006, 2011 - TortoiseSVN
+// Copyright (C) 2006, 2011, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -87,12 +87,12 @@ public:
 	 */
 	void		CenterSplitter();
 
-	int			GetOldRowCount() { return m_nOldRows; }
-	int			GetOldColCount() { return m_nOldCols; }
-	bool		HasOldRowSize() { return m_pRowOldSize != nullptr; }
-	bool		HasOldColSize() { return m_pColOldSize != nullptr; }
-	int			GetOldRowSize(int index) { return m_pRowOldSize[index]; }
-	int			GetOldColSize(int index) { return m_pColOldSize[index]; }
+	int			GetOldRowCount() const { return m_nOldRows; }
+	int			GetOldColCount() const { return m_nOldCols; }
+	bool		HasOldRowSize() const { return m_pRowOldSize != nullptr; }
+	bool		HasOldColSize() const { return m_pColOldSize != nullptr; }
+	int			GetOldRowSize(int index) const { return m_pRowOldSize[index]; }
+	int			GetOldColSize(int index) const { return m_pColOldSize[index]; }
 
 protected:
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
@@ -103,6 +103,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 	void		CopyRowAndColInfo();
+	void		OnDrawSplitter(CDC* pDC, ESplitType nType, const CRect& rect) override;
 private:
 	BOOL		m_bBarLocked;	///< is the splitter bar locked?
 	int			m_nHiddenCol;	///< Index of the hidden column.

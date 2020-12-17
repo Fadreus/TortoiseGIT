@@ -1,7 +1,7 @@
 ﻿// TortoiseGitMerge - a Diff/Patch program
 
 // Copyright (C) 2018-2019 - TortoiseGit
-// Copyright (C) 2006, 2009, 2015, 2018 - TortoiseSVN
+// Copyright (C) 2006, 2009, 2015, 2018, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 #pragma once
+#include "DPIAware.h"
 
 class CSetMainPage;
 class CSetColorPage;
@@ -64,7 +65,7 @@ private:
 		{
 			const DLGTEMPLATE* pResource = ppsp->pResource;
 			CDialogTemplate dlgTemplate(pResource);
-			dlgTemplate.SetFont(L"MS Shell Dlg 2", 9);
+			dlgTemplate.SetFont(L"Segoe UI", 9);
 			HGLOBAL hNew = GlobalAlloc(GPTR, dlgTemplate.m_dwTemplateSize);
 			ppsp->pResource = static_cast<DLGTEMPLATE*>(GlobalLock(hNew));
 			Checked::memcpy_s(const_cast<void*>(static_cast<const void*>(ppsp->pResource)), dlgTemplate.m_dwTemplateSize, dlgTemplate.m_hTemplate, dlgTemplate.m_dwTemplateSize);
@@ -76,8 +77,11 @@ private:
 		m_psh.ppsp = ppsp0;
 	}
 
+private:
 	CSetMainPage *		m_pMainPage;
 	CSetColorPage *		m_pColorPage;
+
+	int m_themeCallbackId;
 
 public:
 	CSettings(UINT nIDCaption, CWnd* pParentWnd = nullptr, UINT iSelectPage = 0);
@@ -90,9 +94,11 @@ public:
 	void SaveData();
 
 	BOOL IsReloadNeeded() const;
+	bool IsDarkMode() const;
+
 protected:
 	DECLARE_MESSAGE_MAP()
-	virtual BOOL OnInitDialog();
+	virtual BOOL OnInitDialog() override;
 };
 
 

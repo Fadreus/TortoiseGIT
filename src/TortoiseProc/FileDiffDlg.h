@@ -33,6 +33,7 @@
 #include "LogDlgFileFilter.h"
 #include "PatchViewDlg.h"
 #include "HyperLink.h"
+#include "ThemeControls.h"
 
 #define IDT_FILTER		101
 #define IDT_INPUT		102
@@ -101,7 +102,7 @@ protected:
 
 	void				EnableInputControl(bool b=true);
 
-	int					RevertSelectedItemToVersion(CString rev);
+	int					RevertSelectedItemToVersion(const CString& rev, bool isOldVersion);
 
 	bool				CheckMultipleDiffs();
 
@@ -144,12 +145,13 @@ private:
 
 	CMenuButton			m_cDiffOptionsBtn;
 
-	CMFCButton			m_SwitchButton;
+	CThemeMFCButton		m_SwitchButton;
 	CColors				m_colors;
+	CFont				m_font;
 	CGestureEnabledControlTmpl<CHintCtrl<CListCtrl>>	m_cFileList;
 	bool				m_bBlame;
 	CTGitPathList		m_arFileList;
-	std::vector<CTGitPath*> m_arFilteredList;
+	std::vector<const CTGitPath*> m_arFilteredList;
 
 	CString				m_strExportDir;
 

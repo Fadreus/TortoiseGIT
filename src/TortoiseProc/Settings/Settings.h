@@ -1,6 +1,6 @@
-// TortoiseGit - a Windows shell extension for easy version control
+﻿// TortoiseGit - a Windows shell extension for easy version control
 
-// Copyright (C) 2008-2013, 2016 - TortoiseGit
+// Copyright (C) 2008-2013, 2016, 2020 - TortoiseGit
 // Copyright (C) 2003-2011 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
@@ -61,7 +61,7 @@ using namespace TreePropSheet;
  * it means that the changes are discarded! Each settings page has
  * to make sure that no changes are saved outside that method.
  */
-class CSettings : public CStandAloneDialogTmpl<CTreePropSheet>
+class CSettings : public CTreePropSheet
 {
 	DECLARE_DYNAMIC(CSettings)
 
@@ -113,6 +113,8 @@ public:
 	 * Calls the SaveData()-methods of each of the settings pages.
 	 */
 	void HandleRestart();
+
+	void SetTheme(bool bDark);
 
 protected:
 	DECLARE_MESSAGE_MAP()

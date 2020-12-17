@@ -37,6 +37,7 @@
 #include "StringUtils.h"
 #include "Hooks.h"
 #include "LogDlg.h"
+#include "ThemeMFCVisualManager.h"
 
 // CRebaseDlg dialog
 
@@ -92,8 +93,6 @@ BEGIN_MESSAGE_MAP(CRebaseDlg, CResizableStandAloneDialog)
 	ON_BN_CLICKED(IDC_REBASE_CONTINUE,OnBnClickedContinue)
 	ON_BN_CLICKED(IDC_REBASE_ABORT,  OnBnClickedAbort)
 	ON_WM_SIZE()
-	ON_WM_THEMECHANGED()
-	ON_WM_SYSCOLORCHANGE()
 	ON_CBN_SELCHANGE(IDC_REBASE_COMBOXEX_BRANCH,   &CRebaseDlg::OnCbnSelchangeBranch)
 	ON_CBN_SELCHANGE(IDC_REBASE_COMBOXEX_UPSTREAM, &CRebaseDlg::OnCbnSelchangeUpstream)
 	ON_MESSAGE(MSG_REBASE_UPDATE_UI, OnRebaseUpdateUI)
@@ -200,7 +199,9 @@ BOOL CRebaseDlg::OnInitDialog()
 	pwnd->GetWindowRect(&rectDummy);
 	this->ScreenToClient(rectDummy);
 
-	if (!m_ctrlTabCtrl.Create(CMFCTabCtrl::STYLE_FLAT, rectDummy, this, IDC_REBASE_TAB))
+	if (CTheme::Instance().IsDarkTheme())
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CThemeMFCVisualManager));
+	if (!m_ctrlTabCtrl.Create(CTheme::Instance().IsDarkTheme() ? CMFCTabCtrl::STYLE_3D : CMFCTabCtrl::STYLE_FLAT, rectDummy, this, IDC_REBASE_TAB))
 	{
 		TRACE0("Failed to create output tab window\n");
 		return FALSE;      // fail to create
@@ -225,7 +226,7 @@ BOOL CRebaseDlg::OnInitDialog()
 	m_ProjectProperties.ReadProps();
 	m_LogMessageCtrl.Init(m_ProjectProperties);
 	m_LogMessageCtrl.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
-	m_LogMessageCtrl.Call(SCI_SETREADONLY, TRUE);
+	m_LogMessageCtrl.SetReadOnly(true);
 
 	dwStyle = LBS_NOINTEGRALHEIGHT | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL;
 
@@ -236,7 +237,8 @@ BOOL CRebaseDlg::OnInitDialog()
 	}
 	m_wndOutputRebase.Init(-1);
 	m_wndOutputRebase.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
-	m_wndOutputRebase.Call(SCI_SETREADONLY, TRUE);
+	m_wndOutputRebase.SetReadOnly(true);
+	m_wndOutputRebase.Call(SCI_SETUNDOCOLLECTION, 0);
 
 	m_tooltips.AddTool(IDC_REBASE_CHECK_FORCE,IDS_REBASE_FORCE_TT);
 	m_tooltips.AddTool(IDC_REBASE_ABORT, IDS_REBASE_ABORT_TT);
@@ -285,7 +287,7 @@ BOOL CRebaseDlg::OnInitDialog()
 		int delta = yPos - rectSplitter.top;
 		if ((rcLogMsg.bottom + delta > rcLogMsg.top) && (rcLogMsg.bottom + delta < rcFileList.bottom - CDPIAware::Instance().ScaleY(30)))
 		{
-			m_wndSplitter.SetWindowPos(nullptr, 0, yPos, 0, 0, SWP_NOSIZE);
+			m_wndSplitter.SetWindowPos(nullptr, rectSplitter.left, yPos, 0, 0, SWP_NOSIZE);
 			DoSize(delta);
 		}
 	}
@@ -353,6 +355,8 @@ BOOL CRebaseDlg::OnInitDialog()
 	else
 		this->m_CurrentRebaseIndex = static_cast<int>(m_CommitList.m_logEntries.size());
 
+	SetTheme(CTheme::Instance().IsDarkTheme());
+
 	if (GetDlgItem(IDC_REBASE_CONTINUE)->IsWindowEnabled() && m_bRebaseAutoStart)
 		this->PostMessage(WM_COMMAND, MAKELONG(IDC_REBASE_CONTINUE, BN_CLICKED), reinterpret_cast<LPARAM>(GetDlgItem(IDC_REBASE_CONTINUE)->GetSafeHwnd()));
 
@@ -364,9 +368,9 @@ HBRUSH CRebaseDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
 	if (pWnd->GetDlgCtrlID() == IDC_STATUS_STATIC && nCtlColor == CTLCOLOR_STATIC && m_bStatusWarning)
 	{
-		pDC->SetBkColor(RGB(255, 0, 0));
-		pDC->SetTextColor(RGB(255, 255, 255));
-		return CreateSolidBrush(RGB(255, 0, 0));
+		pDC->SetBkColor(CTheme::Instance().GetThemeColor(RGB(255, 0, 0)));
+		pDC->SetTextColor(CTheme::Instance().GetThemeColor(RGB(255, 255, 255)));
+		return CreateSolidBrush(CTheme::Instance().GetThemeColor(RGB(255, 0, 0)));
 	}
 
 	return CResizableStandAloneDialog::OnCtlColor(pDC, pWnd, nCtlColor);
@@ -1960,6 +1964,7 @@ static CString GetCommitTitle(const CGitHash& parentHash)
 			commitTitle.Truncate(20);
 			commitTitle += L"...";
 		}
+		commitTitle.Replace(L"&", L"&&");
 		str.AppendFormat(L"\n%s (%s)", static_cast<LPCTSTR>(commitTitle), static_cast<LPCTSTR>(parentHash.ToString(g_Git.GetShortHASHLength())));
 	}
 	else
@@ -2461,7 +2466,7 @@ LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_CONFLICT);
 		if (m_pTaskbarList)
 			m_pTaskbarList->SetProgressState(m_hWnd, TBPF_ERROR);
-		this->m_LogMessageCtrl.Call(SCI_SETREADONLY, FALSE);
+		this->m_LogMessageCtrl.SetReadOnly(false);
 		CString logMessage;
 		if (m_IsCherryPick)
 		{
@@ -2474,13 +2479,14 @@ LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 		if (logMessage.IsEmpty())
 			logMessage = curRev->GetSubject() + L'\n' + curRev->GetBody();
 		this->m_LogMessageCtrl.SetText(logMessage);
+		m_LogMessageCtrl.ClearUndoBuffer();
 		break;
 		}
 	case REBASE_EDIT:
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_MESSAGE);
 		if (m_pTaskbarList)
 			m_pTaskbarList->SetProgressState(m_hWnd, TBPF_PAUSED);
-		this->m_LogMessageCtrl.Call(SCI_SETREADONLY, FALSE);
+		this->m_LogMessageCtrl.SetReadOnly(false);
 		if (m_bAddCherryPickedFrom)
 		{
 			// Since the new commit is done and the HEAD points to it,
@@ -2493,11 +2499,13 @@ LRESULT CRebaseDlg::OnRebaseUpdateUI(WPARAM,LPARAM)
 		}
 		else
 			m_LogMessageCtrl.SetText(curRev->GetSubject() + L'\n' + curRev->GetBody());
+		m_LogMessageCtrl.ClearUndoBuffer();
 		break;
 	case REBASE_SQUASH_EDIT:
 		this->m_ctrlTabCtrl.SetActiveTab(REBASE_TAB_MESSAGE);
-		this->m_LogMessageCtrl.Call(SCI_SETREADONLY, FALSE);
+		this->m_LogMessageCtrl.SetReadOnly(false);
 		this->m_LogMessageCtrl.SetText(this->m_SquashMessage);
+		m_LogMessageCtrl.ClearUndoBuffer();
 		if (m_pTaskbarList)
 			m_pTaskbarList->SetProgressState(m_hWnd, TBPF_PAUSED);
 		break;
@@ -2841,9 +2849,8 @@ void CRebaseDlg::FillLogMessageCtrl()
 		int selIndex = m_CommitList.GetNextSelectedItem(pos);
 		GitRevLoglist* pLogEntry = m_CommitList.m_arShownList.SafeGetAt(selIndex);
 		OnRefreshFilelist();
-		m_LogMessageCtrl.Call(SCI_SETREADONLY, FALSE);
 		m_LogMessageCtrl.SetText(pLogEntry->GetSubject() + L'\n' + pLogEntry->GetBody());
-		m_LogMessageCtrl.Call(SCI_SETREADONLY, TRUE);
+		m_LogMessageCtrl.ClearUndoBuffer();
 	}
 }
 
@@ -2985,19 +2992,21 @@ int	CRebaseDlg::RunGitCmdRetryOrAbort(const CString& cmd)
 	}
 }
 
-LRESULT CRebaseDlg::OnThemeChanged()
+void CRebaseDlg::SetTheme(bool bDark)
 {
+	__super::SetTheme(bDark);
 	CMFCVisualManager::GetInstance()->DestroyInstance();
-	return 0;
-}
-
-void CRebaseDlg::OnSysColorChange()
-{
-	__super::OnSysColorChange();
-	m_LogMessageCtrl.SetColors(true);
-	m_LogMessageCtrl.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
-	m_wndOutputRebase.SetColors(true);
-	m_wndOutputRebase.SetFont(CAppUtils::GetLogFontName(), CAppUtils::GetLogFontSize());
+	if (bDark)
+	{
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CThemeMFCVisualManager));
+		m_ctrlTabCtrl.ModifyTabStyle(CMFCTabCtrl::STYLE_3D);
+	}
+	else
+	{
+		CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+		m_ctrlTabCtrl.ModifyTabStyle(CMFCTabCtrl::STYLE_FLAT);
+	}
+	CMFCVisualManager::RedrawAll();
 }
 
 void CRebaseDlg::OnBnClickedButtonAdd()

@@ -1,6 +1,6 @@
-// TortoiseGitMerge - a Diff/Patch program
+﻿// TortoiseGitMerge - a Diff/Patch program
 
-// Copyright (C) 2006-2007, 2010, 2013-2014, 2016 - TortoiseSVN
+// Copyright (C) 2006-2007, 2010, 2013-2014, 2016, 2020 - TortoiseSVN
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -20,6 +20,7 @@
 #include "resource.h"
 #include <afxcmn.h>
 #include "HistoryCombo.h"
+#include "StandAloneDlg.h"
 #include "registry.h"
 
 #define REPLACEMSGSTRINGW  L"TortoiseGitMerge_FindReplace"
@@ -28,7 +29,7 @@
  * \ingroup TortoiseMerge
  * Find dialog used in TortoiseMerge.
  */
-class CFindDlg : public CDialog
+class CFindDlg : public CStandAloneDialog
 {
 	DECLARE_DYNAMIC(CFindDlg)
 
@@ -36,14 +37,14 @@ public:
 	CFindDlg(CWnd* pParent = nullptr);   // standard constructor
 	virtual ~CFindDlg();
 	void Create(CWnd* pParent = nullptr, int id = 0);
-	bool IsTerminating() {return m_bTerminating;}
-	bool FindNext() {return m_bFindNext;}
-	bool MatchCase() {return !!m_bMatchCase;}
-	bool LimitToDiffs() {return !!m_bLimitToDiffs;}
-	bool WholeWord() {return !!m_bWholeWord;}
-	bool SearchUp() { return !!m_bSearchUp; }
-	CString GetFindString() { return m_FindCombo.GetString(); }
-	CString GetReplaceString() { return m_ReplaceCombo.GetString(); }
+	bool IsTerminating() const { return m_bTerminating; }
+	bool FindNext() const { return m_bFindNext; }
+	bool MatchCase() const { return !!m_bMatchCase; }
+	bool LimitToDiffs() const { return !!m_bLimitToDiffs; }
+	bool WholeWord() const { return !!m_bWholeWord; }
+	bool SearchUp() const { return !!m_bSearchUp; }
+	CString GetFindString() const { return m_FindCombo.GetString(); }
+	CString GetReplaceString() const { return m_ReplaceCombo.GetString(); }
 	void SetFindString(const CString& str) { if (!str.IsEmpty()) { m_FindCombo.SetWindowText(str); } }
 	void SetStatusText(const CString& str, COLORREF color = RGB(0, 0, 255));
 	void SetReadonly(bool bReadonly);
@@ -65,7 +66,7 @@ protected:
 	virtual void OnCancel();
 	virtual void PostNcDestroy();
 	virtual void OnOK();
-	virtual BOOL OnInitDialog();
+	virtual BOOL OnInitDialog() override;
 	afx_msg void OnCbnEditchangeFindcombo();
 	afx_msg void OnBnClickedCount();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd *pWnd, UINT nCtlColor);
